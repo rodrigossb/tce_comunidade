@@ -5,6 +5,8 @@
   'use strict';
   const T = window.TCE; const D = T.D; const I = T.icon; const esc = T.esc;
   const root = document.getElementById('app');
+  // Modo totem (totem.html): aparelho compartilhado em pé — sem memória, sem favoritos/compartilhar, QR em destaque.
+  const TOTEM = window.TCE_TOTEM || null;
   const VIEWS = {
     programacao: { label: 'Programação', icon: 'calendar' },
     busca: { label: 'Buscar', icon: 'search' },
@@ -22,8 +24,8 @@
 
   const favs = new Set((() => { try { return JSON.parse(localStorage.getItem(LS_FAV)) || []; } catch { return []; } })());
   const saveFavs = () => { try { localStorage.setItem(LS_FAV, JSON.stringify([...favs])); } catch { /* sem storage */ } };
-  const prefs = (() => { try { return JSON.parse(localStorage.getItem(LS_PREFS)) || {}; } catch { return {}; } })();
-  const savePrefs = () => { try { localStorage.setItem(LS_PREFS, JSON.stringify(prefs)); } catch { /* sem storage */ } };
+  const prefs = TOTEM ? { local: TOTEM.local || '' } : (() => { try { return JSON.parse(localStorage.getItem(LS_PREFS)) || {}; } catch { return {}; } })();
+  const savePrefs = () => { if (TOTEM) return; try { localStorage.setItem(LS_PREFS, JSON.stringify(prefs)); } catch { /* sem storage */ } };
   let clock = T.now();
   let lastBase = (() => { try { return sessionStorage.getItem(LS_BASE); } catch { return null; } })() || 'programacao';
   let route = null;
@@ -62,7 +64,7 @@
     return changed;
   }
   function remember() {
-    if (route.view !== 'programacao') return;
+    if (route.view !== 'programacao' || TOTEM) return;
     const local = route.p.get('local') || ''; const d = route.p.get('d');
     if (local && local !== 'todos' && !D.venues[local]) return;
     if (prefs.local !== local) { prefs.local = local; savePrefs(); }
@@ -145,10 +147,12 @@
     return `<button class="card svc-card venue-card" style="--c:#60a5fa" data-sheet="local" data-id="${v.id}"><span class="svc-ico">${I('building')}</span><span><b>${esc(v.name)}</b><small>${esc(v.city)} · ${n} aula${n === 1 ? '' : 's'} em ${days.length} dia${days.length === 1 ? '' : 's'}</small>${v.rooms.length ? `<span class="rooms">${v.rooms.map((r) => `<span>${esc(r)}</span>`).join('')}</span>` : ''}</span><span class="chev">${I('right')}</span></button>`; };
   const chip = (label, on, attrs, color) => `<button class="chip ${on ? 'on' : ''} ${color ? 'c' : ''}" ${attrs} ${color ? `style="--c:${color}"` : ''}>${color ? '<i></i>' : ''}${label}</button>`;
   const empty = (icon, text) => `<div class="empty">${I(icon)}<p>${text}</p></div>`;
-  const searchBox = (q, opts) => { const o = opts || {}; return `<div class="search ${o.big ? 'big' : ''}">${I('search')}<label class="sr-only" for="${o.id || 'q'}">Buscar</label><input id="${o.id || 'q'}" type="search" value="${esc(q || '')}" placeholder="${esc(o.placeholder || 'Buscar curso, serviço, sala…')}" autocomplete="off" enterkeyhint="search" data-search ${o.autofocus ? 'autofocus' : ''}>${q ? `<button class="icon-btn" data-param="q" data-value="" aria-label="Limpar busca">${I('x')}</button>` : ''}</div>`; };
+  const searchBox = (q, opts) => { const o = opts || {}; return `<div class="search ${o.big ? 'big' : ''}">${I('search')}<label class="sr-only" for="${o.id || 'q'}">Buscar</label><input id="${o.id || 'q'}" type="search" value="${esc(q || '')}" placeholder="${esc(o.placeholder || 'Buscar curso, serviço, sala…')}" autocomplete="off" enterkeyhint="search" data-search ${o.autofocus ? 'autofocus' : ''} ${TOTEM ? 'inputmode="none"' : ''}>${q ? `<button class="icon-btn" data-param="q" data-value="" aria-label="Limpar busca">${I('x')}</button>` : ''}</div>`; };
   const servicesStrip = () => `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('handshake')}</span><h2>Serviços gratuitos <small>sem inscrição</small></h2><button class="link" data-go="servicos">Todos ${I('right')}</button></div>
     <div class="hscroll">${D.services.map((s) => `<button class="pillar-mini" style="--c:${s.color}" data-sheet="servico" data-id="${s.id}"><i>${I(s.icon)}</i><b>${esc(s.short || s.title)}</b><small>${esc(s.summary)}</small></button>`).join('')}</div></section>`;
-  const footer = () => `<footer class="foot">${esc(D.event.organizer)}<br>${esc(D.event.edition)} · ${esc(D.event.place)} · ${esc(D.event.datesLabel)}<br><a href="tv.html">Modo TV</a></footer>`;
+  const footer = () => `<footer class="foot">${esc(D.event.organizer)}<br>${esc(D.event.edition)} · ${esc(D.event.place)} · ${esc(D.event.datesLabel)}${TOTEM ? '' : '<br><a href="tv.html">Modo TV</a>'}</footer>`;
+  /** Bloco "leve no celular": QR grande, usado no totem no lugar de salvar/compartilhar. */
+  const takeAway = (hash, title, text) => `<div class="qr-box take"><div class="qr-big">${T.qrSvg((TOTEM && TOTEM.app ? TOTEM.app : location.href.split('#')[0].replace(/totem\.html$/, '')) + '#' + hash, { margin: 1 })}</div><div><b>${I('phone')}${title}</b><small>${text}</small></div></div>`;
 
   // ---------- telas ----------
   function viewProgramacao() {
@@ -260,7 +264,8 @@
         ${c.note ? `<p class="note" style="margin-top:.6em">${I('info')}<span>${esc(c.note)}</span></p>` : ''}
         <h3>${I('calendar')}Dias e horários (${sessions.length})</h3>
         ${Object.keys(byDay).map((d) => `<div class="day-group"><small class="${d === clock.date ? 'today' : ''}">${esc(T.fmtDate(d))}${d === clock.date ? ' · hoje' : ''}</small>${byDay[d].map((x) => { const sx = st(x); return `<div class="sess-static ${sx}" style="--c:${shiftColor(x.shift)}"><span class="sess-time"><b>${T.fmtTime(x.time)}</b><small>até ${T.fmtTime(T.sessionEnd(x))}</small></span><span class="sess-body"><b>${esc(x.room || D.venues[x.venue].short)}${x.label ? ` · ${esc(x.label)}` : ''}</b><small>${esc(D.venues[x.venue].name)}</small></span><span class="sess-right">${stateBadge(sx, shiftColor(x.shift))}</span>${links.length > 1 && x.link !== c.link ? `<a class="sess-link link" href="${esc(x.link)}" target="_blank" rel="noopener">Inscrição ${esc(x.label || '')} ${I('external')}</a>` : ''}</div>`; }).join('')}</div>`).join('')}
-        <div class="actions">
+        ${TOTEM ? `${takeAway(`curso/${c.id}`, 'Inscreva-se pelo celular', 'Aponte a câmera para o QR Code: abre esta página do curso no seu celular, com o botão de inscrição. A inscrição é gratuita, no site da Escola de Contas.')}
+        <div class="actions"><button class="btn btn-ghost" data-go="programacao?d=${nx.date}&local=${nx.venue}">${I('calendar')}Ver o dia</button><button class="btn btn-primary" data-close>${I('x')}Fechar</button></div>` : `<div class="actions">
           <a class="btn btn-primary" href="${esc(c.link)}" target="_blank" rel="noopener">${I('external')}Fazer inscrição${links.length > 1 ? ` (${esc(sessions.find((x) => x.link === c.link)?.label || 'Turma I')})` : ''}</a>
           <button class="btn btn-ghost ${fav ? 'on' : ''}" data-fav="${c.id}">${I('bookmark')}${fav ? 'Salvo' : 'Salvar'}</button>
           <button class="btn btn-ghost" data-ics="${c.id}">${I('calendarplus')}Lembrar</button>
@@ -268,7 +273,7 @@
           <button class="btn btn-ghost" data-go="programacao?d=${nx.date}&local=${nx.venue}">${I('calendar')}Ver o dia</button>
         </div>
         <p class="tiny muted">A inscrição é feita no site da Escola de Contas (ESCON). É gratuita.${c.linkNote ? ' Se o link não abrir, procure o curso pelo nome na página de cursos da Escola de Contas.' : ''}</p>
-        <div class="qr-box">${qr}<small><b>Mostre para alguém:</b> este QR Code abre esta página do curso no celular.</small></div>
+        <div class="qr-box">${qr}<small><b>Mostre para alguém:</b> este QR Code abre esta página do curso no celular.</small></div>`}
       </div>`;
   }
   function sheetServico(s) {
@@ -278,7 +283,7 @@
         <h3>${I('check')}O que é oferecido</h3><ul class="ul">${s.items.map((it) => `<li><i></i><span>${esc(it)}</span></li>`).join('')}</ul>
         <h3>${I('users')}Quem atende</h3><div class="partners">${s.partners.map((p) => `<span>${esc(p)}</span>`).join('')}</div>
         ${s.coursesLink ? `<div class="actions"><button class="btn btn-primary" data-go="cursos">${I('graduation')}Ver os ${D.courses.length} cursos com inscrição</button></div>` : ''}
-        <div class="share-row"><button class="btn btn-ghost" data-share-svc="${s.id}">${I('share')}Compartilhar</button></div>
+        ${TOTEM ? `${takeAway(`servico/${s.id}`, 'Leve no celular', 'Aponte a câmera para o QR Code e abra esta lista no seu celular.')}<div class="actions"><button class="btn btn-primary" data-close>${I('x')}Fechar</button></div>` : `<div class="share-row"><button class="btn btn-ghost" data-share-svc="${s.id}">${I('share')}Compartilhar</button></div>`}
       </div>`;
   }
   function sheetLocal(v) {
@@ -288,13 +293,14 @@
         <div class="actions" style="margin:.9em 0"><button class="btn btn-primary" data-go="programacao?local=${v.id}">${I('calendar')}Abrir a programação deste local</button></div>
         <h3>${I('calendar')}Cursos neste local (${list.length})</h3>
         ${Object.keys(byDay).map((d) => `<div class="day-group"><small class="${d === clock.date ? 'today' : ''}">${esc(T.fmtDate(d))}${d === clock.date ? ' · hoje' : ''}</small><div class="stack">${byDay[d].map((x) => sessRow(x)).join('')}</div></div>`).join('') || empty('calendar', 'Sem cursos cadastrados neste local.')}
+        ${TOTEM ? `<div class="actions"><button class="btn btn-primary" data-close>${I('x')}Fechar</button></div>` : ''}
       </div>`;
   }
 
   // ---------- render ----------
   function shell() {
     const navBtns = () => Object.entries(VIEWS).map(([k, v]) => `<button class="${route.view === k ? 'on' : ''}" data-go="${k}" aria-label="${v.label}"><span class="nav-ico">${I(v.icon)}</span>${v.label}</button>`).join('');
-    root.innerHTML = `<header class="app-head"><button class="app-brand" data-go="programacao"><span class="logo-chip"><img src="img/tce-mark.png" alt=""></span><span><b>${esc(D.event.name)}</b><small>${esc(D.event.edition)} · ${esc(D.event.placeShort)}</small></span></button><div class="app-head-right">${T.isSimulated() ? '<span class="demo-pill">demo</span>' : ''}<div class="app-clock" id="clock"></div><button class="icon-btn head-search" data-go="busca" aria-label="Buscar">${I('search')}</button></div></header>
+    root.innerHTML = `<header class="app-head"><button class="app-brand" data-go="programacao"><span class="logo-chip"><img src="img/tce-mark.png" alt=""></span><span><b>${esc(D.event.name)}</b><small>${esc(D.event.edition)} · ${esc(TOTEM && TOTEM.local && D.venues[TOTEM.local] ? D.venues[TOTEM.local].name : D.event.placeShort)}</small></span></button><div class="app-head-right">${T.isSimulated() ? '<span class="demo-pill">demo</span>' : ''}<div class="app-clock" id="clock"></div>${TOTEM ? '' : `<button class="icon-btn head-search" data-go="busca" aria-label="Buscar">${I('search')}</button>`}</div></header>
       <div class="app-body"><nav class="side-nav" id="side-nav">${navBtns()}<div class="sn-foot">${esc(D.event.organizerShort)}<br>${esc(D.event.datesLabel)}<br><a href="tv.html">Modo TV</a></div></nav><main class="app-main" id="main"></main></div>
       <nav class="bottom-nav" id="bottom-nav">${navBtns()}</nav><div id="sheet"></div><div id="toast"></div>`;
     renderClock();
@@ -390,5 +396,7 @@
   shell();
   onRoute();
   setInterval(() => { const c = T.now(); if (c.time !== clock.time) { clock = c; renderClock(); if (!document.activeElement || !document.activeElement.hasAttribute('data-search')) { renderMain(true); if (route.sheet) renderSheet(); } } }, 1000);
-  if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if (!TOTEM && 'serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
+  // Para o modo totem: volta ao início e limpa o estado da tela.
+  window.TCE_APP = { reset() { filtersOpen = false; openShifts.clear(); sheetPushed = false; const p = new URLSearchParams(); if (prefs.local) p.set('local', prefs.local); const h = hashOf('programacao', p); if (location.hash === h) { renderMain(false); renderSheet(); } else go(h, true); window.scrollTo({ top: 0 }); } };
 })();

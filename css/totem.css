@@ -1,0 +1,74 @@
+/* ===== Modo totem: tela vertical grande (ex.: 42" em 1080×1920), uso em pé, por toque.
+   Carregado depois de app.css; o prefixo .app.totem garante prioridade. ===== */
+.app.totem{font-size:clamp(20px,2.6vw,30px);--nav-h:4.2em;--radius:20px;--radius-sm:14px;cursor:default;user-select:none;-webkit-user-select:none}
+.app.totem *{scrollbar-width:none}
+.app.totem *::-webkit-scrollbar{display:none}
+/* sempre o layout de uma coluna com barra inferior, mesmo em telas largas */
+.app.totem .side-nav{display:none}
+.app.totem .bottom-nav{display:grid;height:calc(var(--nav-h) + env(safe-area-inset-bottom));padding:.35em .6em env(safe-area-inset-bottom);gap:.3em}
+.app.totem .bottom-nav button{font-size:.78em;gap:.25em}
+.app.totem .bottom-nav button .ico{width:1.5em;height:1.5em;font-size:1.35em}
+.app.totem .nav-ico{width:3.4em;height:2em}
+.app.totem .app-head{position:sticky;padding:.7em 1.1em}
+.app.totem .app-body{flex-direction:column}
+.app.totem .app-main{max-width:none;padding:1em 1.1em calc(var(--nav-h) + 2em)}
+.app.totem .stack.cols{grid-template-columns:1fr}
+.app.totem .logo-chip{width:3.2em;height:3.2em}
+.app.totem .app-brand b{font-size:1.15em}
+.app.totem .app-brand small{font-size:.82em}
+.app.totem .app-clock{font-size:1.7em}
+/* alvos de toque maiores */
+.app.totem .btn{padding:.9em 1.2em;min-height:3em}
+.app.totem .icon-btn{width:3em;height:3em}
+.app.totem .chip{padding:.6em 1.1em;font-size:.92em;min-height:2.6em}
+.app.totem .tabs button{min-width:5.2em;padding:.6em .7em}
+.app.totem .sess{padding:.9em 1em .9em 1.1em;border-left-width:7px}
+.app.totem .sess-time{min-width:4em}
+.app.totem .sess-body b{font-size:1.08em}
+.app.totem .sess-body small{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.app.totem .search.big{padding:.4em .5em .4em 1.1em;margin:.3em 0 1em;border-width:2px}
+.app.totem .search.big input{font-size:1.15em;padding:.8em 0;caret-color:var(--primary)}
+.app.totem .now-card{padding:1em 1.1em}
+.app.totem .pillar-mini{width:13.5em;padding:1.1em}
+.app.totem .hscroll{padding:.2em 1.1em .8em;margin:0 -1.1em}
+.app.totem .tabs,.app.totem .chips.scroll{margin-left:-1.1em;margin-right:-1.1em;padding-left:1.1em;padding-right:1.1em}
+.app.totem .foot{font-size:.8em;margin-top:3em}
+/* folha de detalhe: diálogo central grande */
+.app.totem .sheet-root{align-items:center;padding:1.2em}
+.app.totem .sheet{max-width:none;width:100%;border-radius:26px;max-height:calc(100dvh - 2.4em);animation:zoom .22s cubic-bezier(.2,.8,.2,1)}
+@keyframes zoom{from{transform:scale(.96) translateY(8px);opacity:0}to{transform:none;opacity:1}}
+.app.totem .sheet-grab{display:none}
+.app.totem .sheet-head{padding:1em 1.1em .6em}
+.app.totem .sheet-body{padding:0 1.1em 1.4em}
+.app.totem .sheet-body h2{font-size:1.6em}
+.app.totem .actions{grid-template-columns:1fr 1fr}
+.app.totem .actions .btn-primary{grid-column:auto}
+.app.totem .actions .btn:only-child{grid-column:1/-1}
+.app.totem .qr-box.take{display:grid;grid-template-columns:auto 1fr;gap:1.1em;align-items:center;padding:1.1em;margin-top:1.2em;border:2px solid color-mix(in srgb,var(--primary) 35%,var(--line));background:var(--card)}
+.app.totem .qr-box.take .qr-big svg{width:11em;height:11em;display:block;border-radius:8px}
+.app.totem .qr-box.take b{display:flex;align-items:center;gap:.4em;font-family:var(--font-display);font-size:1.25em;line-height:1.15;color:var(--ink)}
+.app.totem .qr-box.take b .ico{color:var(--primary);width:1.3em;height:1.3em;flex:none}
+.app.totem .qr-box.take small{display:block;margin-top:.5em;font-size:.95em;line-height:1.4;color:var(--mut)}
+.app.totem .toast{bottom:calc(var(--nav-h) + 1.5em)}
+
+/* ---------- teclado na tela ---------- */
+.osk{position:fixed;left:0;right:0;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));z-index:35;background:var(--head-bg);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:.6em .6em .7em;display:flex;flex-direction:column;gap:.4em;box-shadow:0 -10px 30px rgba(11,18,32,.12);animation:up .2s cubic-bezier(.2,.8,.2,1)}
+.osk-row{display:flex;gap:.35em;justify-content:center}
+.osk button{flex:1 1 0;min-width:0;max-width:3.2em;height:2.9em;border-radius:12px;background:var(--card);border:1.5px solid var(--line);font:inherit;font-size:1.05em;font-weight:700;color:var(--ink);box-shadow:var(--shadow);text-transform:uppercase;display:grid;place-items:center}
+.osk button:active{background:var(--p-soft);border-color:var(--primary);transform:scale(.97)}
+.osk button.wide{max-width:none;flex:2.2 1 0;text-transform:none;font-size:.9em}
+.osk button.space{flex:6 1 0;max-width:none}
+.osk button.danger{color:var(--bad)}
+.osk button.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.osk button .ico{width:1.3em;height:1.3em}
+.app.totem.osk-open .app-main{padding-bottom:calc(var(--nav-h) + 16em)}
+
+/* ---------- tela de descanso (programação do dia, igual à TV) ---------- */
+.attract{position:fixed;inset:0;z-index:80;background:#071128;display:flex;flex-direction:column;animation:fade .35s}
+.attract.hiding{animation:fadeout .25s forwards}
+.attract iframe{flex:1;width:100%;border:0;pointer-events:none;display:block}
+.attract-bar{flex:none;height:8.5%;display:grid;place-items:center;background:linear-gradient(180deg,#0d1b3d,#071128);border-top:1px solid rgba(255,255,255,.1)}
+.attract-cta{display:flex;align-items:center;gap:.6em;background:var(--accent);color:#1f1300;font-family:var(--font-display);font-weight:800;font-size:1.5em;padding:.7em 1.8em;border-radius:999px;box-shadow:0 16px 40px rgba(0,0,0,.45),0 0 0 .35em color-mix(in srgb,var(--accent) 30%,transparent);animation:cta 2.2s ease-in-out infinite;white-space:nowrap}
+.attract-cta .ico{width:1.3em;height:1.3em}
+@keyframes cta{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.attract-tap{position:absolute;inset:0}
