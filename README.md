@@ -48,8 +48,9 @@ entra com o local da TV selecionado. A busca aceita palavras do dia a dia ("rg",
 
 ## Totem (`totem.html`)
 Aparelho compartilhado, em pé, por toque. Parâmetros: `?local=jn` (local do totem; o QR Code e a tela
-de descanso usam o mesmo), `?ocioso=90` (segundos sem toque até voltar à tela de descanso) e os
-mesmos `?t=`/`?d=` de demonstração. Tecla `F` para tela cheia (ou use o modo quiosque do navegador).
+de descanso usam o mesmo), `?ocioso=90` (segundos sem toque até voltar à tela de descanso),
+`?descanso=0` (sem tela de descanso: abre direto em "explorar") e os mesmos `?t=`/`?d=` de demonstração.
+Em tela deitada (totem horizontal ou pré-visualização no computador) as abas e o QR vão para a esquerda. Tecla `F` para tela cheia (ou use o modo quiosque do navegador).
 
 Interface própria (`js/totem.js` + `css/totem.css`, sobre os mesmos dados e busca do app): início com
 blocos grandes (Programação de hoje, Cursos, Saúde, Documentos, Todos os serviços, Onde fica), abas no

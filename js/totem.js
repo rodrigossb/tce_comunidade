@@ -8,6 +8,7 @@
   const LOCAL = D.venues[P.get('local')] ? P.get('local') : 'jn';
   const VENUE = D.venues[LOCAL];
   const IDLE_MS = Math.max(20, Number(P.get('ocioso')) || 90) * 1000;
+  const ATTRACT = P.get('descanso') !== '0'; // ?descanso=0 → sem tela de descanso: cai direto em "explorar" e volta ao início quando ocioso
   const APP_BASE = P.get('app') || new URL('./', location.href).href;
   const VIEWS = { inicio: ['Início', 'home'], programacao: ['Programação', 'calendar'], cursos: ['Cursos', 'graduation'], servicos: ['Serviços', 'handshake'], locais: ['Locais', 'pin'] };
   const PANELS = { curso: 'cursos', servico: 'servicos', local: 'locais' };
@@ -243,10 +244,11 @@
   function hideKeyboard() { if (keyboardEl) { keyboardEl.remove(); keyboardEl = null; } root.classList.remove('osk-open'); input = null; }
 
   // ---------- tela de descanso e ociosidade ----------
-  function tvUrl() { const p = new URLSearchParams(); p.set('local', LOCAL); p.set('orientation', 'portrait'); for (const k of ['t', 'd', 'theme', 'zoom']) if (P.get(k)) p.set(k, P.get(k)); if (P.get('app')) p.set('app', P.get('app')); return `tv.html?${p.toString()}`; }
+  function tvUrl() { const p = new URLSearchParams(); p.set('local', LOCAL); p.set('orientation', window.innerHeight > window.innerWidth ? 'portrait' : 'landscape'); for (const k of ['t', 'd', 'theme', 'zoom']) if (P.get(k)) p.set(k, P.get(k)); if (P.get('app')) p.set('app', P.get('app')); return `tv.html?${p.toString()}`; }
   function showAttract() {
     if (attractEl) return;
     reset();
+    if (!ATTRACT) return;
     attractEl = document.createElement('div'); attractEl.className = 'attract';
     attractEl.innerHTML = `<iframe src="${tvUrl()}" title="Programação do dia" tabindex="-1"></iframe><div class="attract-bar"><span class="attract-cta">${I('phone')}Toque na tela para explorar</span></div><button class="attract-tap" aria-label="Toque para começar"></button>`;
     document.body.appendChild(attractEl);
@@ -282,5 +284,5 @@
   shell();
   route = parse(); onRoute();
   touch();
-  showAttract();
+  if (ATTRACT) showAttract();
 })();
