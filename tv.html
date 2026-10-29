@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TCE na Comunidade · Painel</title>
+  <meta name="description" content="Mural para TV: programação de cursos, salas e serviços do TCE na Comunidade — 9ª Edição, Oiapoque e Distrito do Manga.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#070f22">
+  <link rel="icon" href="img/tce-mark.png">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/tv.css">
+</head>
+<body>
+  <!--
+    Modo TV (sem interação). Parâmetros na URL:
+      ?local=jn|manga|sebrae|auditorio|todos   local onde a TV está (padrão: jn = Escola Joaquim Nabuco)
+      ?t=HH:MM&d=AAAA-MM-DD                      simula data/hora (demonstração)
+      ?zoom=0.9   ?theme=light   ?app=https://…/  (endereço do app para o QR Code)
+    Teclas: → ← navegar · F tela cheia · + − 0 escala do texto · L claro/escuro · Esc limpa ajustes salvos
+  -->
+  <div id="tv" class="tv tv-dark landscape"><div class="tv-msg"><div class="spinner"></div><p>Carregando o painel…</p></div></div>
+  <script src="vendor/qrcode.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/shared.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/tv.js"></script>
+</body>
+</html>
