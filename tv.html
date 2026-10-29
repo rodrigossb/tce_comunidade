@@ -13,11 +13,11 @@
 </head>
 <body>
   <!--
-    Modo TV (sem interação). Parâmetros na URL:
+    Modo TV (sem interação): programação do dia inteira + 2 destaques + QR Code. Parâmetros na URL:
       ?local=jn|manga|sebrae|auditorio|todos   local onde a TV está (padrão: jn = Escola Joaquim Nabuco)
       ?t=HH:MM&d=AAAA-MM-DD                      simula data/hora (demonstração)
       ?zoom=0.9   ?theme=light   ?app=https://…/  (endereço do app para o QR Code)
-    Teclas: → ← navegar · F tela cheia · + − 0 escala do texto · L claro/escuro · Esc limpa ajustes salvos
+    Teclas: F tela cheia · + − 0 escala do texto · L claro/escuro · → ← troca os destaques · Esc limpa ajustes salvos
   -->
   <div id="tv" class="tv tv-dark landscape"><div class="tv-msg"><div class="spinner"></div><p>Carregando o painel…</p></div></div>
   <script src="vendor/qrcode.js"></script>

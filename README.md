@@ -5,8 +5,8 @@ evento. Site estático: HTML + CSS + JS puros, dados em `js/data.js`.
 
 | Página | Para quem | Uso |
 | --- | --- | --- |
-| `tv.html` | TV/monitor no saguão da escola | Rodízio automático de telas, relógio, quadro "agora", QR Code para o app |
-| `index.html` | Público, no celular (ou desktop) | Busca, filtros, detalhe do curso, inscrição, lembrete, favoritos, serviços, locais |
+| `tv.html` | TV/monitor no saguão da escola | Programação do dia inteira em uma tela (sala → curso → para quem), 2 destaques do momento, QR Code para o app |
+| `index.html` | Público, no celular (ou desktop) | Abre na programação do dia e do local usados por último; busca única (cursos, serviços, locais); detalhe, inscrição, lembrete, favoritos |
 
 ## Publicar
 Copie a pasta inteira para qualquer servidor estático (nginx, Apache, GitHub Pages, S3…). O QR Code
@@ -21,21 +21,29 @@ Parâmetros na URL:
 
 | Parâmetro | Efeito |
 | --- | --- |
-| `?local=jn` (padrão) · `manga` · `sebrae` · `auditorio` · `todos` | Local onde a TV está: filtra o quadro de salas, os turnos e a semana |
+| `?local=jn` (padrão) · `manga` · `sebrae` · `auditorio` · `todos` | Local onde a TV está: filtra o quadro do dia e os destaques; o QR já abre o app nesse local |
 | `?t=09:15&d=2026-11-05` | Simula data/hora (demonstração; mostra o selo "demonstração") |
 | `?zoom=0.9` · `?theme=light` · `?orientation=portrait` | Escala do texto, tema claro, orientação forçada |
 
-Teclas (teclado ou controle com setas): `→` `←` navegar · `F` tela cheia · `+` `−` `0` escala ·
-`L` claro/escuro · `Esc` limpa ajustes salvos. A página recarrega sozinha às 4h e se ficar travada.
+Teclas (teclado ou controle com setas): `F` tela cheia · `+` `−` `0` escala · `L` claro/escuro ·
+`→` `←` troca os destaques · `Esc` limpa ajustes salvos. A página recarrega sozinha às 4h e se ficar travada.
 
-Telas do rodízio: boas-vindas → salas de hoje (salas × turnos) → cursos de cada turno → detalhe dos
-cursos do turno atual/próximo → serviços (visão geral + um pilar por tela) → programação da semana.
+Layout fixo, sem rodízio: área principal com a programação do dia em colunas por turno (o turno em
+andamento ganha destaque e barra de progresso; os encerrados ficam esmaecidos), faixa com os 9 blocos
+de serviços, lateral com 2 destaques ("agora" e "a seguir", trocando a cada 14 s) e o QR Code embaixo.
+O texto se ajusta sozinho para caber sem rolagem. Se o dia já acabou neste local, mostra o próximo dia.
+Funciona em paisagem e em retrato.
 
 ## App (`index.html`)
-Rotas por hash, compartilháveis: `#inicio`, `#programacao?d=2026-11-05&local=jn`,
+Rotas por hash, compartilháveis: `#programacao?d=2026-11-05&local=jn` (tela inicial), `#busca?q=vacina`,
 `#cursos?q=ia&tema=tecnologia&dia=…&turno=manha&local=jn&fav=1&ord=az`, `#curso/116`,
 `#servicos`, `#servico/pilar-2`, `#locais`, `#local/jn`. Também aceita `?t=HH:MM&d=AAAA-MM-DD`.
 Instalável (manifesto + service worker com cache para uso sem sinal).
+
+Memória discreta no aparelho (`localStorage`, sem cadastro): o último local escolhido é reaplicado
+sempre; o último dia só no mesmo dia (no dia seguinte volta para "hoje"). Quem chega pelo QR da TV já
+entra com o local da TV selecionado. A busca aceita palavras do dia a dia ("rg", "remédio", "dentista",
+"cachorro"…) e procura ao mesmo tempo em cursos, serviços e locais, sem diferenciar acentos.
 
 ## Dados
 `js/data.js` é a fonte única (evento, locais, cursos com sessões, serviços por pilar), transcrita de

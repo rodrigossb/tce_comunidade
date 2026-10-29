@@ -1,54 +1,79 @@
-/* App do público (celular/desktop): rotas por hash, busca, filtros, detalhe em folha, favoritos,
-   lembrete (.ics), compartilhar. Sem servidor: tudo vem de js/data.js. */
+/* App do público (celular/desktop). Abre direto na programação do dia e do local usados por último
+   (guardados no aparelho, sem cadastro), com busca única para cursos, serviços e locais.
+   Rotas por hash; detalhe em folha; favoritos; lembrete (.ics); compartilhar. Tudo vem de js/data.js. */
 (function () {
   'use strict';
   const T = window.TCE; const D = T.D; const I = T.icon; const esc = T.esc;
   const root = document.getElementById('app');
   const VIEWS = {
-    inicio: { label: 'Início', icon: 'home' },
     programacao: { label: 'Programação', icon: 'calendar' },
+    busca: { label: 'Buscar', icon: 'search' },
     cursos: { label: 'Cursos', icon: 'graduation' },
     servicos: { label: 'Serviços', icon: 'handshake' },
     locais: { label: 'Locais', icon: 'pin' },
   };
   const SHEETS = { curso: 'cursos', servico: 'servicos', local: 'locais' };
   const LS_FAV = 'tce_favs';
+  const LS_PREFS = 'tce_prefs';
   const LS_BASE = 'tce_base';
+  const SUGGESTIONS = ['Saúde', 'Vacina', 'Identidade', 'Mulheres', 'Crianças', 'Empreendedorismo', 'Tecnologia', 'Jurídico', 'Animais', 'Feira'];
+  // Palavras do dia a dia → termos usados nos textos oficiais.
+  const SYNONYMS = { rg: 'identidade', cin: 'identidade', remedio: 'farmacia', remedios: 'farmacia', dentista: 'odontologico', medico: 'consultas', medica: 'consultas', cachorro: 'caes', cachorros: 'caes', gato: 'gatos', advogado: 'juridico', advogada: 'juridico', justica: 'juridico', computador: 'tecnologia', celular: 'tecnologia', cabelo: 'cabelo', emprego: 'profissional', trabalho: 'trabalho', escola: 'escolares', professor: 'professores', professora: 'professores', crianca: 'criancas', idoso: 'idosos', animal: 'animais', pet: 'caes', veterinario: 'antirrabica', vacina: 'vacinacao', vacinas: 'vacinacao', cpf: 'cpf', titulo: 'eleitorais', eleitor: 'eleitorais', carteira: 'carteira', habilitacao: 'cnh', casamento: 'casamento', pai: 'pai presente', pensao: 'pensoes', aposentadoria: 'aposentadorias', inss: 'previdenciarios', mulher: 'mulheres', violencia: 'violencia', denuncia: 'denuncia', comida: 'alimentos', pao: 'panificacao', paes: 'panificacao', costura: 'textil', camisa: 'camisas', cilios: 'cilios', natal: 'natalino', presente: 'presentes', vender: 'vender', venda: 'vender', internet: 'internet', ia: 'inteligencia artificial', video: 'videomaker', reciclagem: 'reciclagem', rio: 'rios', madeira: 'madeireiros', socorro: 'socorros', esporte: 'esporte' };
 
   const favs = new Set((() => { try { return JSON.parse(localStorage.getItem(LS_FAV)) || []; } catch { return []; } })());
   const saveFavs = () => { try { localStorage.setItem(LS_FAV, JSON.stringify([...favs])); } catch { /* sem storage */ } };
+  const prefs = (() => { try { return JSON.parse(localStorage.getItem(LS_PREFS)) || {}; } catch { return {}; } })();
+  const savePrefs = () => { try { localStorage.setItem(LS_PREFS, JSON.stringify(prefs)); } catch { /* sem storage */ } };
   let clock = T.now();
-  let lastBase = (() => { try { return sessionStorage.getItem(LS_BASE); } catch { return null; } })() || 'inicio';
-  let route = parse();
+  let lastBase = (() => { try { return sessionStorage.getItem(LS_BASE); } catch { return null; } })() || 'programacao';
+  let route = null;
   let filtersOpen = false;
   let sheetPushed = false;
+  const openShifts = new Set(); // turnos encerrados que o usuário abriu
 
   // ---------- rotas ----------
   function parse() {
-    const h = decodeURIComponent(location.hash.slice(1) || 'inicio');
+    const h = decodeURIComponent(location.hash.slice(1) || 'programacao');
     const [path, qs] = h.split('?');
-    const [view, id] = path.split('/');
+    let [view, id] = path.split('/');
+    if (view === 'inicio' || view === '') view = 'programacao';
     const p = new URLSearchParams(qs || '');
     if (SHEETS[view]) return { view: lastBase, sheet: view, id, p };
-    return { view: VIEWS[view] ? view : 'inicio', sheet: null, id: null, p };
+    return { view: VIEWS[view] ? view : 'programacao', sheet: null, id: null, p };
   }
   const hashOf = (view, p) => { const q = p && [...p.keys()].length ? `?${p.toString()}` : ''; return `#${view}${q}`; };
   function go(hash, replace) {
-    if (replace) history.replaceState(null, '', hash); else location.hash = hash;
-    if (replace) onRoute();
+    if (replace) { history.replaceState(null, '', hash); onRoute(); } else location.hash = hash;
   }
-  function setParam(k, v) { const p = new URLSearchParams(route.p); if (v == null || v === '' || v === 'todos') p.delete(k); else p.set(k, v); go(hashOf(route.view, p), true); }
+  function setParam(k, v, push) { const p = new URLSearchParams(route.p); if (v == null || v === '') p.delete(k); else p.set(k, v); go(hashOf(route.view, p), !push); }
   function openSheet(kind, id) { sheetPushed = true; location.hash = `#${kind}/${id}`; }
   function closeSheet() {
     const el = document.getElementById('sheet-root');
-    if (el) { el.classList.add('closing'); }
+    if (el) el.classList.add('closing');
     setTimeout(() => { if (sheetPushed && history.length > 1) history.back(); else go(hashOf(route.view, route.p), true); sheetPushed = false; }, 150);
+  }
+  /** Programação sem parâmetros: aplica a última escolha de local/dia guardada no aparelho. */
+  function applyRemembered() {
+    if (route.view !== 'programacao') return false;
+    const p = new URLSearchParams(route.p); let changed = false;
+    if (!p.has('local') && 'local' in prefs && (prefs.local === '' || D.venues[prefs.local])) { if (prefs.local) p.set('local', prefs.local); }
+    if (!p.has('d') && prefs.d && prefs.dOn === clock.date && T.eventDays().includes(prefs.d) && prefs.d >= clock.date) { p.set('d', prefs.d); changed = true; }
+    if (p.toString() !== route.p.toString()) { route.p = p; history.replaceState(null, '', hashOf('programacao', p)); }
+    return changed;
+  }
+  function remember() {
+    if (route.view !== 'programacao') return;
+    const local = route.p.get('local') || ''; const d = route.p.get('d');
+    if (local && local !== 'todos' && !D.venues[local]) return;
+    if (prefs.local !== local) { prefs.local = local; savePrefs(); }
+    if (d && (prefs.d !== d || prefs.dOn !== clock.date)) { prefs.d = d; prefs.dOn = clock.date; savePrefs(); }
   }
   function onRoute() {
     const prev = route; route = parse();
     if (!route.sheet) { lastBase = route.view; try { sessionStorage.setItem(LS_BASE, lastBase); } catch { /* */ } }
+    if (!route.sheet) { applyRemembered(); remember(); }
     const viewChanged = !prev || prev.view !== route.view || prev.p.toString() !== route.p.toString();
-    if (viewChanged || !prev.sheet === !route.sheet && !route.sheet) renderMain(prev && prev.view === route.view);
+    if (viewChanged || (!route.sheet && !prev.sheet)) renderMain(prev && prev.view === route.view);
     renderNav();
     renderSheet();
     document.title = titleFor();
@@ -65,26 +90,33 @@
   const shiftColor = (k) => T.SHIFTS[k].color;
   const roomLabel = (x) => (x.room ? `${x.room} · ${D.venues[x.venue].short}` : D.venues[x.venue].name);
   const stateBadge = (s, c) => (s === 'now' ? `<span class="badge now" style="--c:${c}">agora</span>` : s === 'today' ? '<span class="badge today">hoje</span>' : s === 'past' ? '<span class="badge past">encerrada</span>' : '');
-  const dayLabel = (d) => `${T.fmtDate(d, 'wd')}${d === clock.date ? ' · hoje' : T.relDay(d, clock.date) === 'amanhã' ? ' · amanhã' : ''}`;
   const focusDate = () => (clock.date < D.event.start ? D.event.start : clock.date > D.event.end ? D.event.end : clock.date);
   const sessionsOf = (f) => T.allSessions().filter(f);
   const nextOf = (c) => T.nextSession(c, clock) || T.allSessions().find((x) => x.course === c);
+  const shiftWin = (k) => [T.toMin(T.SHIFTS[k].start), T.toMin(T.SHIFTS[k].end)];
+  const shiftState = (k, date) => { if (date < clock.date) return 'past'; if (date > clock.date) return 'later'; const [a, b] = shiftWin(k); return clock.min >= b ? 'past' : clock.min >= a ? 'now' : 'later'; };
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const dayWord = (d) => (d === clock.date ? 'hoje' : T.relDay(d, clock.date) === 'amanhã' ? 'amanhã' : T.fmtDate(d, 'wdlong'));
   const courseSort = {
     proximas: (a, b) => { const sa = T.courseState(a, clock) === 'past'; const sb = T.courseState(b, clock) === 'past'; if (sa !== sb) return sa ? 1 : -1; const na = nextOf(a); const nb = nextOf(b); return na.date.localeCompare(nb.date) || T.toMin(na.time) - T.toMin(nb.time) || T.title(a, true).localeCompare(T.title(b, true)); },
     az: (a, b) => T.title(a, true).localeCompare(T.title(b, true), 'pt-BR'),
     ch: (a, b) => b.hours - a.hours || courseSort.az(a, b),
   };
-  function searchable(c) {
-    return T.norm([c.title, c.short, c.audience, c.tags.map((t) => D.tags[t]).join(' '), c.sessions.map((x) => `${D.venues[x.venue].name} ${x.room}`).join(' '), String(c.id)].join(' '));
+  const searchableCourse = (c) => T.norm([c.title, c.short, c.audience, c.tags.map((t) => D.tags[t]).join(' '), c.sessions.map((x) => `${D.venues[x.venue].name} ${D.venues[x.venue].short} ${x.room} ${T.fmtDate(x.date, 'wd')}`).join(' '), String(c.id), 'curso'].join(' '));
+  const searchableService = (s) => T.norm([s.title, s.short, s.summary, s.items.join(' '), s.partners.join(' '), 'servico gratuito'].join(' '));
+  const searchableVenue = (v) => T.norm([v.name, v.short, v.city, v.rooms.join(' '), 'local'].join(' '));
+  /** Termos da busca: normalizados, com sinônimos do dia a dia; cada termo deve aparecer (E). */
+  function terms(q) {
+    return T.norm(q).split(/\s+/).filter((w) => w.length > 1).map((w) => SYNONYMS[w] ? [w, SYNONYMS[w]] : [w]);
   }
+  const matches = (text, tt) => tt.every((alts) => alts.some((w) => text.includes(w)));
   function filterCourses(p) {
-    const q = T.norm(p.get('q') || '').trim(); const tag = p.get('tema'); const dia = p.get('dia'); const turno = p.get('turno'); const local = p.get('local'); const fav = p.get('fav');
+    const tt = terms(p.get('q') || ''); const tag = p.get('tema'); const dia = p.get('dia'); const turno = p.get('turno'); const local = p.get('local'); const fav = p.get('fav');
     return D.courses.filter((c) => {
-      if (q && !q.split(/\s+/).every((w) => searchable(c).includes(w))) return false;
+      if (tt.length && !matches(searchableCourse(c), tt)) return false;
       if (tag && !c.tags.includes(tag)) return false;
       if (fav && !favs.has(c.id)) return false;
-      const sess = c.sessions.filter((x) => (!dia || x.date === dia) && (!turno || T.shiftOf(x.time) === turno) && (!local || x.venue === local));
-      return sess.length > 0;
+      return c.sessions.some((x) => (!dia || x.date === dia) && (!turno || T.shiftOf(x.time) === turno) && (!local || x.venue === local));
     });
   }
   const activeFilterCount = (p) => ['tema', 'dia', 'turno', 'local', 'fav'].filter((k) => p.get(k)).length;
@@ -93,8 +125,8 @@
   const sessRow = (x, opts) => {
     const o = opts || {}; const s = st(x); const c = shiftColor(x.shift);
     return `<button class="sess ${s}" style="--c:${c}" data-sheet="curso" data-id="${x.course.id}" aria-label="${esc(T.title(x.course))}">
-      <span class="sess-time"><b>${T.fmtTime(x.time)}</b><small>${o.showDate ? esc(T.fmtDate(x.date, 'wd')) : esc(T.SHIFTS[x.shift].short)}</small></span>
-      <span class="sess-body"><b>${esc(T.title(x.course, true))}</b><small class="room">${I('door')}${esc(roomLabel(x))}${x.label ? ` · ${esc(x.label)}` : ''}</small><small>${esc(x.course.audience)}</small></span>
+      <span class="sess-time"><b>${T.fmtTime(x.time)}</b><small>${o.showDate ? esc(T.fmtDate(x.date, 'wd')) : `até ${T.fmtTime(T.sessionEnd(x))}`}</small></span>
+      <span class="sess-body"><small class="room">${I('door')}${esc(roomLabel(x))}${x.label ? ` · ${esc(x.label)}` : ''}</small><b>${esc(T.title(x.course, true))}</b><small>Para: ${esc(x.course.audience)}</small></span>
       <span class="sess-right">${stateBadge(s, c)}${favs.has(x.course.id) ? `<span class="cc-fav">${I('bookmark')}</span>` : ''}${I('right')}</span></button>`;
   };
   const courseCard = (c) => {
@@ -103,55 +135,79 @@
     return `<button class="card course-card" style="--c:${col}" data-sheet="curso" data-id="${c.id}">
       <div class="cc-top"><span class="cc-tags">${c.tags.map((t) => `<span class="tagc">${esc(D.tags[t])}</span>`).join('')}${s === 'now' ? `<span class="badge now" style="--c:${col}">agora</span>` : s === 'today' ? '<span class="badge today">hoje</span>' : s === 'past' ? '<span class="badge past">encerrado</span>' : ''}</span>${favs.has(c.id) ? `<span class="cc-fav" title="Nos meus cursos">${I('bookmark')}</span>` : ''}</div>
       <h3>${esc(c.title)}</h3>
-      <p class="cc-aud">${esc(c.audience)}</p>
+      <p class="cc-aud"><b>Para:</b> ${esc(c.audience)}</p>
       <div class="cc-meta"><span>${I('hourglass')}${c.hours}h</span><span>${I('users')}${c.seats} vagas</span><span>${I('pin')}${esc(venues)}</span></div>
       <div class="cc-dates">${T.allSessions().filter((x) => x.course === c).map((x) => `<span class="datec ${st(x)}" style="--c:${shiftColor(x.shift)}"><i></i>${esc(T.fmtDate(x.date, 'wd'))} · ${T.fmtTime(x.time)}${x.room ? ` · ${esc(x.room)}` : ''}</span>`).join('')}</div>
     </button>`;
   };
-  const svcCard = (s) => `<button class="card svc-card" style="--c:${s.color}" data-sheet="servico" data-id="${s.id}"><span class="svc-ico">${I(s.icon)}</span><span><b>${s.num ? `<em>${s.num}.</em>` : ''}${esc(s.title)}</b><small>${esc(s.summary)}</small></span><span class="chev">${I('right')}</span></button>`;
+  const svcCard = (s, hits) => `<button class="card svc-card" style="--c:${s.color}" data-sheet="servico" data-id="${s.id}"><span class="svc-ico">${I(s.icon)}</span><span><b>${s.num ? `<em>${s.num}.</em>` : ''}${esc(s.title)}</b><small>${esc(s.summary)}</small>${hits && hits.length ? `<ul class="hits">${hits.map((h) => `<li>${I('check')}<span>${esc(h)}</span></li>`).join('')}</ul>` : ''}</span><span class="chev">${I('right')}</span></button>`;
+  const venueCard = (v) => { const n = sessionsOf((x) => x.venue === v.id).length; const days = [...new Set(sessionsOf((x) => x.venue === v.id).map((x) => x.date))];
+    return `<button class="card svc-card venue-card" style="--c:#60a5fa" data-sheet="local" data-id="${v.id}"><span class="svc-ico">${I('building')}</span><span><b>${esc(v.name)}</b><small>${esc(v.city)} · ${n} aula${n === 1 ? '' : 's'} em ${days.length} dia${days.length === 1 ? '' : 's'}</small>${v.rooms.length ? `<span class="rooms">${v.rooms.map((r) => `<span>${esc(r)}</span>`).join('')}</span>` : ''}</span><span class="chev">${I('right')}</span></button>`; };
   const chip = (label, on, attrs, color) => `<button class="chip ${on ? 'on' : ''} ${color ? 'c' : ''}" ${attrs} ${color ? `style="--c:${color}"` : ''}>${color ? '<i></i>' : ''}${label}</button>`;
   const empty = (icon, text) => `<div class="empty">${I(icon)}<p>${text}</p></div>`;
+  const searchBox = (q, opts) => { const o = opts || {}; return `<div class="search ${o.big ? 'big' : ''}">${I('search')}<label class="sr-only" for="${o.id || 'q'}">Buscar</label><input id="${o.id || 'q'}" type="search" value="${esc(q || '')}" placeholder="${esc(o.placeholder || 'Buscar curso, serviço, sala…')}" autocomplete="off" enterkeyhint="search" data-search ${o.autofocus ? 'autofocus' : ''}>${q ? `<button class="icon-btn" data-param="q" data-value="" aria-label="Limpar busca">${I('x')}</button>` : ''}</div>`; };
+  const servicesStrip = () => `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('handshake')}</span><h2>Serviços gratuitos <small>sem inscrição</small></h2><button class="link" data-go="servicos">Todos ${I('right')}</button></div>
+    <div class="hscroll">${D.services.map((s) => `<button class="pillar-mini" style="--c:${s.color}" data-sheet="servico" data-id="${s.id}"><i>${I(s.icon)}</i><b>${esc(s.short || s.title)}</b><small>${esc(s.summary)}</small></button>`).join('')}</div></section>`;
+  const footer = () => `<footer class="foot">${esc(D.event.organizer)}<br>${esc(D.event.edition)} · ${esc(D.event.place)} · ${esc(D.event.datesLabel)}<br><a href="tv.html">Modo TV</a></footer>`;
 
   // ---------- telas ----------
-  function viewInicio() {
-    const days = T.eventDays(); const idx = days.indexOf(clock.date);
-    const diff = Math.round((Date.parse(D.event.start) - Date.parse(clock.date)) / 864e5);
-    const status = idx >= 0 ? `${I('sparkles')}Hoje é o ${idx + 1}º dia do evento` : diff > 0 ? `${I('calendar')}${diff === 1 ? 'Começa amanhã' : `Começa em ${diff} dias`}` : `${I('check')}Evento encerrado · obrigado!`;
-    // Agora / a seguir
-    const date = focusDate(); const todayList = sessionsOf((x) => x.date === date);
-    let nowList = todayList.filter((x) => st(x) === 'now'); let nowTitle = 'Acontecendo agora'; let more = '';
-    if (!nowList.length) {
-      let up = date === clock.date ? todayList.filter((x) => st(x) === 'today') : todayList; let lbl = date === clock.date ? 'A seguir hoje' : `${T.fmtDate(date, 'wdlong')}`;
-      if (!up.length) { const nd = days.find((d) => d > clock.date && sessionsOf((x) => x.date === d).length); if (nd) { up = sessionsOf((x) => x.date === nd); lbl = T.relDay(nd, clock.date) === 'amanhã' ? 'Amanhã' : T.fmtDate(nd, 'wdlong'); } }
-      if (up.length) { const k = up[0].shift; nowList = up.filter((x) => x.shift === k); nowTitle = `${lbl} · ${T.SHIFTS[k].label} ${T.fmtTime(T.SHIFTS[k].start)}`; }
+  function viewProgramacao() {
+    const days = T.eventDays(); const p = route.p;
+    const d = days.includes(p.get('d')) ? p.get('d') : focusDate(); const local = D.venues[p.get('local')] ? p.get('local') : '';
+    const list = sessionsOf((x) => x.date === d && (!local || x.venue === local));
+    const idx = days.indexOf(clock.date); const diff = Math.round((Date.parse(D.event.start) - Date.parse(clock.date)) / 864e5);
+    const status = idx >= 0 ? `Hoje é o <b>${idx + 1}º dia</b> do evento` : diff > 0 ? (diff === 1 ? 'O evento <b>começa amanhã</b>' : `O evento <b>começa em ${diff} dias</b>`) : 'Evento encerrado · obrigado, Oiapoque!';
+    // Cartão "agora / a seguir" (só para o dia de hoje).
+    let nowCard = '';
+    if (d === clock.date) {
+      const now = list.filter((x) => st(x) === 'now'); const up = list.filter((x) => st(x) === 'today');
+      if (now.length) { const k = now[0].shift; nowCard = `<button class="now-card" style="--c:${shiftColor(k)}" data-scroll="turno-${k}"><span class="nc-ico">${I('clock')}</span><span><b><i></i>Acontecendo agora · ${T.SHIFTS[k].label} até ${T.fmtTime(T.SHIFTS[k].end)}</b><small>${now.length} curso${now.length > 1 ? 's' : ''} em andamento${local ? ` · ${esc(D.venues[local].short)}` : ''}</small></span>${I('down')}</button>`; }
+      else if (up.length) { const k = up[0].shift; const n = up.filter((x) => x.shift === k).length; nowCard = `<button class="now-card next" style="--c:${shiftColor(k)}" data-scroll="turno-${k}"><span class="nc-ico">${I('next')}</span><span><b>A seguir · ${T.SHIFTS[k].label} às ${T.fmtTime(T.SHIFTS[k].start)}</b><small>${n} curso${n > 1 ? 's' : ''}${local ? ` · ${esc(D.venues[local].short)}` : ''}</small></span>${I('down')}</button>`; }
+      else if (list.length) nowCard = `<div class="now-card done"><span class="nc-ico">${I('check')}</span><span><b>Cursos de hoje encerrados</b><small>Veja amanhã nas abas acima ou os serviços gratuitos abaixo</small></span></div>`;
     }
-    if (nowList.length > 4) { more = `<button class="link" data-go="programacao?d=${nowList[0].date}">Ver todos (${nowList.length}) ${I('right')}</button>`; nowList = nowList.slice(0, 4); }
+    const shifts = T.SHIFT_ORDER.filter((k) => list.some((x) => x.shift === k));
+    const sections = shifts.map((k) => {
+      const sh = T.SHIFTS[k]; const l = list.filter((x) => x.shift === k); const s = shiftState(k, d);
+      const collapsed = s === 'past' && !openShifts.has(`${d}-${k}`);
+      const tag = s === 'now' ? `<span class="badge now" style="--c:${sh.color}">agora</span>` : s === 'past' ? '<span class="badge past">encerrado</span>' : '';
+      return `<section class="sec shift-sec ${s} ${collapsed ? 'collapsed' : ''}" id="turno-${k}"><button class="sec-head" data-toggle-shift="${d}-${k}" aria-expanded="${!collapsed}"><span class="sec-ico c" style="--c:${sh.color}">${I(T.SHIFT_ICON[k])}</span><h2>${sh.label} <small>${T.fmtTime(sh.start)} às ${T.fmtTime(sh.end)}</small></h2>${tag}<span class="muted tiny">${l.length} curso${l.length === 1 ? '' : 's'}</span>${collapsed ? I('down') : ''}</button>${collapsed ? '' : `<div class="stack cols">${l.map((x) => sessRow(x)).join('')}</div>`}</section>`;
+    }).join('');
     const favList = D.courses.filter((c) => favs.has(c.id));
-    return `
-      <section class="hero"><span class="eyebrow">${esc(D.event.edition)} · ${esc(D.event.datesLabel)}</span><h1>${esc(D.event.name)}</h1><p>${esc(D.event.place)} · ${esc(D.event.tagline)}. Cursos, horários, salas e inscrições na palma da mão.</p><span class="status">${status}</span>
-        <form class="search" data-search-form role="search"><label class="sr-only" for="q0">Buscar curso</label>${I('search')}<input id="q0" type="search" placeholder="Buscar curso, público ou tema…" autocomplete="off"><button class="icon-btn" type="submit" aria-label="Buscar">${I('right')}</button></form></section>
-      ${nowList.length ? `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('clock')}</span><h2>${nowTitle}</h2><button class="link" data-go="programacao?d=${nowList[0].date}">Programação ${I('right')}</button></div><div class="stack cols">${nowList.map((x) => sessRow(x, { showDate: nowList[0].date !== clock.date })).join('')}</div>${more}</section>` : ''}
-      <div class="quick">
-        <button data-go="programacao"><span class="q-ico">${I('calendar')}</span><span><b>Programação</b><small>por dia e turno</small></span></button>
-        <button data-go="cursos"><span class="q-ico">${I('graduation')}</span><span><b>${D.courses.length} cursos</b><small>gratuitos, com inscrição</small></span></button>
-        <button data-go="servicos"><span class="q-ico">${I('handshake')}</span><span><b>Serviços</b><small>${D.services.length - 1} pilares de atendimento</small></span></button>
-        <button data-go="locais"><span class="q-ico">${I('pin')}</span><span><b>Locais</b><small>${Object.keys(D.venues).length} pontos de atendimento</small></span></button>
-      </div>
+    return `${searchBox('', { id: 'q0', big: true, placeholder: 'Buscar curso, serviço, sala ou assunto…' })}
+      <p class="status-line">${I('sparkles')}<span>${status} · ${esc(D.event.placeShort)}</span></p>
+      <div class="tabs" role="tablist" aria-label="Dia">${days.map((x) => { const n = sessionsOf((y) => y.date === x && (!local || y.venue === local)).length; return `<button role="tab" aria-selected="${x === d}" class="${x === d ? 'on' : ''} ${x === clock.date ? 'today' : ''} ${x < clock.date ? 'past' : ''}" data-param="d" data-value="${x}"><small>${x === clock.date ? 'hoje' : T.fmtDate(x, 'wd').split(' ')[0]}</small><b>${x.slice(8)}</b><em>${n ? `${n} curso${n > 1 ? 's' : ''}` : '—'}</em></button>`; }).join('')}</div>
+      <div class="chips scroll" aria-label="Local">${chip(`${I('pin')}Todos os locais`, !local, 'data-param="local" data-value="todos"')}${Object.values(D.venues).map((v) => chip(esc(v.short), local === v.id, `data-param="local" data-value="${v.id}"`)).join('')}</div>
+      <p class="page-lead">${esc(cap(T.fmtDate(d)))}${d === clock.date ? ' · hoje' : T.relDay(d, clock.date) === 'amanhã' ? ' · amanhã' : ''} · <b>${list.length} curso${list.length === 1 ? '' : 's'}</b>${local ? ` em ${esc(D.venues[local].name)}` : ' em todos os locais'}</p>
+      ${nowCard}
+      ${shifts.length ? sections : empty('calendar', `Nenhum curso ${d === clock.date ? 'hoje' : 'neste dia'}${local ? ` em ${esc(D.venues[local].short)}` : ''}. Toque em outro dia ou local acima, ou veja os serviços gratuitos.`)}
       ${favList.length ? `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('bookmark')}</span><h2>Meus cursos <small>${favList.length}</small></h2><button class="link" data-go="cursos?fav=1">Ver ${I('right')}</button></div><div class="stack cols">${favList.slice(0, 4).map((c) => sessRow(nextOf(c), { showDate: true })).join('')}</div></section>` : ''}
-      <section class="sec"><div class="sec-head"><span class="sec-ico">${I('handshake')}</span><h2>Serviços gratuitos</h2><button class="link" data-go="servicos">Todos ${I('right')}</button></div>
-        <div class="hscroll">${D.services.map((s) => `<button class="pillar-mini" style="--c:${s.color}" data-sheet="servico" data-id="${s.id}"><i>${I(s.icon)}</i><b>${esc(s.title)}</b><small>${esc(s.summary)}</small></button>`).join('')}</div></section>
-      <footer class="foot">${esc(D.event.organizer)}<br>${esc(D.event.edition)} · ${esc(D.event.place)} · ${esc(D.event.datesLabel)}<br><a href="tv.html">Modo TV</a></footer>`;
+      ${servicesStrip()}
+      ${footer()}`;
   }
 
-  function viewProgramacao() {
-    const days = T.eventDays(); const d = days.includes(route.p.get('d')) ? route.p.get('d') : focusDate(); const local = route.p.get('local') || '';
-    const list = sessionsOf((x) => x.date === d && (!local || x.venue === local));
-    const shifts = T.SHIFT_ORDER.filter((k) => list.some((x) => x.shift === k));
-    return `<div class="page-head"><span class="page-ico">${I('calendar')}</span><h1>Programação</h1></div>
-      <div class="tabs" role="tablist">${days.map((x) => `<button role="tab" aria-selected="${x === d}" class="${x === d ? 'on' : ''} ${x === clock.date ? 'today' : ''}" data-param="d" data-value="${x}"><small>${T.fmtDate(x, 'wd').split(' ')[0]}</small><b>${x.slice(8)}</b><em>${sessionsOf((y) => y.date === x).length} aulas</em></button>`).join('')}</div>
-      <div class="chips scroll">${chip('Todos os locais', !local, 'data-param="local" data-value=""')}${Object.values(D.venues).map((v) => chip(esc(v.short), local === v.id, `data-param="local" data-value="${v.id}"`)).join('')}</div>
-      <p class="page-lead">${esc(T.fmtDate(d))}${d === clock.date ? ' · hoje' : ''} · ${list.length} aula${list.length === 1 ? '' : 's'}${local ? ` em ${esc(D.venues[local].name)}` : ''}</p>
-      ${shifts.length ? shifts.map((k) => { const sh = T.SHIFTS[k]; const l = list.filter((x) => x.shift === k); return `<section class="sec"><div class="sec-head"><span class="sec-ico c" style="--c:${sh.color}">${I(T.SHIFT_ICON[k])}</span><h2>${sh.label} <small>${T.fmtTime(sh.start)}–${T.fmtTime(sh.end)}</small></h2><span class="muted tiny">${l.length} curso${l.length === 1 ? '' : 's'}</span></div><div class="stack cols">${l.map((x) => sessRow(x)).join('')}</div></section>`; }).join('') : empty('calendar', 'Nenhum curso neste dia e local. Confira os serviços gratuitos na aba Serviços.')}`;
+  function viewBusca() {
+    const q = route.p.get('q') || ''; const tt = terms(q);
+    let body = '';
+    if (!tt.length) {
+      body = `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('sparkles')}</span><h2>O que você procura?</h2></div>
+          <div class="chips">${SUGGESTIONS.map((s) => chip(esc(s), false, `data-param="q" data-value="${esc(s)}"`)).join('')}</div></section>
+        <section class="sec"><div class="sec-head"><span class="sec-ico">${I('pin')}</span><h2>Por local</h2></div><div class="chips">${Object.values(D.venues).map((v) => chip(esc(v.short), false, `data-go="programacao?local=${v.id}"`)).join('')}</div></section>
+        <section class="sec"><div class="sec-head"><span class="sec-ico">${I('calendar')}</span><h2>Por dia</h2></div><div class="chips">${T.eventDays().map((d) => chip(esc(d === clock.date ? 'Hoje' : cap(T.fmtDate(d, 'wd'))), false, `data-go="programacao?d=${d}"`)).join('')}</div></section>
+        <section class="sec"><div class="sec-head"><span class="sec-ico">${I('tag')}</span><h2>Cursos por tema</h2></div><div class="chips">${Object.entries(D.tags).map(([k, v]) => chip(esc(v), false, `data-go="cursos?tema=${k}"`)).join('')}</div></section>`;
+    } else {
+      const courses = D.courses.filter((c) => matches(searchableCourse(c), tt)).sort(courseSort.proximas);
+      const services = D.services.map((s) => ({ s, hits: s.items.filter((it) => matches(T.norm(it), tt)).slice(0, 3) })).filter((r) => r.hits.length || matches(searchableService(r.s), tt));
+      const venues = Object.values(D.venues).filter((v) => matches(searchableVenue(v), tt));
+      const total = courses.length + services.length + venues.length;
+      body = total ? `<p class="result-line"><span><b>${total}</b> resultado${total > 1 ? 's' : ''} para “${esc(q)}”</span></p>
+        ${services.length ? `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('handshake')}</span><h2>Serviços gratuitos <small>${services.length}</small></h2></div><div class="stack">${services.map((r) => svcCard(r.s, r.hits)).join('')}</div></section>` : ''}
+        ${courses.length ? `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('graduation')}</span><h2>Cursos <small>${courses.length}</small></h2>${courses.length > 3 ? `<button class="link" data-go="cursos?q=${encodeURIComponent(q)}">Filtrar ${I('right')}</button>` : ''}</div><div class="stack cols">${courses.map((c) => sessRow(nextOf(c), { showDate: true })).join('')}</div></section>` : ''}
+        ${venues.length ? `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('pin')}</span><h2>Locais <small>${venues.length}</small></h2></div><div class="stack">${venues.map(venueCard).join('')}</div></section>` : ''}`
+        : `${empty('search', `Nada encontrado para “${esc(q)}”. Tente uma palavra mais simples, como “saúde”, “documento” ou “curso”.`)}<div class="chips" style="justify-content:center">${SUGGESTIONS.slice(0, 6).map((s) => chip(esc(s), false, `data-param="q" data-value="${esc(s)}"`)).join('')}</div>`;
+    }
+    return `<div class="page-head"><span class="page-ico">${I('search')}</span><h1>Buscar</h1></div>
+      ${searchBox(q, { id: 'q', big: true, autofocus: true, placeholder: 'Ex.: vacina, identidade, panificação…' })}
+      ${body}`;
   }
 
   function viewCursos() {
@@ -160,29 +216,30 @@
     const n = activeFilterCount(p);
     const days = T.eventDays();
     return `<div class="page-head"><span class="page-ico">${I('graduation')}</span><h1>Cursos <span class="count">${D.courses.length}</span></h1></div>
-      <div class="filter-bar"><div class="search">${I('search')}<label class="sr-only" for="q">Buscar</label><input id="q" type="search" value="${esc(q)}" placeholder="Buscar por nome, público, tema…" autocomplete="off" data-search>${q ? `<button class="icon-btn" data-param="q" data-value="" aria-label="Limpar busca">${I('x')}</button>` : ''}</div><button class="icon-btn ${filtersOpen || n ? 'on' : ''}" data-toggle-filters aria-label="Filtros" aria-expanded="${filtersOpen}">${I('sliders')}${n ? `<em>${n}</em>` : ''}</button></div>
+      <p class="page-lead">Gratuitos, com inscrição pelo site da Escola de Contas. Toque no curso para ver horários, sala e inscrição.</p>
+      <div class="filter-bar">${searchBox(q, { placeholder: 'Buscar por nome, público, tema…' })}<button class="icon-btn ${filtersOpen || n ? 'on' : ''}" data-toggle-filters aria-label="Filtros" aria-expanded="${filtersOpen}">${I('sliders')}${n ? `<em>${n}</em>` : ''}</button></div>
+      <div class="chips scroll">${chip(`${I('clock')}Hoje`, p.get('dia') === clock.date, `data-param="dia" data-value="${p.get('dia') === clock.date ? '' : clock.date}"`)}${prefs.local && D.venues[prefs.local] ? chip(`${I('pin')}${esc(D.venues[prefs.local].short)}`, p.get('local') === prefs.local, `data-param="local" data-value="${p.get('local') === prefs.local ? '' : prefs.local}"`) : ''}${chip(`${I('bookmark')}Meus cursos${favs.size ? ` (${favs.size})` : ''}`, !!p.get('fav'), `data-param="fav" data-value="${p.get('fav') ? '' : '1'}"`)}</div>
       ${filtersOpen || n ? `<div class="filters">
         <div class="f-group"><small>Tema</small><div class="chips">${chip('Todos', !p.get('tema'), 'data-param="tema" data-value=""')}${Object.entries(D.tags).map(([k, v]) => chip(esc(v), p.get('tema') === k, `data-param="tema" data-value="${k}"`)).join('')}</div></div>
         <div class="f-group"><small>Dia</small><div class="chips">${chip('Todos', !p.get('dia'), 'data-param="dia" data-value=""')}${days.map((d) => chip(esc(T.fmtDate(d, 'wd')), p.get('dia') === d, `data-param="dia" data-value="${d}"`)).join('')}</div></div>
         <div class="f-group"><small>Turno</small><div class="chips">${chip('Todos', !p.get('turno'), 'data-param="turno" data-value=""')}${T.SHIFT_ORDER.map((k) => chip(`${T.SHIFTS[k].label} ${T.fmtTime(T.SHIFTS[k].start)}`, p.get('turno') === k, `data-param="turno" data-value="${k}"`, T.SHIFTS[k].color)).join('')}</div></div>
         <div class="f-group"><small>Local</small><div class="chips">${chip('Todos', !p.get('local'), 'data-param="local" data-value=""')}${Object.values(D.venues).map((v) => chip(esc(v.short), p.get('local') === v.id, `data-param="local" data-value="${v.id}"`)).join('')}</div></div>
-        <div class="f-group"><small>Outros</small><div class="chips">${chip(`${I('bookmark')}Meus cursos${favs.size ? ` (${favs.size})` : ''}`, !!p.get('fav'), `data-param="fav" data-value="${p.get('fav') ? '' : '1'}"`)}${n ? chip(`${I('x')}Limpar filtros`, false, 'data-clear-filters', null).replace('class="chip', 'class="chip clear') : ''}</div></div>
+        ${n ? `<div class="f-group"><div class="chips">${chip(`${I('x')}Limpar filtros`, false, 'data-clear-filters').replace('class="chip', 'class="chip clear')}</div></div>` : ''}
       </div>` : ''}
-      <div class="result-line"><span>${list.length} de ${D.courses.length} curso${D.courses.length === 1 ? '' : 's'}</span><label>Ordenar <select data-param="ord"><option value="proximas" ${sort === 'proximas' ? 'selected' : ''}>Próximas datas</option><option value="az" ${sort === 'az' ? 'selected' : ''}>A–Z</option><option value="ch" ${sort === 'ch' ? 'selected' : ''}>Carga horária</option></select></label></div>
+      <div class="result-line"><span>${list.length} de ${D.courses.length} cursos</span><label>Ordenar <select data-param="ord"><option value="proximas" ${sort === 'proximas' ? 'selected' : ''}>Próximas datas</option><option value="az" ${sort === 'az' ? 'selected' : ''}>A–Z</option><option value="ch" ${sort === 'ch' ? 'selected' : ''}>Carga horária</option></select></label></div>
       ${list.length ? `<div class="stack cols">${list.map(courseCard).join('')}</div>` : empty('search', 'Nenhum curso encontrado. Tente outra palavra ou limpe os filtros.')}`;
   }
 
   function viewServicos() {
     return `<div class="page-head"><span class="page-ico">${I('handshake')}</span><h1>Serviços</h1></div>
-      <p class="page-lead">${esc(D.event.tagline)}. Toque em um pilar para ver todos os atendimentos e os parceiros responsáveis.</p>
-      <div class="stack cols">${D.services.map(svcCard).join('')}</div>`;
+      <p class="page-lead">${esc(D.event.tagline)}, sem inscrição e por ordem de chegada, de ${esc(D.event.datesLabel)}. Toque para ver tudo o que é oferecido e quem atende.</p>
+      <div class="stack cols">${D.services.map((s) => svcCard(s)).join('')}</div>`;
   }
 
   function viewLocais() {
     return `<div class="page-head"><span class="page-ico">${I('pin')}</span><h1>Locais</h1></div>
       <p class="page-lead">Onde acontecem os cursos. Toque para ver a programação de cada local.</p>
-      <div class="stack cols">${Object.values(D.venues).map((v) => { const n = sessionsOf((x) => x.venue === v.id).length; const days = [...new Set(sessionsOf((x) => x.venue === v.id).map((x) => x.date))];
-        return `<button class="card svc-card venue-card" style="--c:${'#60a5fa'}" data-sheet="local" data-id="${v.id}"><span class="svc-ico">${I('building')}</span><span><b>${esc(v.name)}</b><small>${esc(v.city)} · ${n} aula${n === 1 ? '' : 's'} em ${days.length} dia${days.length === 1 ? '' : 's'}</small>${v.rooms.length ? `<span class="rooms">${v.rooms.map((r) => `<span>${esc(r)}</span>`).join('')}</span>` : ''}</span><span class="chev">${I('right')}</span></button>`; }).join('')}</div>`;
+      <div class="stack cols">${Object.values(D.venues).map(venueCard).join('')}</div>`;
   }
 
   // ---------- folhas ----------
@@ -190,33 +247,36 @@
     const sessions = T.allSessions().filter((x) => x.course === c);
     const byDay = {}; sessions.forEach((x) => { (byDay[x.date] = byDay[x.date] || []).push(x); });
     const venues = [...new Set(sessions.map((x) => D.venues[x.venue].short))].join(' · ');
-    const fav = favs.has(c.id); const s = T.courseState(c, clock);
+    const fav = favs.has(c.id); const s = T.courseState(c, clock); const nx = nextOf(c);
     const links = [...new Set(sessions.map((x) => x.link))];
     const qr = T.qrSvg(location.href.split('#')[0] + `#curso/${c.id}`, { margin: 1 });
+    const nextLine = s === 'now' ? `Acontecendo agora · ${esc(roomLabel(nx))} · até ${T.fmtTime(T.sessionEnd(nx))}` : s === 'past' ? 'Todas as aulas já aconteceram' : `${cap(dayWord(nx.date))} às ${T.fmtTime(nx.time)} · ${esc(roomLabel(nx))}`;
     return `<div class="sheet-head"><span class="kicker">${I('graduation')}Curso gratuito · Escola de Contas · TCE/AP</span><button class="icon-btn" data-close aria-label="Fechar">${I('x')}</button></div>
       <div class="sheet-body"><h2>${esc(c.title)}</h2>
-        <div class="chips" style="margin-top:0">${c.tags.map((t) => `<span class="tagc">${esc(D.tags[t])}</span>`).join('')}${s === 'now' ? `<span class="badge now" style="--c:${shiftColor(nextOf(c).shift)}">acontecendo agora</span>` : s === 'past' ? '<span class="badge past">encerrado</span>' : ''}</div>
+        <div class="next-line ${s}" style="--c:${shiftColor(nx.shift)}">${I(s === 'now' ? 'clock' : 'calendar')}<span>${nextLine}</span></div>
+        <div class="chips" style="margin-top:.4em">${c.tags.map((t) => `<span class="tagc">${esc(D.tags[t])}</span>`).join('')}</div>
         <div class="meta-grid"><div><small>Carga horária</small><b>${c.hours}h</b></div><div><small>Vagas</small><b>${c.seats}</b></div><div><small>Local</small><b>${esc(venues)}</b></div></div>
-        <p><b>Público-alvo:</b> ${esc(c.audience)}</p>
+        <p><b>Para quem é:</b> ${esc(c.audience)}</p>
         ${c.note ? `<p class="note" style="margin-top:.6em">${I('info')}<span>${esc(c.note)}</span></p>` : ''}
-        <h3>${I('calendar')}Aulas (${sessions.length})</h3>
-        ${Object.keys(byDay).map((d) => `<div class="day-group"><small class="${d === clock.date ? 'today' : ''}">${esc(T.fmtDate(d))}${d === clock.date ? ' · hoje' : ''}</small>${byDay[d].map((x) => { const sx = st(x); return `<div class="sess-static ${sx}" style="--c:${shiftColor(x.shift)}"><span class="sess-time"><b>${T.fmtTime(x.time)}</b><small>${esc(T.SHIFTS[x.shift].short)}</small></span><span class="sess-body"><b>${esc(x.room || D.venues[x.venue].short)}${x.label ? ` · ${esc(x.label)}` : ''}</b><small>${esc(D.venues[x.venue].name)} · até ${T.fmtTime(T.sessionEnd(x))}</small></span><span class="sess-right">${stateBadge(sx, shiftColor(x.shift))}</span>${links.length > 1 && x.link !== c.link ? `<a class="sess-link link" href="${esc(x.link)}" target="_blank" rel="noopener">Inscrição ${esc(x.label || '')} ${I('external')}</a>` : ''}</div>`; }).join('')}</div>`).join('')}
+        <h3>${I('calendar')}Dias e horários (${sessions.length})</h3>
+        ${Object.keys(byDay).map((d) => `<div class="day-group"><small class="${d === clock.date ? 'today' : ''}">${esc(T.fmtDate(d))}${d === clock.date ? ' · hoje' : ''}</small>${byDay[d].map((x) => { const sx = st(x); return `<div class="sess-static ${sx}" style="--c:${shiftColor(x.shift)}"><span class="sess-time"><b>${T.fmtTime(x.time)}</b><small>até ${T.fmtTime(T.sessionEnd(x))}</small></span><span class="sess-body"><b>${esc(x.room || D.venues[x.venue].short)}${x.label ? ` · ${esc(x.label)}` : ''}</b><small>${esc(D.venues[x.venue].name)}</small></span><span class="sess-right">${stateBadge(sx, shiftColor(x.shift))}</span>${links.length > 1 && x.link !== c.link ? `<a class="sess-link link" href="${esc(x.link)}" target="_blank" rel="noopener">Inscrição ${esc(x.label || '')} ${I('external')}</a>` : ''}</div>`; }).join('')}</div>`).join('')}
         <div class="actions">
-          <a class="btn btn-primary" href="${esc(c.link)}" target="_blank" rel="noopener">${I('external')}Inscrever-se${links.length > 1 ? ` (${esc(sessions.find((x) => x.link === c.link)?.label || 'Turma I')})` : ''}</a>
+          <a class="btn btn-primary" href="${esc(c.link)}" target="_blank" rel="noopener">${I('external')}Fazer inscrição${links.length > 1 ? ` (${esc(sessions.find((x) => x.link === c.link)?.label || 'Turma I')})` : ''}</a>
           <button class="btn btn-ghost ${fav ? 'on' : ''}" data-fav="${c.id}">${I('bookmark')}${fav ? 'Salvo' : 'Salvar'}</button>
           <button class="btn btn-ghost" data-ics="${c.id}">${I('calendarplus')}Lembrar</button>
           <button class="btn btn-ghost" data-share="${c.id}">${I('share')}Compartilhar</button>
-          <button class="btn btn-ghost" data-go="programacao?d=${nextOf(c).date}">${I('calendar')}Ver o dia</button>
+          <button class="btn btn-ghost" data-go="programacao?d=${nx.date}&local=${nx.venue}">${I('calendar')}Ver o dia</button>
         </div>
-        <p class="tiny muted">As inscrições são feitas no site da Escola de Contas (ESCON).${c.linkNote ? ' Se o link não abrir, procure o curso pelo nome na página de cursos da Escola de Contas.' : ''}</p>
+        <p class="tiny muted">A inscrição é feita no site da Escola de Contas (ESCON). É gratuita.${c.linkNote ? ' Se o link não abrir, procure o curso pelo nome na página de cursos da Escola de Contas.' : ''}</p>
         <div class="qr-box">${qr}<small><b>Mostre para alguém:</b> este QR Code abre esta página do curso no celular.</small></div>
       </div>`;
   }
   function sheetServico(s) {
     return `<div class="sheet-head"><span class="kicker" style="color:color-mix(in srgb,${s.color} 70%,var(--ink))">${I(s.icon)}${s.num ? `Pilar ${s.num}` : 'Acolhida'} · Serviços gratuitos</span><button class="icon-btn" data-close aria-label="Fechar">${I('x')}</button></div>
       <div class="sheet-body" style="--c:${s.color}"><h2>${esc(s.title)}</h2><p class="muted">${esc(s.summary)}</p>
+        <div class="next-line" style="--c:${s.color};margin-top:.6em">${I('info')}<span>Sem inscrição: basta chegar. ${esc(D.event.datesLabel)}, em ${esc(D.event.place)}.</span></div>
         <h3>${I('check')}O que é oferecido</h3><ul class="ul">${s.items.map((it) => `<li><i></i><span>${esc(it)}</span></li>`).join('')}</ul>
-        <h3>${I('users')}Parceiros</h3><div class="partners">${s.partners.map((p) => `<span>${esc(p)}</span>`).join('')}</div>
+        <h3>${I('users')}Quem atende</h3><div class="partners">${s.partners.map((p) => `<span>${esc(p)}</span>`).join('')}</div>
         ${s.coursesLink ? `<div class="actions"><button class="btn btn-primary" data-go="cursos">${I('graduation')}Ver os ${D.courses.length} cursos com inscrição</button></div>` : ''}
         <div class="share-row"><button class="btn btn-ghost" data-share-svc="${s.id}">${I('share')}Compartilhar</button></div>
       </div>`;
@@ -225,15 +285,16 @@
     const list = sessionsOf((x) => x.venue === v.id); const byDay = {}; list.forEach((x) => { (byDay[x.date] = byDay[x.date] || []).push(x); });
     return `<div class="sheet-head"><span class="kicker">${I('pin')}Local · ${esc(v.city)}</span><button class="icon-btn" data-close aria-label="Fechar">${I('x')}</button></div>
       <div class="sheet-body"><h2>${esc(v.name)}</h2>${v.rooms.length ? `<div class="partners">${v.rooms.map((r) => `<span>${esc(r)}</span>`).join('')}</div>` : ''}
-        <h3>${I('calendar')}Programação neste local (${list.length})</h3>
+        <div class="actions" style="margin:.9em 0"><button class="btn btn-primary" data-go="programacao?local=${v.id}">${I('calendar')}Abrir a programação deste local</button></div>
+        <h3>${I('calendar')}Cursos neste local (${list.length})</h3>
         ${Object.keys(byDay).map((d) => `<div class="day-group"><small class="${d === clock.date ? 'today' : ''}">${esc(T.fmtDate(d))}${d === clock.date ? ' · hoje' : ''}</small><div class="stack">${byDay[d].map((x) => sessRow(x)).join('')}</div></div>`).join('') || empty('calendar', 'Sem cursos cadastrados neste local.')}
       </div>`;
   }
 
   // ---------- render ----------
   function shell() {
-    const navBtns = (cls) => Object.entries(VIEWS).map(([k, v]) => `<button class="${route.view === k ? 'on' : ''}" data-go="${k}" aria-label="${v.label}"><span class="nav-ico">${I(v.icon)}</span>${v.label}</button>`).join('');
-    root.innerHTML = `<header class="app-head"><button class="app-brand" data-go="inicio"><span class="logo-chip"><img src="img/tce-mark.png" alt=""></span><span><b>${esc(D.event.name)}</b><small>${esc(D.event.edition)} · ${esc(D.event.placeShort)}</small></span></button><div class="app-head-right">${T.isSimulated() ? '<span class="demo-pill">demo</span>' : ''}<div class="app-clock" id="clock"></div></div></header>
+    const navBtns = () => Object.entries(VIEWS).map(([k, v]) => `<button class="${route.view === k ? 'on' : ''}" data-go="${k}" aria-label="${v.label}"><span class="nav-ico">${I(v.icon)}</span>${v.label}</button>`).join('');
+    root.innerHTML = `<header class="app-head"><button class="app-brand" data-go="programacao"><span class="logo-chip"><img src="img/tce-mark.png" alt=""></span><span><b>${esc(D.event.name)}</b><small>${esc(D.event.edition)} · ${esc(D.event.placeShort)}</small></span></button><div class="app-head-right">${T.isSimulated() ? '<span class="demo-pill">demo</span>' : ''}<div class="app-clock" id="clock"></div><button class="icon-btn head-search" data-go="busca" aria-label="Buscar">${I('search')}</button></div></header>
       <div class="app-body"><nav class="side-nav" id="side-nav">${navBtns()}<div class="sn-foot">${esc(D.event.organizerShort)}<br>${esc(D.event.datesLabel)}<br><a href="tv.html">Modo TV</a></div></nav><main class="app-main" id="main"></main></div>
       <nav class="bottom-nav" id="bottom-nav">${navBtns()}</nav><div id="sheet"></div><div id="toast"></div>`;
     renderClock();
@@ -248,9 +309,10 @@
   function renderMain(keepScroll) {
     const main = document.getElementById('main');
     const active = document.activeElement; const wasSearch = active && active.hasAttribute('data-search'); const pos = wasSearch ? [active.selectionStart, active.selectionEnd] : null;
-    main.innerHTML = { inicio: viewInicio, programacao: viewProgramacao, cursos: viewCursos, servicos: viewServicos, locais: viewLocais }[route.view]();
+    main.innerHTML = { programacao: viewProgramacao, busca: viewBusca, cursos: viewCursos, servicos: viewServicos, locais: viewLocais }[route.view]();
     if (!keepScroll) window.scrollTo({ top: 0 });
-    if (wasSearch) { const inp = main.querySelector('[data-search]'); if (inp) { inp.focus(); try { inp.setSelectionRange(pos[0], pos[1]); } catch { /* */ } } }
+    const inp = main.querySelector('[data-search]');
+    if (inp && (wasSearch || (route.view === 'busca' && !route.p.get('q')))) { inp.focus({ preventScroll: true }); try { if (pos) inp.setSelectionRange(Math.min(pos[0], inp.value.length), Math.min(pos[1], inp.value.length)); } catch { /* */ } }
   }
   function renderSheet() {
     const holder = document.getElementById('sheet');
@@ -288,10 +350,12 @@
     if ((b = el('[data-sheet]'))) { openSheet(b.dataset.sheet, b.dataset.id); return; }
     if ((b = el('[data-go]'))) {
       const target = b.dataset.go; const [view, qs] = target.split('?');
-      if (route.sheet) { sheetPushed = false; }
+      if (route.sheet) sheetPushed = false;
       go(`#${view}${qs ? `?${qs}` : ''}`); return;
     }
-    if ((b = el('[data-param]')) && b.tagName !== 'SELECT') { setParam(b.dataset.param, b.dataset.value); return; }
+    if ((b = el('[data-scroll]'))) { const t = document.getElementById(b.dataset.scroll); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+    if ((b = el('[data-toggle-shift]'))) { const k = b.dataset.toggleShift; if (openShifts.has(k)) openShifts.delete(k); else openShifts.add(k); renderMain(true); return; }
+    if ((b = el('[data-param]')) && b.tagName !== 'SELECT') { setParam(b.dataset.param, b.dataset.value, route.view === 'programacao' && b.dataset.param !== 'q'); return; }
     if ((b = el('[data-toggle-filters]'))) { filtersOpen = !filtersOpen; renderMain(true); return; }
     if ((b = el('[data-clear-filters]'))) { const p = new URLSearchParams(); if (route.p.get('q')) p.set('q', route.p.get('q')); filtersOpen = false; go(hashOf('cursos', p), true); return; }
     if ((b = el('[data-fav]'))) {
@@ -303,10 +367,16 @@
     if ((b = el('[data-share-svc]'))) { const s = T.serviceById(b.dataset.shareSvc); share(s.title, `${s.title}: ${s.summary} · ${D.event.name} · ${D.event.datesLabel}`, location.href.split('#')[0] + `#servico/${s.id}`); return; }
   });
   document.addEventListener('change', (e) => { const s = e.target.closest('select[data-param]'); if (s) setParam(s.dataset.param, s.value); });
-  document.addEventListener('submit', (e) => { const f = e.target.closest('[data-search-form]'); if (!f) return; e.preventDefault(); const q = f.querySelector('input').value.trim(); const p = new URLSearchParams(); if (q) p.set('q', q); go(hashOf('cursos', p)); });
   let searchTimer = null;
-  document.addEventListener('input', (e) => { const inp = e.target.closest('[data-search]'); if (!inp) return; clearTimeout(searchTimer); searchTimer = setTimeout(() => setParam('q', inp.value.trim()), 180); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && route.sheet) closeSheet(); });
+  document.addEventListener('input', (e) => {
+    const inp = e.target.closest('[data-search]'); if (!inp) return;
+    clearTimeout(searchTimer);
+    const q = inp.value.trim();
+    if (route.view === 'cursos') { searchTimer = setTimeout(() => setParam('q', q), 180); return; }
+    if (route.view !== 'busca') { const p = new URLSearchParams(); if (q) p.set('q', q); go(hashOf('busca', p)); return; } // da programação vai para a busca única
+    searchTimer = setTimeout(() => setParam('q', q), 150);
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && route.sheet) closeSheet(); if (e.key === 'Enter' && e.target.closest && e.target.closest('[data-search]')) e.target.blur(); });
   window.addEventListener('hashchange', onRoute);
 
   // Arraste para fechar a folha (celular). Ignora o toque em botões para não engolir o clique.
@@ -316,8 +386,9 @@
   document.addEventListener('pointerup', () => { if (!drag) return; if (drag.dy > 90) closeSheet(); else drag.sheet.style.transform = ''; drag = null; });
 
   // ---------- início ----------
+  route = parse();
   shell();
   onRoute();
-  setInterval(() => { const c = T.now(); if (c.time !== clock.time) { clock = c; renderClock(); if (c.seconds === 0 || c.time.endsWith(':00')) { renderMain(true); if (route.sheet) renderSheet(); } } }, 1000);
+  setInterval(() => { const c = T.now(); if (c.time !== clock.time) { clock = c; renderClock(); if (!document.activeElement || !document.activeElement.hasAttribute('data-search')) { renderMain(true); if (route.sheet) renderSheet(); } } }, 1000);
   if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
