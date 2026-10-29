@@ -14,6 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Criar o projeto no Cloudflare Pages (ignora se já existir)
+        continue-on-error: true
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages project create ${{ vars.CLOUDFLARE_PAGES_PROJECT || 'tce-comunidade' }} --production-branch=main
       - name: Publicar
         uses: cloudflare/wrangler-action@v3
         with:
