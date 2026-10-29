@@ -6,7 +6,7 @@ evento. Site estático: HTML + CSS + JS puros, dados em `js/data.js`.
 | Página | Para quem | Uso |
 | --- | --- | --- |
 | `tv.html` | TV/monitor no saguão da escola | Programação do dia inteira em uma tela (sala → curso → para quem), 2 destaques do momento, QR Code para o app |
-| `totem.html` | Totem vertical por toque (ex.: 42", 1080×1920) | Mesmo app, com tipografia e botões para uso em pé, teclado na tela, tela de descanso com a programação do dia e QR Code grande para levar no celular |
+| `totem.html` | Totem vertical por toque (ex.: 42", 1080×1920) | Interface própria de quiosque: blocos grandes de escolha, abas no alto, teclado na tela, detalhe em painel com "Voltar", QR Code fixo no rodapé e tela de descanso com a programação do dia |
 | `index.html` | Público, no celular (ou desktop) | Abre na programação do dia e do local usados por último; busca única (cursos, serviços, locais); detalhe, inscrição, lembrete, favoritos |
 
 ## Publicar
@@ -51,11 +51,14 @@ Aparelho compartilhado, em pé, por toque. Parâmetros: `?local=jn` (local do to
 de descanso usam o mesmo), `?ocioso=90` (segundos sem toque até voltar à tela de descanso) e os
 mesmos `?t=`/`?d=` de demonstração. Tecla `F` para tela cheia (ou use o modo quiosque do navegador).
 
-Diferenças em relação ao celular: não guarda nada entre pessoas (sem memória de dia/local, sem
-favoritos, sem compartilhar); links externos ficam bloqueados e a inscrição é feita pelo QR Code
-grande que abre a página do curso no celular da pessoa; a busca usa um teclado na tela; depois do
-tempo ocioso, volta ao início e mostra a programação do dia (a mesma da TV, em retrato) com o aviso
-"Toque na tela para explorar". Recarrega sozinho às 4h.
+Interface própria (`js/totem.js` + `css/totem.css`, sobre os mesmos dados e busca do app): início com
+blocos grandes (Programação de hoje, Cursos, Saúde, Documentos, Todos os serviços, Onde fica), abas no
+alto (na altura dos olhos e da mão), listas com letras grandes, detalhe em painel de tela cheia com
+"Voltar", teclado na tela para a busca e QR Code fixo no rodapé para levar o app no celular.
+Não guarda nada entre pessoas (sem memória, favoritos ou compartilhar); links externos ficam
+bloqueados e a inscrição é feita pelo QR Code grande de cada curso; depois do tempo ocioso volta ao
+início e mostra a programação do dia (a mesma da TV, em retrato) com "Toque na tela para explorar".
+Recarrega sozinho às 4h.
 
 ## Dados
 `js/data.js` é a fonte única (evento, locais, cursos com sessões, serviços por pilar), transcrita de

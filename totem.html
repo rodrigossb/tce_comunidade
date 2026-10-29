@@ -9,15 +9,14 @@
   <meta name="theme-color" content="#1f3b9a">
   <link rel="icon" href="img/tce-mark.png">
   <link rel="stylesheet" href="css/base.css">
-  <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/totem.css">
 </head>
 <body>
   <!--
-    Modo totem (tela vertical grande, por toque). Mesmo app do celular, com:
-      · tipografia e botões para uso em pé · teclado na tela para a busca
-      · tela de descanso com a programação do dia (tv.html) que volta sozinha quando ninguém usa
-      · sem memória, favoritos ou compartilhar (aparelho compartilhado); QR Code grande para levar no celular
+    Modo totem: tela vertical grande por toque (ex.: 42" em 1080×1920), uso em pé.
+    Interface própria de quiosque: blocos grandes de escolha, abas no alto, listas com letras grandes,
+    detalhe em painel de tela cheia, teclado na tela, QR Code fixo no rodapé e tela de descanso com a
+    programação do dia (tv.html) que volta sozinha quando ninguém usa. Sem memória entre pessoas.
     Parâmetros na URL:
       ?local=jn|manga|sebrae|auditorio      local onde o totem está (padrão: jn)
       ?ocioso=90                            segundos sem toque até voltar à tela de descanso (padrão: 90)
@@ -25,19 +24,11 @@
       ?app=https://…/                        endereço do app para os QR Codes (padrão: a mesma pasta)
     Tecla F: tela cheia.
   -->
-  <div id="app" class="app totem"><div class="app-loading">Carregando…</div></div>
+  <div id="totem" class="tt"><div class="tt-loading">Carregando…</div></div>
   <script src="vendor/qrcode.js"></script>
   <script src="js/data.js"></script>
   <script src="js/shared.js"></script>
   <script src="js/icons.js"></script>
-  <script>
-    (function () {
-      const p = new URLSearchParams(location.search);
-      const local = p.get('local') || 'jn';
-      window.TCE_TOTEM = { local: window.TCE_DATA.venues[local] ? local : 'jn', idle: Math.max(20, Number(p.get('ocioso')) || 90), app: p.get('app') || '' };
-    })();
-  </script>
-  <script src="js/app.js"></script>
   <script src="js/totem.js"></script>
 </body>
 </html>

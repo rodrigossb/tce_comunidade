@@ -18,9 +18,6 @@
   const LS_FAV = 'tce_favs';
   const LS_PREFS = 'tce_prefs';
   const LS_BASE = 'tce_base';
-  const SUGGESTIONS = ['Saúde', 'Vacina', 'Identidade', 'Mulheres', 'Crianças', 'Empreendedorismo', 'Tecnologia', 'Jurídico', 'Animais', 'Feira'];
-  // Palavras do dia a dia → termos usados nos textos oficiais.
-  const SYNONYMS = { rg: 'identidade', cin: 'identidade', remedio: 'farmacia', remedios: 'farmacia', dentista: 'odontologico', medico: 'consultas', medica: 'consultas', cachorro: 'caes', cachorros: 'caes', gato: 'gatos', advogado: 'juridico', advogada: 'juridico', justica: 'juridico', computador: 'tecnologia', celular: 'tecnologia', cabelo: 'cabelo', emprego: 'profissional', trabalho: 'trabalho', escola: 'escolares', professor: 'professores', professora: 'professores', crianca: 'criancas', idoso: 'idosos', animal: 'animais', pet: 'caes', veterinario: 'antirrabica', vacina: 'vacinacao', vacinas: 'vacinacao', cpf: 'cpf', titulo: 'eleitorais', eleitor: 'eleitorais', carteira: 'carteira', habilitacao: 'cnh', casamento: 'casamento', pai: 'pai presente', pensao: 'pensoes', aposentadoria: 'aposentadorias', inss: 'previdenciarios', mulher: 'mulheres', violencia: 'violencia', denuncia: 'denuncia', comida: 'alimentos', pao: 'panificacao', paes: 'panificacao', costura: 'textil', camisa: 'camisas', cilios: 'cilios', natal: 'natalino', presente: 'presentes', vender: 'vender', venda: 'vender', internet: 'internet', ia: 'inteligencia artificial', video: 'videomaker', reciclagem: 'reciclagem', rio: 'rios', madeira: 'madeireiros', socorro: 'socorros', esporte: 'esporte' };
 
   const favs = new Set((() => { try { return JSON.parse(localStorage.getItem(LS_FAV)) || []; } catch { return []; } })());
   const saveFavs = () => { try { localStorage.setItem(LS_FAV, JSON.stringify([...favs])); } catch { /* sem storage */ } };
@@ -104,18 +101,10 @@
     az: (a, b) => T.title(a, true).localeCompare(T.title(b, true), 'pt-BR'),
     ch: (a, b) => b.hours - a.hours || courseSort.az(a, b),
   };
-  const searchableCourse = (c) => T.norm([c.title, c.short, c.audience, c.tags.map((t) => D.tags[t]).join(' '), c.sessions.map((x) => `${D.venues[x.venue].name} ${D.venues[x.venue].short} ${x.room} ${T.fmtDate(x.date, 'wd')}`).join(' '), String(c.id), 'curso'].join(' '));
-  const searchableService = (s) => T.norm([s.title, s.short, s.summary, s.items.join(' '), s.partners.join(' '), 'servico gratuito'].join(' '));
-  const searchableVenue = (v) => T.norm([v.name, v.short, v.city, v.rooms.join(' '), 'local'].join(' '));
-  /** Termos da busca: normalizados, com sinônimos do dia a dia; cada termo deve aparecer (E). */
-  function terms(q) {
-    return T.norm(q).split(/\s+/).filter((w) => w.length > 1).map((w) => SYNONYMS[w] ? [w, SYNONYMS[w]] : [w]);
-  }
-  const matches = (text, tt) => tt.every((alts) => alts.some((w) => text.includes(w)));
   function filterCourses(p) {
-    const tt = terms(p.get('q') || ''); const tag = p.get('tema'); const dia = p.get('dia'); const turno = p.get('turno'); const local = p.get('local'); const fav = p.get('fav');
+    const tt = T.searchTerms(p.get('q') || ''); const tag = p.get('tema'); const dia = p.get('dia'); const turno = p.get('turno'); const local = p.get('local'); const fav = p.get('fav');
     return D.courses.filter((c) => {
-      if (tt.length && !matches(searchableCourse(c), tt)) return false;
+      if (tt.length && !T.searchMatch(T.searchableCourse(c), tt)) return false;
       if (tag && !c.tags.includes(tag)) return false;
       if (fav && !favs.has(c.id)) return false;
       return c.sessions.some((x) => (!dia || x.date === dia) && (!turno || T.shiftOf(x.time) === turno) && (!local || x.venue === local));
@@ -190,19 +179,16 @@
   }
 
   function viewBusca() {
-    const q = route.p.get('q') || ''; const tt = terms(q);
+    const q = route.p.get('q') || ''; const R = T.search(q); const SUGGESTIONS = T.SUGGESTIONS;
     let body = '';
-    if (!tt.length) {
+    if (!R.terms.length) {
       body = `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('sparkles')}</span><h2>O que você procura?</h2></div>
           <div class="chips">${SUGGESTIONS.map((s) => chip(esc(s), false, `data-param="q" data-value="${esc(s)}"`)).join('')}</div></section>
         <section class="sec"><div class="sec-head"><span class="sec-ico">${I('pin')}</span><h2>Por local</h2></div><div class="chips">${Object.values(D.venues).map((v) => chip(esc(v.short), false, `data-go="programacao?local=${v.id}"`)).join('')}</div></section>
         <section class="sec"><div class="sec-head"><span class="sec-ico">${I('calendar')}</span><h2>Por dia</h2></div><div class="chips">${T.eventDays().map((d) => chip(esc(d === clock.date ? 'Hoje' : cap(T.fmtDate(d, 'wd'))), false, `data-go="programacao?d=${d}"`)).join('')}</div></section>
         <section class="sec"><div class="sec-head"><span class="sec-ico">${I('tag')}</span><h2>Cursos por tema</h2></div><div class="chips">${Object.entries(D.tags).map(([k, v]) => chip(esc(v), false, `data-go="cursos?tema=${k}"`)).join('')}</div></section>`;
     } else {
-      const courses = D.courses.filter((c) => matches(searchableCourse(c), tt)).sort(courseSort.proximas);
-      const services = D.services.map((s) => ({ s, hits: s.items.filter((it) => matches(T.norm(it), tt)).slice(0, 3) })).filter((r) => r.hits.length || matches(searchableService(r.s), tt));
-      const venues = Object.values(D.venues).filter((v) => matches(searchableVenue(v), tt));
-      const total = courses.length + services.length + venues.length;
+      const courses = R.courses.sort(courseSort.proximas); const services = R.services; const venues = R.venues; const total = R.total;
       body = total ? `<p class="result-line"><span><b>${total}</b> resultado${total > 1 ? 's' : ''} para “${esc(q)}”</span></p>
         ${services.length ? `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('handshake')}</span><h2>Serviços gratuitos <small>${services.length}</small></h2></div><div class="stack">${services.map((r) => svcCard(r.s, r.hits)).join('')}</div></section>` : ''}
         ${courses.length ? `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('graduation')}</span><h2>Cursos <small>${courses.length}</small></h2>${courses.length > 3 ? `<button class="link" data-go="cursos?q=${encodeURIComponent(q)}">Filtrar ${I('right')}</button>` : ''}</div><div class="stack cols">${courses.map((c) => sessRow(nextOf(c), { showDate: true })).join('')}</div></section>` : ''}

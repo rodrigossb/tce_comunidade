@@ -138,6 +138,25 @@
     return lines.join('\r\n');
   }
 
+  // ---- busca única (cursos, serviços e locais), sem acentos, com sinônimos do dia a dia ----
+  const SYNONYMS = { rg: 'identidade', cin: 'identidade', remedio: 'farmacia', remedios: 'farmacia', dentista: 'odontologico', medico: 'consultas', medica: 'consultas', cachorro: 'caes', cachorros: 'caes', gato: 'gatos', advogado: 'juridico', advogada: 'juridico', justica: 'juridico', computador: 'tecnologia', celular: 'tecnologia', emprego: 'profissional', escola: 'escolares', professor: 'professores', professora: 'professores', crianca: 'criancas', idoso: 'idosos', animal: 'animais', pet: 'caes', veterinario: 'antirrabica', vacina: 'vacinacao', vacinas: 'vacinacao', titulo: 'eleitorais', eleitor: 'eleitorais', habilitacao: 'cnh', pai: 'pai presente', pensao: 'pensoes', aposentadoria: 'aposentadorias', inss: 'previdenciarios', mulher: 'mulheres', comida: 'alimentos', pao: 'panificacao', paes: 'panificacao', costura: 'textil', camisa: 'camisas', natal: 'natalino', presente: 'presentes', venda: 'vender', ia: 'inteligencia artificial', video: 'videomaker', rio: 'rios', madeira: 'madeireiros', socorro: 'socorros' };
+  const searchTerms = (q) => norm(q).split(/\s+/).filter((w) => w.length > 1).map((w) => (SYNONYMS[w] ? [w, SYNONYMS[w]] : [w]));
+  const searchMatch = (text, tt) => tt.every((alts) => alts.some((w) => text.includes(w)));
+  const searchableCourse = (c) => norm([c.title, c.short, c.audience, c.tags.map((t) => D.tags[t]).join(' '), c.sessions.map((x) => `${D.venues[x.venue].name} ${D.venues[x.venue].short} ${x.room} ${fmtDate(x.date, 'wd')}`).join(' '), String(c.id), 'curso'].join(' '));
+  const searchableService = (s) => norm([s.title, s.short, s.summary, s.items.join(' '), s.partners.join(' '), 'servico gratuito'].join(' '));
+  const searchableVenue = (v) => norm([v.name, v.short, v.city, v.rooms.join(' '), 'local'].join(' '));
+  /** Resultado agrupado: { terms, courses, services:[{s,hits}], venues, total }. */
+  function search(q) {
+    const tt = searchTerms(q || '');
+    if (!tt.length) return { terms: tt, courses: [], services: [], venues: [], total: 0 };
+    const courses = D.courses.filter((c) => searchMatch(searchableCourse(c), tt));
+    const services = D.services.map((s) => ({ s, hits: s.items.filter((it) => searchMatch(norm(it), tt)).slice(0, 3) })).filter((r) => r.hits.length || searchMatch(searchableService(r.s), tt));
+    const venues = Object.values(D.venues).filter((v) => searchMatch(searchableVenue(v), tt));
+    return { terms: tt, courses, services, venues, total: courses.length + services.length + venues.length };
+  }
+  const SUGGESTIONS = ['Saúde', 'Vacina', 'Identidade', 'Mulheres', 'Crianças', 'Empreendedorismo', 'Tecnologia', 'Jurídico', 'Animais', 'Feira'];
+
   root.TCE = { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay,
-    sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, appUrl, icsFor, params };
+    sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, appUrl, icsFor, params,
+    search, searchTerms, searchMatch, searchableCourse, SUGGESTIONS };
 })(typeof window !== 'undefined' ? window : globalThis);
