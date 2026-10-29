@@ -1,0 +1,11 @@
+# Arquivos que não precisam ir para o Cloudflare Pages
+.git
+.github
+node_modules
+tests
+docs
+package.json
+package-lock.json
+README.md
+.gitignore
+.cfignore

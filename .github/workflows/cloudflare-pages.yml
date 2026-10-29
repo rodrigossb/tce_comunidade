@@ -1,0 +1,22 @@
+# Publica o site no Cloudflare Pages a cada push na main.
+# Só roda quando a variável de repositório CLOUDFLARE_DEPLOY = "true" e os segredos
+# CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID existem (Settings → Secrets and variables → Actions).
+name: Cloudflare Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  deploy:
+    if: ${{ vars.CLOUDFLARE_DEPLOY == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publicar
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy . --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT || 'tce-comunidade' }} --branch=main --commit-dirty=true
