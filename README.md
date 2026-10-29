@@ -22,7 +22,7 @@ Parâmetros na URL:
 
 | Parâmetro | Efeito |
 | --- | --- |
-| `?local=jn` (padrão) · `manga` · `sebrae` · `auditorio` · `todos` | Local onde a TV está: filtra o quadro do dia e os destaques; o QR já abre o app nesse local |
+| `?local=jn` (padrão) · `manga` · `sebrae` · `auditorio` · `iaparra` · `todos` | Local onde a TV está: filtra o quadro do dia e os destaques; o QR já abre o app nesse local |
 | `?t=09:15&d=2026-11-05` | Simula data/hora (demonstração; mostra o selo "demonstração") |
 | `?zoom=0.9` · `?theme=light` · `?orientation=portrait` | Escala do texto, tema claro, orientação forçada |
 
@@ -63,14 +63,25 @@ Recarrega sozinho às 4h.
 
 ## Dados
 `js/data.js` é a fonte única (evento, locais, cursos com sessões, serviços por pilar), transcrita de
-`Tabela com links COM AJUSTES FINAIS LEON.docx` e `SERVIÇOS DO TCE NA COMUNIDADE 1.pdf`.
+`Tabela com links COM AJUSTES FINAIS LEON.pdf` ("Programação por Curso", versão de 29/10/2026, que
+substituiu o `.docx` anterior) e `SERVIÇOS DO TCE NA COMUNIDADE 1.pdf`.
 Convenção da tabela oficial: célula em branco = igual à linha de cima (local, público, vagas, link).
+
+Mudanças trazidas pelo PDF de 29/10 (já aplicadas): "Tecnologia e Empreendedorismo Feminino" (140)
+saiu e entrou "Tecnologia e Ouvidoria" (142) no mesmo horário; "Gestão Financeira nas Escolas" (112)
+passou a 10h e foi para a Escola Estadual Indígena Jorge Iaparrá (Aldeia do Manga), com link novo;
+curso 152 virou "Tecnologia a Serviço do Controle Social e Ouvidoria" (link novo); "Tomada de Contas"
+(122) passou a 8h; público de "Painéis da Gestão Pública" (141) agora é "Servidores públicos, gestores
+e técnicos".
 
 Pontos a conferir com a organização:
 - Curso 109 (Brinquedistas): a tabela traz um link administrativo; usamos `escon/cursos/109`.
 - Laboratório I – Joaquim Nabuco, 05/11 às 14h: dois cursos no mesmo horário e sala (125 e 145).
 - Formação de Cuidador, 03/11 de manhã: a tabela diz só "Manga", sem sala.
 - Cidadania Conectada: duas turmas com links diferentes (154 em 05/11 e 158 em 07/11).
+- Extensão de Cílios (127): o cabeçalho diz "2 ocorrências, 05 e 06/11", mas a tabela lista 04, 05 e 06/11; mantivemos os três dias.
+- Gestão Financeira nas Escolas (112): o nome da escola saiu embaralhado no PDF; lemos como "Escola Estadual Indígena Jorge Iaparrá, Aldeia do Manga" (local `iaparra`). O PDF diz "1 ocorrência" mas lista 8h e 14h; mantivemos as duas.
+- Empreendedorismo Feminino (130): "2 ocorrências" no cabeçalho, mas só uma linha (04/11 às 8h).
 
 ## Desenvolver / testar
 ```bash

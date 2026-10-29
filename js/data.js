@@ -1,8 +1,8 @@
 /* =====================================================================
    TCE na Comunidade · 9ª Edição · Oiapoque e Distrito do Manga · 03–07/11/2026
    Fonte única de dados das duas páginas (TV e app).
-   Origem: "Tabela com links COM AJUSTES FINAIS LEON.docx" (programação por curso)
-   e "SERVIÇOS DO TCE NA COMUNIDADE 1.pdf" (serviços por pilar).
+   Origem: "Tabela com links COM AJUSTES FINAIS LEON.pdf" (Programação por Curso, versão de 29/10/2026,
+   que substituiu o .docx) e "SERVIÇOS DO TCE NA COMUNIDADE 1.pdf" (serviços por pilar).
    Convenção da tabela oficial: célula em branco = igual à linha de cima
    (local, público-alvo, vagas e link foram preenchidos assim).
    ===================================================================== */
@@ -39,6 +39,8 @@
       rooms: ['Sala I', 'Laboratório I'] },
     sebrae: { id: 'sebrae', name: 'SEBRAE', short: 'SEBRAE', city: 'Oiapoque', rooms: [] },
     auditorio: { id: 'auditorio', name: 'Auditório Joaquim Caetano', short: 'Aud. Joaquim Caetano', city: 'Oiapoque', rooms: [] },
+    // Nome lido do PDF "Programação por Curso" (texto da célula saiu embaralhado): conferir com a organização.
+    iaparra: { id: 'iaparra', name: 'Escola Estadual Indígena Jorge Iaparrá', short: 'Esc. Jorge Iaparrá', city: 'Aldeia do Manga', rooms: [] },
   };
 
   const tags = {
@@ -98,9 +100,9 @@
       audience: 'Sociedade civil', seats: 20,
       link: ESCON + '137/oiapoque-arranjo-natalino', tags: ['empreendedorismo'],
       sessions: [s('04', '08:00', 'sebrae', ''), s('05', '08:00', 'sebrae', '')] },
-    { id: 140, title: 'Tecnologia e Empreendedorismo Feminino', hours: 4,
-      audience: 'Servidoras públicas, empreendedoras, autônomas, mães', seats: 20,
-      link: ESCON + '140/oiapoque-tecnologia-e-empreendedorismo-feminino', tags: ['tecnologia', 'mulheres', 'empreendedorismo'],
+    { id: 142, title: 'Tecnologia e Ouvidoria', hours: 4,
+      audience: 'Servidores públicos, tecnólogos, empreendedores, sociedade civil', seats: 20,
+      link: ESCON + '142/oiapoque-tecnologia-ouvidoria', tags: ['tecnologia', 'gestao-publica'],
       sessions: [s('04', '14:00', 'jn', 'Laboratório I')] },
     { id: 145, title: 'Videomaker', hours: 8,
       audience: 'Artesãos, empreendedores e sociedade civil', seats: 20,
@@ -114,13 +116,13 @@
       audience: 'Empreendedores, autônomos, profissionais da área têxtil e sociedade civil', seats: 20,
       link: ESCON + '149/oiapoque-customizacao-de-camisas', tags: ['empreendedorismo'],
       sessions: [s('04', '14:00', 'sebrae', ''), s('05', '14:00', 'sebrae', ''), s('06', '14:00', 'sebrae', '')] },
-    { id: 112, title: 'Gestão Financeira nas Escolas', hours: 8,
+    { id: 112, title: 'Gestão Financeira nas Escolas', hours: 10,
       audience: 'Membros dos caixas escolares', seats: 20,
-      link: ESCON + '112/oiapoque-curso-de-formacao-de-gestao-financeira-nas-escolas', tags: ['gestao-publica', 'educacao'],
-      sessions: [s('05', '08:00', 'jn', 'Sala II'), s('05', '14:00', 'jn', 'Sala III')] },
-    { id: 152, title: 'Tecnologia a Serviço do Controle Social – IA Generativa', short: 'Controle Social e IA Generativa', hours: 4,
+      link: ESCON + '112/manga-curso-de-formacao-de-gestao-financeira-nas-escolas', tags: ['gestao-publica', 'educacao'],
+      sessions: [s('05', '08:00', 'iaparra', ''), s('05', '14:00', 'iaparra', '')] },
+    { id: 152, title: 'Tecnologia a Serviço do Controle Social e Ouvidoria', short: 'Controle Social e Ouvidoria', hours: 4,
       audience: 'Servidores municipais e sociedade civil', seats: 20,
-      link: ESCON + '152/oiapoque-tecnologia-a-servico-do-controle-social-ia-generativa', tags: ['tecnologia', 'gestao-publica'],
+      link: ESCON + '152/oiapoque-tecnologia-a-servico-do-controle-social-e-ouvidoria', tags: ['tecnologia', 'gestao-publica'],
       sessions: [s('05', '08:00', 'jn', 'Laboratório I')] },
     { id: 156, title: 'Rios do Saber: Formação de Docentes e Gestores Escolares em Inteligência Artificial Generativa, Metodologias Ativas de Ensino e Inovação Pedagógica para Escolas Públicas Amazônicas', short: 'Rios do Saber', hours: 8,
       audience: 'Professores e gestores escolares do ensino público que atuam em escolas indígenas, ribeirinhas, insulares e periurbanas dos municípios do Amapá e da região da foz do Rio Amazonas', seats: 30,
@@ -138,7 +140,7 @@
       audience: 'Moradores do município de Oiapoque/AP e região, especialmente produtores e manejadores florestais, detentores de autorizações, comerciantes, transportadores, profissionais e trabalhadores vinculados ao setor madeireiro', seats: 20,
       link: ESCON + '120/oiapoque-procedimentos-de-exportacao-de-produtos-e-subprodutos-madeireiros-de-especies-nativas-oriundos-de-florestas-naturais-ou-plantadas', tags: ['meio-ambiente', 'empreendedorismo'],
       sessions: [s('05', '14:00', 'jn', 'Sala II')] },
-    { id: 122, title: 'Tomada de Contas Ordinária e Tomada de Contas Especial', short: 'Tomada de Contas', hours: 4,
+    { id: 122, title: 'Tomada de Contas Ordinária e Tomada de Contas Especial', short: 'Tomada de Contas', hours: 8,
       audience: 'Servidores municipais e estaduais', seats: 20,
       link: ESCON + '122/oiapoque-tomada-de-contas-ordinaria-e-tomada-de-contas-especial', tags: ['gestao-publica'],
       sessions: [s('05', '08:00', 'jn', 'Sala V'), s('05', '14:00', 'jn', 'Sala V')] },
@@ -163,7 +165,7 @@
       link: ESCON + '139/oiapoque-roda-de-conversa-mulheres', tags: ['mulheres'],
       sessions: [s('06', '14:00', 'jn', 'Sala II')] },
     { id: 141, title: 'Painéis e Sistemas de Acompanhamento da Gestão Pública', short: 'Painéis da Gestão Pública', hours: 4,
-      audience: 'Servidores públicos, sociedade civil', seats: 20,
+      audience: 'Servidores públicos, gestores e técnicos', seats: 20,
       link: ESCON + '141/oiapoque-paineis-e-sistemas-de-acompanhamento-da-gestao-publica', tags: ['gestao-publica', 'tecnologia'],
       sessions: [s('06', '14:00', 'jn', 'Sala IV')] },
     { id: 114, title: 'Operacionalização do SIPIA', hours: 8,
