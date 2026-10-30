@@ -64,8 +64,8 @@
     const c = ctx(); const issued = (data && data.issued) || [];
     const cnt = (id) => { const l = (st.local && st.local[`${c.day}|${id}`]); const r = issued.find((x) => x.service_id === id); return l != null && (!r || l.ts >= r.ts) ? l.count : r ? r.count : 0; };
     return `${top('Triagem · senhas entregues', `${esc(c.place)} · ${esc(T.fmtDate(c.day, 'wdlong'))}`, 'home')}
-      <p class="page-lead">Toque em <b>+1</b> a cada senha entregue. Toque no número para digitar o total entregue até agora.</p>
-      <div class="tri">${D.services.map((s) => { const n = cnt(s.id); const stt = data && data.stats.services.find((x) => x.service_id === s.id); return `<div class="tri-row" style="--c:${s.color}"><span class="ic">${I(s.icon)}</span><span class="nm"><b>${esc(s.short)}</b><small>${stt ? `${stt.called} chamada${stt.called === 1 ? '' : 's'} · ${stt.served} atendida${stt.served === 1 ? '' : 's'}` : 'sem chamadas ainda'}</small></span><button class="minus" data-act="issued" data-id="${s.id}" data-delta="-1" aria-label="Menos um">${I('x')}</button><button class="cnt" data-act="issued-set" data-id="${s.id}" aria-label="Definir total">${n}</button><button class="plus" data-act="issued" data-id="${s.id}" data-delta="1">+1</button></div>`; }).join('')}</div>`;
+      <p class="page-lead">Toque em <b>+1</b> a cada senha entregue. Para lançar de uma vez, toque no número e <b>digite o total já entregue</b>.</p>
+      <div class="tri">${D.services.map((s) => { const n = cnt(s.id); const stt = data && data.stats.services.find((x) => x.service_id === s.id); return `<div class="tri-row" style="--c:${s.color}"><span class="ic">${I(s.icon)}</span><span class="nm"><b>${esc(s.short)}</b><small>${stt ? `${stt.called} chamada${stt.called === 1 ? '' : 's'} · ${stt.served} atendida${stt.served === 1 ? '' : 's'}` : 'sem chamadas ainda'}</small></span><button class="minus" data-act="issued" data-id="${s.id}" data-delta="-1" aria-label="Menos um">${I('x')}</button><button class="cnt" data-act="issued-set" data-id="${s.id}" aria-label="Digitar o total entregue"><b>${n}</b><small>${I('sliders')}digitar</small></button><button class="plus" data-act="issued" data-id="${s.id}" data-delta="1">+1</button></div>`; }).join('')}</div>`;
   }
   function viewPortaSetup() {
     const c = ctx(); const s = st.service ? svc(st.service) : null;
@@ -82,9 +82,10 @@
     return `${top(`${esc(placeName(st.place))}`, `${esc(s.title)} · ${esc(c.place)}`, 'place-clear')}
       <div class="door">
         ${cur ? `<div class="door-now"><small>${cur.status === 'called' ? 'Chamando agora' : cur.status === 'served' ? (inService ? 'Em atendimento' : 'Atendida') : 'Não compareceu'}</small><b>${cur.ticket ?? '—'}</b><span class="st ${cur.status}">${cur.status === 'called' ? `${I('megaphone')}chamada às ${fmtT(cur.called_at)}` : cur.status === 'served' ? `${I('check')}entrou às ${fmtT(cur.status_at)}${inService ? ` · há ${Math.max(0, Math.round((Date.now() - cur.status_at) / 60000))} min` : ''}` : `${I('x')}faltou`}</span></div>` : `<div class="door-now idle"><small>Nenhuma senha chamada ainda</small><b>—</b></div>`}
-        ${cur && cur.status === 'called' ? `<div class="door-res"><button class="ok" data-act="status" data-id="${cur.id}" data-status="served">${I('check')}Entrou</button><button class="no" data-act="status" data-id="${cur.id}" data-status="absent">${I('x')}Não veio</button></div>` : ''}
-        <button class="door-next" data-act="call" data-ticket="${next}">${I('megaphone')}Chamar próxima · senha ${next}</button>
-        <div class="door-tools">${inService ? `<button class="btn btn-ghost" data-act="end" data-id="${cur.id}">${I('flag')}Finalizar atendimento</button>` : ''}<button class="btn btn-ghost" data-act="call-other">${I('ticket')}Chamar outro número</button>${cur ? `<button class="btn btn-ghost" data-act="undo" data-id="${cur.id}">${I('back')}Desfazer última</button>` : ''}</div>
+        ${cur && cur.status === 'called'
+          ? `<p class="door-hint">Senha <b>${cur.ticket ?? '—'}</b> foi chamada. A pessoa…</p><div class="door-res"><button class="ok" data-act="status" data-id="${cur.id}" data-status="served">${I('check')}<span>Entrou</span></button><button class="no" data-act="status" data-id="${cur.id}" data-status="absent">${I('x')}<span>Não veio</span></button></div>`
+          : `<p class="door-hint">Próxima: <b>senha ${next}</b>. Um toque registra a chamada e o resultado.</p><div class="door-res big"><button class="ok" data-act="call" data-ticket="${next}" data-status="served">${I('check')}<span>Entrou<small>senha ${next}</small></span></button><button class="no" data-act="call" data-ticket="${next}" data-status="absent">${I('x')}<span>Não veio<small>senha ${next}</small></span></button></div>`}
+        <div class="door-tools">${inService ? `<button class="btn btn-ghost" data-act="end" data-id="${cur.id}">${I('flag')}Finalizar atendimento</button>` : ''}<button class="btn btn-ghost" data-act="call-other">${I('ticket')}Outro número</button>${cur ? `<button class="btn btn-ghost" data-act="undo" data-id="${cur.id}">${I('back')}Desfazer</button>` : ''}</div>
         <div class="door-kpi"><div><small>Entregues</small><b>${issued == null ? '—' : issued}</b></div><div><small>Chamadas</small><b>${called}</b></div><div><small>Aguardando</small><b>${issued == null ? '—' : Math.max(0, issued - called)}</b></div></div>
         ${calls.length > 1 ? `<h3 style="margin:.4em 0 .2em">Últimas chamadas</h3><ul class="hist">${calls.slice(1, 9).map((x) => `<li><b>${x.ticket ?? '—'}</b><span class="badge ${x.status}">${x.status === 'served' ? 'entrou' : x.status === 'absent' ? 'faltou' : 'sem registro'}</span><time>${fmtT(x.called_at)}</time>${x.status === 'called' ? `<button class="link" data-act="status" data-id="${x.id}" data-status="served">entrou</button>` : ''}</li>`).join('')}</ul>` : ''}
       </div>`;
@@ -138,7 +139,7 @@
     clearTimeout(setIssued.t[id]); setIssued.t[id] = setTimeout(() => post('/api/issued', { day: c.day, venue: c.venue, service_id: id, count, device: st.device }).then(() => refresh()).then(render), 700);
   }
   setIssued.t = {};
-  const curCount = (id) => { const el = document.querySelector(`.cnt[data-id="${id}"]`); return el ? Number(el.textContent) || 0 : 0; };
+  const curCount = (id) => { const el = document.querySelector(`.cnt[data-id="${id}"] b`); return el ? Number(el.textContent) || 0 : 0; };
   let numCb = null;
   function askNumber(title, value, cb) { numCb = cb; document.getElementById('sheet').innerHTML = viewNum(title, value); const inp = document.getElementById('num'); inp.focus(); inp.select(); }
   function closeNum() { document.getElementById('sheet').innerHTML = ''; numCb = null; }
@@ -165,7 +166,7 @@
     if (a === 'place') { st.place = b.dataset.id; save(); render(); await refresh(); render(); return; }
     if (a === 'issued') { const id = b.dataset.id; setIssued(id, curCount(id) + Number(b.dataset.delta)); return; }
     if (a === 'issued-set') { const id = b.dataset.id; askNumber(`${svc(id).short}: total de senhas entregues`, curCount(id), (v) => setIssued(id, v)); return; }
-    if (a === 'call') { const t = Number(b.dataset.ticket); b.disabled = true; await post('/api/call', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket: t, device: st.device }); await refresh(); render(); return; }
+    if (a === 'call') { const t = Number(b.dataset.ticket); b.disabled = true; await post('/api/call', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket: t, status: b.dataset.status || undefined, device: st.device }); await refresh(); render(); return; }
     if (a === 'call-other') { askNumber('Qual senha você vai chamar?', (queue && queue.last_ticket != null ? queue.last_ticket + 1 : 1), async (v) => { await post('/api/call', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket: v, device: st.device }); await refresh(); render(); }); return; }
     if (a === 'status') { await post(`/api/call/${b.dataset.id}/status`, { status: b.dataset.status }); await refresh(); render(); return; }
     if (a === 'end') { await post(`/api/call/${b.dataset.id}/end`, {}); await refresh(); render(); return; }

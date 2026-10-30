@@ -77,10 +77,12 @@ const routes = {
     const day = b.day; const venue = clean(b.venue, 16); const s = clean(b.service_id, 32); const p = clean(b.place_id, 32); const ticket = b.ticket == null ? null : Number(b.ticket);
     if (!isDay(day) || !venue || !s || !p || (ticket != null && (!Number.isInteger(ticket) || ticket < 0 || ticket > 100000))) throw err(400, 'dados');
     const now = Date.now();
+    const status = ['served', 'absent'].includes(b.status) ? b.status : null;
     // Chamar a próxima encerra o atendimento em curso nesta sala (quem entrou antes já saiu).
     for (const o of q.openServed.all(day, venue, s, p)) q.callEnd.run(now, o.id);
     const r = q.callInsert.run(day, venue, s, p, ticket, now, clean(b.device, 40));
-    return { ok: true, id: Number(r.lastInsertRowid), called_at: now };
+    if (status) q.callStatus.run(status, now, Number(r.lastInsertRowid));
+    return { ok: true, id: Number(r.lastInsertRowid), called_at: now, status: status || 'called' };
   },
   'POST /api/call/:id/status': async (req, u, id) => {
     need(req, ['operador', 'gestor']); const b = await readJson(req); const c = q.callGet.get(id); if (!c) throw err(404, 'chamada não encontrada');

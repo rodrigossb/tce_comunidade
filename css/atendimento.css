@@ -46,8 +46,11 @@
 .tri-row .nm{min-width:0}
 .tri-row .nm b{display:block;font-family:var(--font-display);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tri-row .nm small{display:block;color:var(--mut);font-size:.78em;margin-top:.15em}
-.tri-row .cnt{font-family:var(--font-display);font-size:1.6em;font-weight:800;min-width:1.6em;text-align:center;background:none;border:0;color:var(--ink);padding:0 .2em;border-radius:10px}
-.tri-row .cnt:active{background:var(--chip)}
+.tri-row .cnt{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:3.4em;min-height:3.2em;text-align:center;background:var(--chip);border:1.5px dashed color-mix(in srgb,var(--primary) 40%,var(--line));color:var(--ink);padding:.2em .4em;border-radius:12px;line-height:1}
+.tri-row .cnt b{font-family:var(--font-display);font-size:1.5em;font-weight:800}
+.tri-row .cnt small{display:inline-flex;align-items:center;gap:.2em;font-size:.6em;font-weight:700;color:var(--primary);margin-top:.2em}
+.tri-row .cnt small .ico{width:1em;height:1em}
+.tri-row .cnt:active{background:var(--p-soft)}
 .tri-row .plus{width:3.2em;height:3.2em;flex:none;border-radius:14px;background:var(--primary);color:#fff;border:0;font-size:1.1em;font-weight:800;display:grid;place-items:center;box-shadow:0 4px 14px -6px var(--primary)}
 .tri-row .plus:active{transform:scale(.95)}
 .tri-row .minus{width:2.4em;height:2.4em;border-radius:10px;background:var(--chip);border:0;color:var(--ink2);display:grid;place-items:center;margin-right:-.2em}
@@ -61,8 +64,13 @@
 .door-now .st.served{background:#16a34a}.door-now .st.absent{background:#dc2626}
 .door-now.idle{background:var(--card);color:var(--ink);border:1.5px dashed var(--line);box-shadow:none}
 .door-now.idle small{color:var(--mut)}
+.door-hint{text-align:center;color:var(--mut);font-size:.95em;margin:0}
+.door-hint b{color:var(--ink)}
 .door-res{display:grid;grid-template-columns:1fr 1fr;gap:.7em}
-.door-res button{height:4.6em;border-radius:18px;border:0;font:inherit;font-size:1.1em;font-weight:800;display:flex;align-items:center;justify-content:center;gap:.5em;color:#fff;box-shadow:var(--shadow)}
+.door-res button{height:4.6em;border-radius:18px;border:0;font:inherit;font-size:1.1em;font-weight:800;display:flex;align-items:center;justify-content:center;gap:.5em;color:#fff;box-shadow:var(--shadow);line-height:1.1;text-align:left}
+.door-res.big button{height:6.2em;font-size:1.25em;flex-direction:column;gap:.3em;text-align:center}
+.door-res.big button .ico{width:1.8em;height:1.8em}
+.door-res button small{display:block;font-size:.68em;font-weight:700;opacity:.9;margin-top:.15em}
 .door-res .ok{background:#16a34a}.door-res .no{background:#dc2626}
 .door-res button .ico{width:1.4em;height:1.4em}
 .door-res button:active{transform:scale(.98)}
