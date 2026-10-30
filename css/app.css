@@ -361,3 +361,7 @@ em.only .ico{width:.95em;height:.95em}
 .only-note .ico{width:1em;height:1em}
 @media (max-width:420px){.svc-days{grid-template-columns:1fr}}
 .hits li{flex-wrap:wrap}.hits li em.only{margin-left:1.6em}
+
+.svc-focus{margin-top:.2em}
+.svc-banner.static{grid-template-columns:auto 1fr;margin-bottom:.7em;border-radius:18px 18px 8px 8px}
+.svc-focus .stack.cols{margin-top:0}

@@ -174,17 +174,20 @@
     }).join('');
     const favList = D.courses.filter((c) => favs.has(c.id));
     const sd = T.serviceDayOf(d); const nsd = T.nextServiceDay(clock.date);
-    const svcCard = sd && (!local || local === sd.venue)
-      ? `<button class="svc-banner" data-go="servicos?dia=${sd.date}"><span class="sb-ico">${I('handshake')}</span><span><small>${d === clock.date ? 'Hoje' : esc(cap(T.fmtDate(d, 'wdlong')))} é dia de</small><b>Serviços gratuitos · ${esc(sd.place)}</b><span class="sb-list">${D.services.map((s) => `<i style="--c:${s.color}">${I(s.icon)}${esc(s.short)}</i>`).join('')}</span><small>Sem inscrição, por ordem de chegada. Toque para ver tudo.</small></span>${I('right')}</button>`
+    // Dia de serviços: os serviços são o destaque (sempre, mesmo com outro local filtrado); os cursos vêm depois.
+    const svcSection = sd
+      ? `<section class="sec svc-focus" style="--c:${D.event.shifts.manha.color}"><div class="svc-banner static"><span class="sb-ico">${I('handshake')}</span><span><small>${d === clock.date ? 'Hoje' : esc(cap(T.fmtDate(d, 'wdlong')))} é dia de</small><b>Serviços gratuitos · ${esc(sd.placeLong || sd.place)}</b><small>Sem inscrição, por ordem de chegada. Toque em um bloco para ver tudo o que é oferecido.</small></span></div>
+          <div class="stack cols">${D.services.map((s) => { const n = T.itemsOn(s, d).length; const hidden = s.items.length - n; return svcCard(s).replace('</small>', `</small>${hidden ? `<small class="only-note">${I('info')}${hidden} ${hidden > 1 ? 'itens' : 'item'} só em 07/11 na Joaquim Nabuco</small>` : ''}`); }).join('')}</div></section>`
       : (nsd && d === clock.date ? `<button class="svc-note" data-go="servicos"><span>${I('handshake')}</span><span>Serviços gratuitos (saúde, documentos, justiça…): <b>${esc(T.serviceDaysLabel())}</b></span>${I('right')}</button>` : '');
     return `${searchBox('', { id: 'q0', big: true, placeholder: 'Buscar curso, serviço, sala ou assunto…' })}
       <p class="status-line">${I('sparkles')}<span>${status} · ${esc(D.event.placeShort)}</span></p>
       <div class="tabs" role="tablist" aria-label="Dia">${days.map((x) => { const n = sessionsOf((y) => y.date === x && (!local || y.venue === local)).length; const xs = T.serviceDayOf(x); return `<button role="tab" aria-selected="${x === d}" class="${x === d ? 'on' : ''} ${x === clock.date ? 'today' : ''} ${x < clock.date ? 'past' : ''} ${xs ? 'svc' : ''}" data-param="d" data-value="${x}"><small>${x === clock.date ? 'hoje' : T.fmtDate(x, 'wd').split(' ')[0]}</small><b>${x.slice(8)}</b><em>${xs ? `${I('handshake')}serviços` : n ? `${n} curso${n > 1 ? 's' : ''}` : '—'}</em></button>`; }).join('')}</div>
       <div class="chips scroll" aria-label="Local">${chip(`${I('pin')}Todos os locais`, !local, 'data-param="local" data-value="todos"')}${Object.values(D.venues).map((v) => chip(esc(v.short), local === v.id, `data-param="local" data-value="${v.id}"`)).join('')}</div>
-      <p class="page-lead">${esc(cap(T.fmtDate(d)))}${d === clock.date ? ' · hoje' : T.relDay(d, clock.date) === 'amanhã' ? ' · amanhã' : ''} · <b>${list.length} curso${list.length === 1 ? '' : 's'}</b>${local ? ` em ${esc(D.venues[local].name)}` : ' em todos os locais'}</p>
-      ${svcCard}
+      <p class="page-lead">${esc(cap(T.fmtDate(d)))}${d === clock.date ? ' · hoje' : T.relDay(d, clock.date) === 'amanhã' ? ' · amanhã' : ''} · ${sd ? `<b>serviços gratuitos</b> em ${esc(sd.place)}${list.length ? ` e <b>${list.length} curso${list.length === 1 ? '' : 's'}</b>${local ? ` em ${esc(D.venues[local].short)}` : ''}` : ''}` : `<b>${list.length} curso${list.length === 1 ? '' : 's'}</b>${local ? ` em ${esc(D.venues[local].name)}` : ' em todos os locais'}`}</p>
+      ${svcSection}
       ${nowCard}
-      ${shifts.length ? sections : empty('calendar', `Nenhum curso ${d === clock.date ? 'hoje' : 'neste dia'}${local ? ` em ${esc(D.venues[local].short)}` : ''}. Toque em outro dia ou local acima, ou veja os serviços gratuitos.`)}
+      ${sd && shifts.length ? `<div class="sec-head" style="margin-top:1.4em"><span class="sec-ico">${I('graduation')}</span><h2>Cursos do dia <small>com inscrição</small></h2></div>` : ''}
+      ${shifts.length ? sections : (sd ? '' : empty('calendar', `Nenhum curso ${d === clock.date ? 'hoje' : 'neste dia'}${local ? ` em ${esc(D.venues[local].short)}` : ''}. Toque em outro dia ou local acima, ou veja os serviços gratuitos.`))}
       ${favList.length ? `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('bookmark')}</span><h2>Meus cursos <small>${favList.length}</small></h2><button class="link" data-go="cursos?fav=1">Ver ${I('right')}</button></div><div class="stack cols">${favList.slice(0, 4).map((c) => sessRow(nextOf(c), { showDate: true })).join('')}</div></section>` : ''}
       ${servicesStrip()}
       ${footer()}`;

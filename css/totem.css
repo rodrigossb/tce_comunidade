@@ -295,3 +295,4 @@
 .tt .only-note .ico{width:1em;height:1em}
 .tt-lead.tiny{font-size:.82em}
 .tt-svc .hits li{flex-wrap:wrap}.tt-svc .hits li em.only{margin-left:1.6em}
+.tt .tt-banner.static{grid-template-columns:auto 1fr;margin-bottom:.7em;border-radius:var(--radius) var(--radius) 10px 10px}
