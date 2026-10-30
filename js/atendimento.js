@@ -44,10 +44,9 @@
   const top = (title, sub, back) => `<div class="at-top">${back ? `<button class="btn btn-ghost" data-act="${back}">${I('back')}Voltar</button>` : ''}<div class="where"><span>${title}</span><small>${sub}</small></div><span class="sync ${syncState}" title="Sincronização"><i></i>${syncState === 'ok' ? 'sincronizado' : syncState === 'off' ? `${pending} pendente${pending > 1 ? 's' : ''}` : 'erro'}</span></div>`;
 
   function viewPin() {
-    return `<section class="hero"><span class="eyebrow">${esc(D.event.edition)} · uso da equipe</span><h1>Atendimento</h1><p>Controle de senhas dos serviços gratuitos. Digite o PIN da equipe para entrar.</p></section>
-      <div class="pin"><div class="pin-dots">${[0, 1, 2, 3, 4, 5].map((k) => `<i class="${k < pinBuf.length ? 'on' : ''}" ${k >= 4 && pinBuf.length < 5 ? 'style="display:none"' : ''}></i>`).join('')}</div>
+    return `<div class="pin"><div class="pin-card"><span class="logo-chip big"><img src="img/tce-mark.png" alt=""></span><h1>Atendimento</h1><p>Controle de senhas dos serviços gratuitos.<br>Digite o PIN da equipe para entrar.</p></div><div class="pin-dots">${[0, 1, 2, 3, 4, 5].map((k) => `<i class="${k < pinBuf.length ? 'on' : ''}" ${k >= 4 && pinBuf.length < 5 ? 'style="display:none"' : ''}></i>`).join('')}</div>
       <div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<button data-key="${n}">${n}</button>`).join('')}<button class="soft" data-key="clear" aria-label="Apagar">${I('back')}</button><button data-key="0">0</button><button class="go" data-key="ok">Entrar</button></div>
-      <p class="tiny muted" id="pin-msg">${esc(st.msg || 'PIN de 4 dígitos (equipe) ou 6 dígitos (gestão).')}</p></div>`;
+      <p class="tiny muted" id="pin-msg">${esc(st.msg || 'PIN de 4 dígitos (equipe) ou 6 dígitos (gestão).')}</p><p class="tiny muted">${esc(D.event.name)} · ${esc(D.event.edition)}</p></div>`;
   }
   function viewRole() {
     const c = ctx();
