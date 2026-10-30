@@ -10,9 +10,11 @@ evento. Site estático: HTML + CSS + JS puros, dados em `js/data.js`.
 | `index.html` | Público, no celular (ou desktop) | Abre na programação do dia e do local usados por último; busca única (cursos, serviços, locais); detalhe, inscrição, lembrete, favoritos |
 
 ## Publicar
-Copie a pasta inteira para qualquer servidor estático (nginx, Apache, GitHub Pages, S3…). O QR Code
-da TV aponta para a pasta onde ela mesma está publicada (`index.html` ao lado de `tv.html`).
-Para apontar para outro endereço: `tv.html?app=https://exemplo.gov.br/comunidade/`.
+Endereço oficial: **https://www.tce.ap.gov.br/tce-na-comunidade** (domínio institucional apontado
+para o GitHub Pages deste repositório; cada push na `main` republica). Todos os QR Codes e links de
+compartilhamento (TV, app e totem) usam esse endereço, definido em `event.appUrl` no `js/data.js`.
+Para testar com outro endereço sem mexer nos dados: `tv.html?app=https://exemplo.gov.br/comunidade/`.
+A pasta também pode ser copiada para qualquer servidor estático (nginx, Apache, S3…).
 
 Abrir direto do arquivo (`file://`) também funciona para conferir, mas o QR gerado só serve quando
 publicado em `https://`.

@@ -9,7 +9,6 @@
   const VENUE = D.venues[LOCAL];
   const IDLE_MS = Math.max(20, Number(P.get('ocioso')) || 90) * 1000;
   const ATTRACT = P.get('descanso') !== '0'; // ?descanso=0 → sem tela de descanso: cai direto em "explorar" e volta ao início quando ocioso
-  const APP_BASE = P.get('app') || new URL('./', location.href).href;
   const VIEWS = { inicio: ['Início', 'home'], programacao: ['Programação', 'calendar'], cursos: ['Cursos', 'graduation'], servicos: ['Serviços', 'handshake'], locais: ['Locais', 'pin'] };
   const PANELS = { curso: 'cursos', servico: 'servicos', local: 'locais' };
 
@@ -54,7 +53,7 @@
   const roomLabel = (x) => (x.room ? `${x.room} · ${D.venues[x.venue].short}` : D.venues[x.venue].name);
   const byNext = (a, b) => { const sa = T.courseState(a, clock) === 'past'; const sb = T.courseState(b, clock) === 'past'; if (sa !== sb) return sa ? 1 : -1; const na = nextOf(a); const nb = nextOf(b); return na.date.localeCompare(nb.date) || T.toMin(na.time) - T.toMin(nb.time) || T.title(a, true).localeCompare(T.title(b, true)); };
   const badge = (s, c) => (s === 'now' ? `<span class="badge now" style="--c:${c}">agora</span>` : s === 'today' ? '<span class="badge today">hoje</span>' : s === 'past' ? '<span class="badge">encerrada</span>' : '');
-  const qrFor = (hash) => T.qrSvg(`${APP_BASE}#${hash}`, { margin: 1 });
+  const qrFor = (hash) => T.qrSvg(T.appUrl(hash), { margin: 1 });
 
   // ---------- componentes ----------
   const row = (x, o) => { o = o || {}; const s = st(x); const c = col(x.shift);
@@ -186,7 +185,7 @@
 
   // ---------- casca e render ----------
   function shell() {
-    const qr = T.qrSvg(`${APP_BASE}#programacao?local=${LOCAL}`, { margin: 1 });
+    const qr = T.qrSvg(T.appUrl(`programacao?local=${LOCAL}`), { margin: 1 });
     root.innerHTML = `<header class="tt-head"><div class="tt-logo"><img src="img/tce-logo.png" alt="Tribunal de Contas do Estado do Amapá"></div><div class="tt-title"><b>${esc(D.event.name)} · ${esc(D.event.edition)}${T.isSimulated() ? '<span class="tt-demo">demonstração</span>' : ''}</b><small>${I('pin')}${esc(VENUE.name)} · ${esc(D.event.datesLabel)}</small></div><div class="tt-clock"><b id="clock-time"></b><small id="clock-date"></small></div></header>
       <nav class="tt-nav" id="nav">${Object.entries(VIEWS).map(([k, [label, icon]]) => `<button data-go="${k}">${I(icon)}${label}</button>`).join('')}</nav>
       <main class="tt-main" id="main"></main>

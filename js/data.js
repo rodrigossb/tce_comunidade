@@ -24,6 +24,8 @@
     organizer: 'Escola de Contas · Tribunal de Contas do Estado do Amapá (TCE/AP)',
     organizerShort: 'Escola de Contas · TCE/AP',
     tagline: 'Serviços gratuitos para a população',
+    // Endereço público do app (QR Codes da TV e do totem, links de compartilhamento). ?app= na URL sobrescreve.
+    appUrl: 'https://www.tce.ap.gov.br/tce-na-comunidade',
     // Janelas dos turnos (horário local). Usadas para "agora / a seguir".
     shifts: {
       manha: { label: 'Manhã', short: 'Manhã', start: '08:00', end: '12:00', color: '#f7c948' },

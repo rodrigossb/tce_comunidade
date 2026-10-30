@@ -114,9 +114,9 @@
     for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) path += `M${c + o.margin} ${r + o.margin}h1v1h-1z`;
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges" role="img" aria-label="QR Code"><rect width="${size}" height="${size}" fill="${o.light}"/><path d="${path}" fill="${o.dark}"/></svg>`;
   }
-  /** URL do app a partir da TV (mesma pasta), com ?app= para sobrescrever. */
+  /** URL pública do app: ?app= na URL > event.appUrl (endereço institucional) > a própria pasta. */
   function appUrl(hash) {
-    const base = params.get('app') || new URL('./', root.location.href).href;
+    const base = params.get('app') || D.event.appUrl || new URL('./', root.location.href).href;
     return base + (hash ? `#${hash}` : '');
   }
 

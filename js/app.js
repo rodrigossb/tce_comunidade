@@ -141,7 +141,7 @@
     <div class="hscroll">${D.services.map((s) => `<button class="pillar-mini" style="--c:${s.color}" data-sheet="servico" data-id="${s.id}"><i>${I(s.icon)}</i><b>${esc(s.short || s.title)}</b><small>${esc(s.summary)}</small></button>`).join('')}</div></section>`;
   const footer = () => `<footer class="foot">${esc(D.event.organizer)}<br>${esc(D.event.edition)} · ${esc(D.event.place)} · ${esc(D.event.datesLabel)}${TOTEM ? '' : '<br><a href="tv.html">Modo TV</a>'}</footer>`;
   /** Bloco "leve no celular": QR grande, usado no totem no lugar de salvar/compartilhar. */
-  const takeAway = (hash, title, text) => `<div class="qr-box take"><div class="qr-big">${T.qrSvg((TOTEM && TOTEM.app ? TOTEM.app : location.href.split('#')[0].replace(/totem\.html$/, '')) + '#' + hash, { margin: 1 })}</div><div><b>${I('phone')}${title}</b><small>${text}</small></div></div>`;
+  const takeAway = (hash, title, text) => `<div class="qr-box take"><div class="qr-big">${T.qrSvg(T.appUrl(hash), { margin: 1 })}</div><div><b>${I('phone')}${title}</b><small>${text}</small></div></div>`;
 
   // ---------- telas ----------
   function viewProgramacao() {
@@ -239,7 +239,7 @@
     const venues = [...new Set(sessions.map((x) => D.venues[x.venue].short))].join(' · ');
     const fav = favs.has(c.id); const s = T.courseState(c, clock); const nx = nextOf(c);
     const links = [...new Set(sessions.map((x) => x.link))];
-    const qr = T.qrSvg(location.href.split('#')[0] + `#curso/${c.id}`, { margin: 1 });
+    const qr = T.qrSvg(T.appUrl(`curso/${c.id}`), { margin: 1 });
     const nextLine = s === 'now' ? `Acontecendo agora · ${esc(roomLabel(nx))} · até ${T.fmtTime(T.sessionEnd(nx))}` : s === 'past' ? 'Todas as aulas já aconteceram' : `${cap(dayWord(nx.date))} às ${T.fmtTime(nx.time)} · ${esc(roomLabel(nx))}`;
     return `<div class="sheet-head"><span class="kicker">${I('graduation')}Curso gratuito · Escola de Contas · TCE/AP</span><button class="icon-btn" data-close aria-label="Fechar">${I('x')}</button></div>
       <div class="sheet-body"><h2>${esc(c.title)}</h2>
@@ -355,8 +355,8 @@
       saveFavs(); renderSheet(); renderMain(true); return;
     }
     if ((b = el('[data-ics]'))) { const c = T.courseById(b.dataset.ics); download(`curso-${c.id}.ics`, T.icsFor(c), 'text/calendar'); toast('Lembrete gerado: abra o arquivo para salvar na agenda'); return; }
-    if ((b = el('[data-share]'))) { const c = T.courseById(b.dataset.share); const nx = nextOf(c); share(T.title(c), `${T.title(c)} · ${T.fmtDate(nx.date, 'wdlong')} às ${T.fmtTime(nx.time)} · ${roomLabel(nx)} · ${D.event.name}`, location.href.split('#')[0] + `#curso/${c.id}`); return; }
-    if ((b = el('[data-share-svc]'))) { const s = T.serviceById(b.dataset.shareSvc); share(s.title, `${s.title}: ${s.summary} · ${D.event.name} · ${D.event.datesLabel}`, location.href.split('#')[0] + `#servico/${s.id}`); return; }
+    if ((b = el('[data-share]'))) { const c = T.courseById(b.dataset.share); const nx = nextOf(c); share(T.title(c), `${T.title(c)} · ${T.fmtDate(nx.date, 'wdlong')} às ${T.fmtTime(nx.time)} · ${roomLabel(nx)} · ${D.event.name}`, T.appUrl(`curso/${c.id}`)); return; }
+    if ((b = el('[data-share-svc]'))) { const s = T.serviceById(b.dataset.shareSvc); share(s.title, `${s.title}: ${s.summary} · ${D.event.name} · ${D.event.datesLabel}`, T.appUrl(`servico/${s.id}`)); return; }
   });
   document.addEventListener('change', (e) => { const s = e.target.closest('select[data-param]'); if (s) setParam(s.dataset.param, s.value); });
   let searchTimer = null;
