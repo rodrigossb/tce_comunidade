@@ -4,3 +4,5 @@ Thumbs.db
 .tmp/
 node_modules/
 .env
+server/data/
+server/.env

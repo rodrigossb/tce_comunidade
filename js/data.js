@@ -26,6 +26,8 @@
     tagline: 'Serviços gratuitos para a população',
     // Endereço público do app (QR Codes da TV e do totem, links de compartilhamento). ?app= na URL sobrescreve.
     appUrl: 'https://www.tce.ap.gov.br/tce-na-comunidade',
+    // API do controle de senhas (atendimento.html). ?api= na URL sobrescreve (testes).
+    apiUrl: 'https://dev.gerenciahub.com.br/tce-senhas',
     // Dias de serviços (sem inscrição, por ordem de chegada). Nos demais dias o foco são os cursos.
     serviceDays: [
       { date: '2026-11-04', venue: 'manga', place: 'Distrito do Manga', placeLong: 'Distrito do Manga (Aldeia do Manga)' },

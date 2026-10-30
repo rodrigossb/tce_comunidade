@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Atendimento · TCE na Comunidade</title>
+  <meta name="description" content="Controle de senhas dos serviços do TCE na Comunidade: triagem, chamada na porta da sala e painel de acompanhamento.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#1f3b9a">
+  <link rel="icon" href="img/tce-mark.png">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/atendimento.css">
+</head>
+<body>
+  <!--
+    Uso interno da equipe (PIN). Três funções:
+      Triagem        quantas senhas de cada serviço já foram entregues
+      Porta da sala  qual senha está sendo chamada e se a pessoa entrou ou faltou
+      Painel         acompanhamento: entregues, atendidas, faltas, tempo médio, por serviço e por sala
+    API: event.apiUrl em js/data.js (servidor Node + SQLite em server/). ?api=http://… sobrescreve para testes.
+  -->
+  <div id="app" class="app at"><div class="app-loading">Carregando…</div></div>
+  <script src="js/data.js"></script>
+  <script src="js/shared.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/atendimento.js"></script>
+</body>
+</html>

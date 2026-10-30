@@ -63,6 +63,23 @@ bloqueados e a inscrição é feita pelo QR Code grande de cada curso; depois do
 início e mostra a programação do dia (a mesma da TV, em retrato) com "Toque na tela para explorar".
 Recarrega sozinho às 4h.
 
+## Atendimento · controle de senhas (`atendimento.html` + `server/`)
+Uso interno da equipe, com PIN (4 dígitos = equipe; 6 dígitos = gestão, que também exporta CSV).
+Três funções, cada aparelho escolhe a sua: **Triagem** (toque em +1 a cada senha entregue, ou toque no
+número para digitar o total), **Porta da sala** (escolhe serviço e sala uma vez; depois é só "Chamar
+próxima", e "Entrou" / "Não veio"; "Chamar outro número", "Finalizar atendimento" e "Desfazer" para os
+casos fora da ordem) e **Painel** (senhas entregues, chamadas, atendidas, faltas, tempo médio e mediana de
+atendimento, espera estimada, por serviço e por sala, chamadas por hora; atualiza a cada 15 s).
+Tempo de atendimento = de "Entrou" até "Finalizar" ou até a próxima pessoa entrar na mesma sala.
+Fila offline: gravações sem rede ficam no aparelho e são reenviadas.
+
+Servidor: `server/senhas.js` (Node 22 + SQLite embutido, sem dependências; porta 3015; dados em
+`server/data/senhas.db`, fora do git). PINs em `server/.env` (`PIN_OPERADOR`, `PIN_GESTOR`; nunca commitar).
+Roda no pm2 como `tce-senhas`; o nginx expõe em `https://dev.gerenciahub.com.br/tce-senhas/`
+(bloco em `server/nginx-tce-senhas.conf`; `sudo server/install-nginx.sh` instala). O endereço da API fica
+em `event.apiUrl` (`js/data.js`); `?api=http://127.0.0.1:3015` sobrescreve para testes. CORS libera só os
+domínios do site. Testes das agregações: `tests/stats.test.mjs`.
+
 ## Dados
 `js/data.js` é a fonte única (evento, locais, cursos com sessões, serviços por pilar), transcrita de
 `Tabela com links COM AJUSTES FINAIS LEON.pdf` ("Programação por Curso", versão de 29/10/2026, que
