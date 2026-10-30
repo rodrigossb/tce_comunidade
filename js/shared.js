@@ -150,6 +150,12 @@
   const serviceDaysLabel = (mode) => serviceDays().map((d) => `${fmtDate(d.date, mode || 'wdm')} · ${d.place}`).join(' e ');
   /** Itens de um serviço disponíveis em um dia (todos, se date for nulo). */
   const itemsOn = (s, date) => s.items.filter((it) => !date || !itemOnly(it) || itemOnly(it) === date);
+  /** Local (jn|manga) com mapa para uma data de serviços; null se não for dia de serviços. */
+  const mapVenueOf = (date) => { const d = serviceDayOf(date); return d && D.maps && D.maps[d.venue] ? d.venue : null; };
+  /** Salas/tendas de um serviço num local (ids); itens com `where` entram primeiro, depois a lista do serviço. */
+  const placesOf = (s, venue) => { const out = []; const push = (id) => { if (id && !out.includes(id)) out.push(id); }; (s.places && s.places[venue] || []).forEach(push); for (const it of s.items) if (typeof it === 'object' && it.where && it.where[venue]) it.where[venue].forEach(push); return out; };
+  const itemWhere = (it, venue) => (typeof it === 'object' && it.where && it.where[venue]) || [];
+  const placeInfo = (id) => { for (const m of Object.values(D.maps || {})) { const p = m.places.find((x) => x.id === id); if (p) return Object.assign({ venue: m.venue }, p); } return null; };
 
   // ---- busca única (cursos, serviços e locais), sem acentos, com sinônimos do dia a dia ----
   const SYNONYMS = { rg: 'identidade', cin: 'identidade', remedio: 'farmacia', remedios: 'farmacia', dentista: 'odontologico', medico: 'consultas', medica: 'consultas', cachorro: 'caes', cachorros: 'caes', gato: 'gatos', advogado: 'juridico', advogada: 'juridico', justica: 'juridico', computador: 'tecnologia', celular: 'tecnologia', emprego: 'profissional', escola: 'escolares', professor: 'professores', professora: 'professores', crianca: 'criancas', idoso: 'idosos', animal: 'animais', pet: 'caes', veterinario: 'antirrabica', vacina: 'vacinacao', vacinas: 'vacinacao', titulo: 'eleitorais', eleitor: 'eleitorais', habilitacao: 'cnh', pai: 'pai presente', pensao: 'pensoes', aposentadoria: 'aposentadorias', inss: 'previdenciarios', mulher: 'mulheres', comida: 'alimentos', pao: 'panificacao', paes: 'panificacao', costura: 'textil', camisa: 'camisas', natal: 'natalino', presente: 'presentes', venda: 'vender', ia: 'inteligencia artificial', video: 'videomaker', rio: 'rios', madeira: 'madeireiros', socorro: 'socorros', castracao: 'castra', castrar: 'castra', luz: 'energia', equatorial: 'energia', conta: 'energia', oculos: 'oftalmologista', olho: 'oftalmologista', olhos: 'oftalmologista', dente: 'dentista', dentes: 'dentista', psicologo: 'psicologo', psicologa: 'psicologo', fisioterapia: 'fisioterapeuta', casar: 'casamento', procon: 'procon', terra: 'fundiaria', terreno: 'fundiaria', agricultor: 'agricultura', feira: 'feira', cinema: 'cinema', teatro: 'teatro', bazar: 'bazar', roupa: 'bazar', henna: 'henna', sobrancelha: 'sobrancelhas', massagem: 'massagens', exame: 'exames', sangue: 'laboratoriais', pezinho: 'pezinho', pressao: 'pressao', diabetes: 'glicemia', glicose: 'glicemia', autismo: 'autismo', tea: 'autismo', tdah: 'tdah', barco: 'embarcacoes', embarcacao: 'embarcacoes', carro: 'veiculos', moto: 'veiculos', cnh: 'cnh', sus: 'sus', leishmaniose: 'leishmaniose', raiva: 'antirrabica' };
@@ -172,5 +178,5 @@
   root.TCE = { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay,
     sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, appUrl, icsFor, params,
     search, searchTerms, searchMatch, searchableCourse, SUGGESTIONS,
-    itemText, itemOnly, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn };
+    itemText, itemOnly, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo };
 })(typeof window !== 'undefined' ? window : globalThis);

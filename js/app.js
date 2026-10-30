@@ -13,7 +13,10 @@
     cursos: { label: 'Cursos', icon: 'graduation' },
     servicos: { label: 'Serviços', icon: 'handshake' },
     locais: { label: 'Locais', icon: 'pin' },
+    mapa: { label: 'Mapa', icon: 'map', hidden: true },
   };
+  const M = window.TCEMap;
+  const STEP_ICON = { start: 'pin', left: 'turnleft', right: 'turnright', straight: 'arrowup', turn: 'uturn', end: 'flag' };
   const SHEETS = { curso: 'cursos', servico: 'servicos', local: 'locais' };
   const LS_FAV = 'tce_favs';
   const LS_PREFS = 'tce_prefs';
@@ -141,6 +144,11 @@
     return `<button class="card svc-card venue-card" style="--c:#60a5fa" data-sheet="local" data-id="${v.id}"><span class="svc-ico">${I('building')}</span><span><b>${esc(v.name)}</b><small>${esc(v.city)} · ${n} aula${n === 1 ? '' : 's'} em ${days.length} dia${days.length === 1 ? '' : 's'}</small>${v.rooms.length ? `<span class="rooms">${v.rooms.map((r) => `<span>${esc(r)}</span>`).join('')}</span>` : ''}</span><span class="chev">${I('right')}</span></button>`; };
   const chip = (label, on, attrs, color) => `<button class="chip ${on ? 'on' : ''} ${color ? 'c' : ''}" ${attrs} ${color ? `style="--c:${color}"` : ''}>${color ? '<i></i>' : ''}${label}</button>`;
   const empty = (icon, text) => `<div class="empty">${I(icon)}<p>${text}</p></div>`;
+  // ---- lugares (salas/tendas) ----
+  const defaultMapVenue = () => { const l = prefs.local; if (l && M.mapOf(l)) return l; const d = T.nextServiceDay(clock.date) || T.serviceDays()[0]; return d.venue; };
+  const roomTags = (it, venue) => T.itemWhere(it, venue).map((id) => { const p = T.placeInfo(id); return p ? `<span class="room-tag ${p.kind}">${I(p.kind === 'tenda' ? 'tent' : 'door')}${esc(M.placeLabel(p))}</span>` : ''; }).join('');
+  const placeChip = (id, opts) => { const o = opts || {}; const p = T.placeInfo(id); if (!p) return ''; return `<button class="place-chip ${p.kind} ${o.on ? 'on' : ''}" data-go="mapa?local=${p.venue}&p=${p.id}${o.s ? `&s=${o.s}` : ''}"><b>${esc(p.num || '•')}</b><span>${esc(p.kind === 'area' && !p.num ? p.name : `${M.placeLabel(p)} · ${p.name}`)}</span>${I('right')}</button>`; };
+  const stepsHtml = (r) => `<ol class="steps">${r.steps.map((st) => `<li class="${st.kind}"><i>${I(STEP_ICON[st.kind] || 'arrowup')}</i><span>${esc(st.text)}</span></li>`).join('')}</ol>`;
   const searchBox = (q, opts) => { const o = opts || {}; return `<div class="search ${o.big ? 'big' : ''}">${I('search')}<label class="sr-only" for="${o.id || 'q'}">Buscar</label><input id="${o.id || 'q'}" type="search" value="${esc(q || '')}" placeholder="${esc(o.placeholder || 'Buscar curso, serviço, sala…')}" autocomplete="off" enterkeyhint="search" data-search ${o.autofocus ? 'autofocus' : ''} ${TOTEM ? 'inputmode="none"' : ''}>${q ? `<button class="icon-btn" data-param="q" data-value="" aria-label="Limpar busca">${I('x')}</button>` : ''}</div>`; };
   const servicesStrip = () => `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('handshake')}</span><h2>Serviços gratuitos <small>sem inscrição</small></h2><button class="link" data-go="servicos">Todos ${I('right')}</button></div>
     <div class="svc-days compact">${T.serviceDays().map((d) => svcDayCard(d)).join('')}</div>
@@ -176,7 +184,7 @@
     const sd = T.serviceDayOf(d); const nsd = T.nextServiceDay(clock.date);
     // Dia de serviços: os serviços são o destaque (sempre, mesmo com outro local filtrado); os cursos vêm depois.
     const svcSection = sd
-      ? `<section class="sec svc-focus" style="--c:${D.event.shifts.manha.color}"><div class="svc-banner static"><span class="sb-ico">${I('handshake')}</span><span><small>${d === clock.date ? 'Hoje' : esc(cap(T.fmtDate(d, 'wdlong')))} é dia de</small><b>Serviços gratuitos · ${esc(sd.placeLong || sd.place)}</b><small>Sem inscrição, por ordem de chegada. Toque em um bloco para ver tudo o que é oferecido.</small></span></div>
+      ? `<section class="sec svc-focus" style="--c:${D.event.shifts.manha.color}"><div class="svc-banner static"><span class="sb-ico">${I('handshake')}</span><span><small>${d === clock.date ? 'Hoje' : esc(cap(T.fmtDate(d, 'wdlong')))} é dia de</small><b>Serviços gratuitos · ${esc(sd.placeLong || sd.place)}</b><small>Sem inscrição, por ordem de chegada. Toque em um bloco para ver tudo o que é oferecido.</small>${M.mapOf(sd.venue) ? `<button class="btn btn-ghost" style="margin-top:.7em;justify-self:start" data-go="mapa?local=${sd.venue}">${I('map')}Ver o mapa da escola</button>` : ''}</span></div>
           <div class="stack cols">${D.services.map((s) => { const n = T.itemsOn(s, d).length; const hidden = s.items.length - n; return svcCard(s).replace('</small>', `</small>${hidden ? `<small class="only-note">${I('info')}${hidden} ${hidden > 1 ? 'itens' : 'item'} só em 07/11 na Joaquim Nabuco</small>` : ''}`); }).join('')}</div></section>`
       : (nsd && d === clock.date ? `<button class="svc-note" data-go="servicos"><span>${I('handshake')}</span><span>Serviços gratuitos (saúde, documentos, justiça…): <b>${esc(T.serviceDaysLabel())}</b></span>${I('right')}</button>` : '');
     return `${searchBox('', { id: 'q0', big: true, placeholder: 'Buscar curso, serviço, sala ou assunto…' })}
@@ -235,6 +243,26 @@
       ${list.length ? `<div class="stack cols">${list.map(courseCard).join('')}</div>` : empty('search', 'Nenhum curso encontrado. Tente outra palavra ou limpe os filtros.')}`;
   }
 
+  function viewMapa() {
+    const p = route.p; const venue = M.mapOf(p.get('local')) ? p.get('local') : defaultMapVenue(); const map = M.mapOf(venue);
+    const placeId = p.get('p') && map.places.some((x) => x.id === p.get('p')) ? p.get('p') : ''; const sid = p.get('s') || ''; const ent = M.entranceOf(map, p.get('entrada')).id;
+    const svc = sid ? T.serviceById(sid) : null; const day = T.serviceDays().find((d) => d.venue === venue);
+    const hl = svc ? T.placesOf(svc, venue) : []; const place = placeId ? T.placeInfo(placeId) : null;
+    const servicesHere = place ? D.services.filter((s) => T.placesOf(s, venue).includes(placeId)) : [];
+    return `<div class="page-head"><span class="page-ico">${I('map')}</span><h1>Mapa</h1></div>
+      <p class="page-lead">${esc(map.title)}${day ? ` · serviços gratuitos em <b>${esc(T.fmtDate(day.date, 'wdlong'))}</b>` : ''}. Toque em uma sala no mapa para ver o caminho.</p>
+      <div class="chips scroll">${Object.values(D.maps).map((m) => chip(`${I('map')}${esc(m.short)}`, m.venue === venue, `data-go="mapa?local=${m.venue}"`)).join('')}</div>
+      <div class="chips scroll">${chip('Todos', !sid && !placeId, `data-go="mapa?local=${venue}"`)}${D.services.map((s) => chip(`${I(s.icon)}${esc(s.short)}`, sid === s.id, `data-go="mapa?local=${venue}&s=${s.id}"`)).join('')}</div>
+      <div class="chips scroll" aria-label="Onde você está">${map.entrances.map((e) => chip(`${I('pin')}${esc(e.id === ent ? 'Você está no ' + e.short : e.short)}`, e.id === ent, `data-go="mapa?local=${venue}&entrada=${e.id}${placeId ? `&p=${placeId}` : ''}${sid ? `&s=${sid}` : ''}"`)).join('')}</div>
+      <div id="map" class="tcemap"></div>
+      <div class="map-legend"><span><i style="background:#e11d48"></i>Você</span><span><i style="background:#0b1b3d"></i>Sala</span><span><i style="background:#7e22ce"></i>Tenda</span><span><i style="background:#0f766e"></i>Área</span><span><i style="background:#fbbf24"></i>Destino</span></div>
+      ${place ? `<section class="sec"><div class="sec-head"><span class="sec-ico" style="background:#fbbf24;color:#0b1b3d">${I('footprints')}</span><h2>Como chegar: ${esc(M.placeLabel(place))} <small>${esc(place.name)}</small></h2></div>${stepsHtml(M.route(venue, placeId, ent))}
+          ${servicesHere.length ? `<div class="chips">${servicesHere.map((s) => `<button class="chip" data-sheet="servico" data-id="${s.id}">${I(s.icon)}${esc(s.short)}</button>`).join('')}</div>` : ''}
+          <div class="actions"><button class="btn btn-ghost" data-go="mapa?local=${venue}${sid ? `&s=${sid}` : ''}">${I('map')}Mapa geral</button>${svc ? `<button class="btn btn-primary" data-sheet="servico" data-id="${svc.id}">${I(svc.icon)}${esc(svc.short)}</button>` : `<button class="btn btn-primary" data-go="servicos">${I('handshake')}Serviços</button>`}</div></section>`
+        : svc ? `<section class="sec"><div class="sec-head"><span class="sec-ico c" style="--c:${svc.color}">${I(svc.icon)}</span><h2>${esc(svc.title)} <small>${hl.length} local${hl.length === 1 ? '' : 'is'}</small></h2></div><div class="place-chips">${hl.map((id) => placeChip(id, { s: sid })).join('')}</div></section>`
+        : `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('door')}</span><h2>Salas e tendas <small>${map.places.filter((x) => !x.hide).length}</small></h2></div><div class="place-chips">${map.places.filter((x) => !x.hide).map((x) => placeChip(x.id)).join('')}</div></section>`}`;
+  }
+
   function viewServicos() {
     const sel = T.serviceDayOf(route.p.get('dia')) ? route.p.get('dia') : '';
     const selDay = sel ? T.serviceDayOf(sel) : null;
@@ -247,6 +275,7 @@
 
   function viewLocais() {
     return `<div class="page-head"><span class="page-ico">${I('pin')}</span><h1>Locais</h1></div>
+      <div class="quick" style="margin-top:0">${Object.values(D.maps).map((m) => `<button data-go="mapa?local=${m.venue}"><span class="q-ico">${I('map')}</span><span><b>Mapa · ${esc(m.short)}</b><small>salas dos serviços e caminho</small></span></button>`).join('')}</div>
       <p class="page-lead">Onde acontecem os cursos. Toque para ver a programação de cada local.</p>
       <div class="stack cols">${Object.values(D.venues).map(venueCard).join('')}</div>`;
   }
@@ -285,7 +314,8 @@
     return `<div class="sheet-head"><span class="kicker" style="color:color-mix(in srgb,${s.color} 70%,var(--ink))">${I(s.icon)}${s.num ? `Pilar ${s.num}` : 'Acolhida'} · Serviços gratuitos</span><button class="icon-btn" data-close aria-label="Fechar">${I('x')}</button></div>
       <div class="sheet-body" style="--c:${s.color}"><h2>${esc(s.title)}</h2><p class="muted">${esc(s.summary)}</p>
         <div class="when-box" style="margin-top:.7em"><small>${I('calendar')}Quando e onde · sem inscrição, por ordem de chegada</small><div class="svc-days compact">${T.serviceDays().map((d) => svcDayCard(d, { attrs: `data-go="programacao?d=${d.date}&local=${d.venue}"`, sub: T.itemsOn(s, d.date).length === s.items.length ? 'Todos os itens abaixo' : `${T.itemsOn(s, d.date).length} de ${s.items.length} itens abaixo` })).join('')}</div></div>
-        <h3>${I('check')}O que é oferecido</h3><ul class="ul">${s.items.map((it) => itemLi(it, route.p.get('dia'))).join('')}</ul>
+        ${(() => { const ctx = (route.p.get('dia') && T.mapVenueOf(route.p.get('dia'))) || defaultMapVenue(); const ids = T.placesOf(s, ctx); const m = M.mapOf(ctx); if (!ids.length) return ''; return `<h3>${I('map')}Onde fica · ${esc(m.short)}</h3><p class="tiny muted" style="margin:-.3em 0 .5em">Toque na sala para ver o caminho no mapa.</p><div class="place-chips">${ids.map((id) => placeChip(id, { s: s.id })).join('')}</div>`; })()}
+        <h3>${I('check')}O que é oferecido</h3><ul class="ul">${(() => { const ctx = (route.p.get('dia') && T.mapVenueOf(route.p.get('dia'))) || defaultMapVenue(); return s.items.map((it) => itemLi(it, route.p.get('dia')).replace('</span></li>', `${roomTags(it, ctx)}</span></li>`)).join(''); })()}</ul>
         ${s.detail ? `<p class="note">${I('info')}<span>${esc(s.detail)}</span></p>` : ''}
         <h3>${I('users')}Quem atende</h3><div class="partners">${s.partners.map((p) => `<span>${esc(p)}</span>`).join('')}</div>
         ${s.coursesLink ? `<div class="actions"><button class="btn btn-primary" data-go="cursos">${I('graduation')}Ver os ${D.courses.length} cursos com inscrição</button></div>` : ''}
@@ -305,7 +335,7 @@
 
   // ---------- render ----------
   function shell() {
-    const navBtns = () => Object.entries(VIEWS).map(([k, v]) => `<button class="${route.view === k ? 'on' : ''}" data-go="${k}" aria-label="${v.label}"><span class="nav-ico">${I(v.icon)}</span>${v.label}</button>`).join('');
+    const navBtns = () => Object.entries(VIEWS).filter(([, v]) => !v.hidden).map(([k, v]) => `<button class="${route.view === k ? 'on' : ''}" data-go="${k}" aria-label="${v.label}"><span class="nav-ico">${I(v.icon)}</span>${v.label}</button>`).join('');
     root.innerHTML = `<header class="app-head"><button class="app-brand" data-go="programacao"><span class="logo-chip"><img src="img/tce-mark.png" alt=""></span><span><b>${esc(D.event.name)}</b><small>${esc(D.event.edition)} · ${esc(TOTEM && TOTEM.local && D.venues[TOTEM.local] ? D.venues[TOTEM.local].name : D.event.placeShort)}</small></span></button><div class="app-head-right">${T.isSimulated() ? '<span class="demo-pill">demo</span>' : ''}<div class="app-clock" id="clock"></div>${TOTEM ? '' : `<button class="icon-btn head-search" data-go="busca" aria-label="Buscar">${I('search')}</button>`}</div></header>
       <div class="app-body"><nav class="side-nav" id="side-nav">${navBtns()}<div class="sn-foot">${esc(D.event.organizerShort)}<br>${esc(D.event.datesLabel)}<br><a href="tv.html">Modo TV</a></div></nav><main class="app-main" id="main"></main></div>
       <nav class="bottom-nav" id="bottom-nav">${navBtns()}</nav><div id="sheet"></div><div id="toast"></div>`;
@@ -321,8 +351,11 @@
   function renderMain(keepScroll) {
     const main = document.getElementById('main');
     const active = document.activeElement; const wasSearch = active && active.hasAttribute('data-search'); const pos = wasSearch ? [active.selectionStart, active.selectionEnd] : null;
-    main.innerHTML = { programacao: viewProgramacao, busca: viewBusca, cursos: viewCursos, servicos: viewServicos, locais: viewLocais }[route.view]();
+    main.innerHTML = { programacao: viewProgramacao, busca: viewBusca, cursos: viewCursos, servicos: viewServicos, locais: viewLocais, mapa: viewMapa }[route.view]();
     if (!keepScroll) window.scrollTo({ top: 0 });
+    const mapEl = main.querySelector('#map');
+    if (mapEl) { const p = route.p; const venue = M.mapOf(p.get('local')) ? p.get('local') : defaultMapVenue(); const svc = p.get('s') ? T.serviceById(p.get('s')) : null; const ent = M.entranceOf(M.mapOf(venue), p.get('entrada')).id;
+      M.render(mapEl, venue, { entrance: ent, place: p.get('p') || null, highlight: svc ? T.placesOf(svc, venue) : [], showAll: !svc && !p.get('p'), onPick: (id) => go(`#mapa?local=${venue}&p=${id}&entrada=${ent}${p.get('s') ? `&s=${p.get('s')}` : ''}`), onEntrance: (eid) => go(`#mapa?local=${venue}&entrada=${eid}${p.get('p') ? `&p=${p.get('p')}` : ''}${p.get('s') ? `&s=${p.get('s')}` : ''}`, true) }); }
     const inp = main.querySelector('[data-search]');
     if (inp && (wasSearch || (route.view === 'busca' && !route.p.get('q')))) { inp.focus({ preventScroll: true }); try { if (pos) inp.setSelectionRange(Math.min(pos[0], inp.value.length), Math.min(pos[1], inp.value.length)); } catch { /* */ } }
   }

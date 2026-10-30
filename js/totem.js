@@ -9,7 +9,9 @@
   const VENUE = D.venues[LOCAL];
   const IDLE_MS = Math.max(20, Number(P.get('ocioso')) || 90) * 1000;
   const ATTRACT = P.get('descanso') !== '0'; // ?descanso=0 → sem tela de descanso: cai direto em "explorar" e volta ao início quando ocioso
-  const VIEWS = { inicio: ['Início', 'home'], programacao: ['Programação', 'calendar'], cursos: ['Cursos', 'graduation'], servicos: ['Serviços', 'handshake'], locais: ['Locais', 'pin'] };
+  const VIEWS = { inicio: ['Início', 'home'], programacao: ['Programação', 'calendar'], cursos: ['Cursos', 'graduation'], servicos: ['Serviços', 'handshake'], mapa: ['Mapa', 'map'], locais: ['Locais', 'pin'] };
+  const ENTRANCE = P.get('entrada') || 'a1'; // onde o totem está: origem das rotas no mapa
+  const STEP_ICON = { start: 'pin', left: 'turnleft', right: 'turnright', straight: 'arrowup', turn: 'uturn', end: 'flag' };
   const PANELS = { curso: 'cursos', servico: 'servicos', local: 'locais' };
 
   let clock = T.now();
@@ -69,6 +71,12 @@
   const chip = (label, on, attrs, c) => `<button class="tt-chip ${on ? 'on' : ''} ${c ? 'c' : ''}" ${attrs} ${c ? `style="--c:${c}"` : ''}>${c ? '<i></i>' : ''}${label}</button>`;
   const empty = (icon, text) => `<div class="tt-empty">${I(icon)}<p>${text}</p></div>`;
   const searchField = (q, opts) => { const o = opts || {}; return `<div class="tt-search ${o.live ? 'on' : ''}">${I('search')}<input id="q" type="search" value="${esc(q || '')}" placeholder="${esc(o.placeholder || 'Toque para buscar curso, serviço ou sala')}" autocomplete="off" inputmode="none" data-search>${q ? `<button class="clr" data-clear aria-label="Limpar">${I('x')}</button>` : ''}</div>`; };
+  // ---- lugares (salas/tendas) ----
+  const M = window.TCEMap;
+  const defaultMapVenue = () => (M.mapOf(LOCAL) ? LOCAL : (T.nextServiceDay(clock.date) || T.serviceDays()[0]).venue);
+  const roomTags = (it, venue) => T.itemWhere(it, venue).map((id) => { const p = T.placeInfo(id); return p ? `<span class="room-tag ${p.kind}">${I(p.kind === 'tenda' ? 'tent' : 'door')}${esc(M.placeLabel(p))}</span>` : ''; }).join('');
+  const placeChip = (id, opts) => { const o = opts || {}; const p = T.placeInfo(id); if (!p) return ''; return `<button class="place-chip ${p.kind} ${o.on ? 'on' : ''}" data-go="mapa?local=${p.venue}&p=${p.id}${o.s ? `&s=${o.s}` : ''}"><b>${esc(p.num || '•')}</b><span>${esc(p.kind === 'area' && !p.num ? p.name : `${M.placeLabel(p)} · ${p.name}`)}</span>${I('right')}</button>`; };
+  const stepsHtml = (r) => `<ol class="steps">${r.steps.map((st) => `<li class="${st.kind}"><i>${I(STEP_ICON[st.kind] || 'arrowup')}</i><span>${esc(st.text)}</span></li>`).join('')}</ol>`;
   const secHead = (icon, title, extra, c) => `<div class="tt-sec-head"><span class="tt-sec-ico ${c ? 'c' : ''}" ${c ? `style="--c:${c}"` : ''}>${I(icon)}</span><h2>${title}</h2>${extra || ''}</div>`;
 
   // ---------- telas ----------
@@ -95,7 +103,7 @@
         <button class="tt-tile" style="--c:${s1.color}" data-panel="servico" data-id="${s1.id}"><i>${I(s1.icon)}</i><span><b>${esc(s1.short)}</b><small>${esc(s1.summary)}</small></span></button>
         <button class="tt-tile" style="--c:${s2.color}" data-panel="servico" data-id="${s2.id}"><i>${I(s2.icon)}</i><span><b>${esc(s2.short)}</b><small>${esc(s2.summary)}</small></span></button>
         <button class="tt-tile" style="--c:${D.event.shifts.manha.color}" data-go="servicos"><i>${I('handshake')}</i><span><b>Todos os serviços</b><small>${esc(T.serviceDaysLabel('wd'))}</small></span></button>
-        <button class="tt-tile" style="--c:#c084fc" data-go="locais"><i>${I('pin')}</i><span><b>Onde fica</b><small>${Object.keys(D.venues).length} locais em Oiapoque e no Manga</small></span></button>
+        <button class="tt-tile" style="--c:#c084fc" data-go="mapa"><i>${I('map')}</i><span><b>Mapa da escola</b><small>Planta com todas as salas e o caminho até cada atendimento</small></span></button>
       </div>
       ${list.length ? `<section class="tt-sec">${secHead('clock', title, `<button class="tt-link" data-go="programacao">Ver tudo ${I('right')}</button>`)}<div class="tt-stack">${list.slice(0, 4).map((x) => row(x, { date: date !== clock.date })).join('')}</div></section>` : ''}`;
   }
@@ -148,6 +156,28 @@
     return `<h1 class="tt-h1">Onde fica</h1><p class="tt-lead">Locais dos cursos em Oiapoque e no Distrito do Manga. Toque para ver a programação de cada um.</p>
       <div class="tt-stack">${Object.values(D.venues).map(venueCard).join('')}</div>`;
   }
+  function viewMapa() {
+    const p = route.p; const venue = M.mapOf(p.get('local')) ? p.get('local') : defaultMapVenue(); const map = M.mapOf(venue);
+    const placeId = p.get('p') && map.places.some((x) => x.id === p.get('p')) ? p.get('p') : ''; const sid = p.get('s') || '';
+    const svc = sid ? T.serviceById(sid) : null; const day = T.serviceDays().find((d) => d.venue === venue);
+    const hl = svc ? T.placesOf(svc, venue) : [];
+    const place = placeId ? T.placeInfo(placeId) : null;
+    const servicesHere = place ? D.services.filter((s) => T.placesOf(s, venue).includes(placeId)) : [];
+    const others = Object.values(D.maps).filter((m) => m.venue !== venue);
+    return `<h1 class="tt-h1">Mapa <em>· ${esc(map.short)}</em></h1>
+      <p class="tt-lead">${esc(map.title)}${day ? ` · serviços gratuitos em <b>${esc(T.fmtDate(day.date, 'wdlong'))}</b>` : ''}. Toque em uma sala no mapa ou escolha um serviço para ver o caminho a partir de onde você está.</p>
+      <div class="tt-chips">${Object.values(D.maps).map((m) => chip(`${I('map')}${esc(m.short)}`, m.venue === venue, `data-go="mapa?local=${m.venue}"`)).join('')}</div>
+      <div class="tt-chips">${chip('Todos os serviços', !sid && !placeId, `data-go="mapa?local=${venue}"`)}${D.services.map((s) => chip(`${I(s.icon)}${esc(s.short)}`, sid === s.id, `data-go="mapa?local=${venue}&s=${s.id}"`)).join('')}</div>
+      <div id="map" class="tcemap"></div>
+      <div class="map-legend"><span><i style="background:#e11d48"></i>Você está aqui</span><span><i style="background:#0b1b3d"></i>Sala</span><span><i style="background:#7e22ce"></i>Tenda</span><span><i style="background:#0f766e"></i>Área</span><span><i style="background:#fbbf24"></i>Destino</span></div>
+      ${place ? `<section class="tt-sec"><div class="tt-sec-head"><span class="tt-sec-ico" style="background:#fbbf24;color:#0b1b3d">${I('footprints')}</span><h2>Como chegar: ${esc(M.placeLabel(place))} <small>${esc(place.name)}</small></h2></div>
+          ${stepsHtml(M.route(venue, placeId, ENTRANCE))}
+          ${servicesHere.length ? `<p class="tt-lead" style="margin-top:.8em">Neste local: ${servicesHere.map((s) => `<button class="tt-chip" data-panel="servico" data-id="${s.id}" style="font-size:.8em">${I(s.icon)}${esc(s.short)}</button>`).join(' ')}</p>` : ''}
+          <div class="tt-actions"><button class="tt-btn" data-go="mapa?local=${venue}${sid ? `&s=${sid}` : ''}">${I('map')}Ver o mapa geral</button>${svc ? `<button class="tt-btn primary" data-panel="servico" data-id="${svc.id}">${I(svc.icon)}Ver ${esc(svc.short)}</button>` : `<button class="tt-btn primary" data-go="servicos">${I('handshake')}Ver os serviços</button>`}</div></section>`
+        : svc ? `<section class="tt-sec"><div class="tt-sec-head"><span class="tt-sec-ico" style="--c:${svc.color}">${I(svc.icon)}</span><h2>${esc(svc.title)} <small>${hl.length} local${hl.length === 1 ? '' : 'is'}</small></h2></div><p class="tt-lead">Toque em uma sala para ver o caminho.</p><div class="place-chips">${hl.map((id) => placeChip(id, { s: sid })).join('')}</div></section>`
+        : `<section class="tt-sec"><div class="tt-sec-head"><span class="tt-sec-ico">${I('door')}</span><h2>Salas e tendas <small>${map.places.filter((x) => !x.hide).length}</small></h2></div><div class="place-chips">${map.places.filter((x) => !x.hide).map((x) => placeChip(x.id)).join('')}</div></section>`}
+      ${others.length ? `<p class="tt-lead tiny">Outro local: ${others.map((m) => `<button class="tt-chip" data-go="mapa?local=${m.venue}" style="font-size:.8em">${I('map')}${esc(m.title)}</button>`).join(' ')}</p>` : ''}`;
+  }
   function viewBusca() {
     const q = route.p.get('q') || ''; const R = T.search(q);
     let body;
@@ -183,7 +213,8 @@
     return `<div class="tt-panel-top"><button class="tt-back" data-close>${I('back')}Voltar</button><span class="tt-kicker" style="color:color-mix(in srgb,${s.color} 70%,var(--ink))">${I(s.icon)}${s.num ? `Pilar ${s.num}` : 'Acolhida'} · Serviços gratuitos</span></div>
       <div class="tt-panel-body" style="--c:${s.color}"><h2>${esc(s.title)}</h2><p class="muted">${esc(s.summary)}</p>
         <div class="tt-svcdays" style="margin-top:.8em">${T.serviceDays().map((d) => svcDayCard(d, { attrs: `data-go="programacao?d=${d.date}${d.venue !== LOCAL ? '&todos=1' : ''}"`, sub: T.itemsOn(s, d.date).length === s.items.length ? 'Todos os itens abaixo · sem inscrição' : `${T.itemsOn(s, d.date).length} de ${s.items.length} itens abaixo · sem inscrição` })).join('')}</div>
-        <h3>${I('check')}O que é oferecido</h3><ul class="tt-ul">${s.items.map((it) => { const o = T.itemOnly(it); const sel = route.p.get('dia'); const off = sel && o && o !== sel; return `<li class="${off ? 'off' : ''}"><i></i><span>${esc(T.itemText(it))}${onlyLabel(it)}</span></li>`; }).join('')}</ul>
+        ${(() => { const ctx = (route.p.get('dia') && T.mapVenueOf(route.p.get('dia'))) || defaultMapVenue(); const ids = T.placesOf(s, ctx); const m = M.mapOf(ctx); if (!ids.length) return ''; return `<h3>${I('map')}Onde fica · ${esc(m.short)}</h3><p class="tt-lead tiny">Toque na sala para ver o caminho no mapa a partir de onde você está.</p><div class="place-chips">${ids.map((id) => placeChip(id, { s: s.id })).join('')}</div>`; })()}
+        <h3>${I('check')}O que é oferecido</h3><ul class="tt-ul">${(() => { const ctx = (route.p.get('dia') && T.mapVenueOf(route.p.get('dia'))) || defaultMapVenue(); return s.items.map((it) => { const o = T.itemOnly(it); const sel = route.p.get('dia'); const off = sel && o && o !== sel; return `<li class="${off ? 'off' : ''}"><i></i><span>${esc(T.itemText(it))}${roomTags(it, ctx)}${onlyLabel(it)}</span></li>`; }).join(''); })()}</ul>
         ${s.detail ? `<p class="tt-note">${I('info')}<span>${esc(s.detail)}</span></p>` : ''}
         <h3>${I('users')}Quem atende</h3><div class="tt-partners">${s.partners.map((x) => `<span>${esc(x)}</span>`).join('')}</div>
         ${s.coursesLink ? `<div class="tt-actions" style="margin-top:1em"><button class="tt-btn primary" data-go="cursos">${I('graduation')}Ver os ${D.courses.length} cursos com inscrição</button></div>` : ''}
@@ -220,8 +251,11 @@
   function renderMain(keepScroll) {
     const main = document.getElementById('main');
     const wasSearch = document.activeElement && document.activeElement.hasAttribute('data-search');
-    main.innerHTML = { inicio: viewInicio, programacao: viewProgramacao, cursos: viewCursos, servicos: viewServicos, locais: viewLocais, busca: viewBusca }[route.view]();
+    main.innerHTML = { inicio: viewInicio, programacao: viewProgramacao, cursos: viewCursos, servicos: viewServicos, locais: viewLocais, busca: viewBusca, mapa: viewMapa }[route.view]();
     if (!keepScroll) main.scrollTop = 0;
+    const mapEl = main.querySelector('#map');
+    if (mapEl) { const p = route.p; const venue = M.mapOf(p.get('local')) ? p.get('local') : defaultMapVenue(); const svc = p.get('s') ? T.serviceById(p.get('s')) : null;
+      M.render(mapEl, venue, { entrance: ENTRANCE, place: p.get('p') || null, highlight: svc ? T.placesOf(svc, venue) : [], showAll: !svc && !p.get('p'), onPick: (id) => go(`#mapa?local=${venue}&p=${id}${p.get('s') ? `&s=${p.get('s')}` : ''}`, true) }); }
     const inp = main.querySelector('[data-search]');
     if (inp && (wasSearch || route.view === 'busca')) { inp.focus({ preventScroll: true }); try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch { /* */ } }
     else hideKeyboard();

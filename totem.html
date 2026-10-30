@@ -9,6 +9,7 @@
   <meta name="theme-color" content="#1f3b9a">
   <link rel="icon" href="img/tce-mark.png">
   <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/map.css">
   <link rel="stylesheet" href="css/totem.css">
 </head>
 <body>
@@ -23,6 +24,7 @@
       ?descanso=0                           sem tela de descanso: abre direto em "explorar" (e só volta ao início quando ocioso)
       ?t=HH:MM&d=AAAA-MM-DD                 simula data/hora (demonstração)
       ?app=https://…/                        endereço do app para os QR Codes (padrão: a mesma pasta)
+      ?entrada=a1                           onde o totem está (acesso da planta), origem das rotas no mapa (padrão: a1)
     Tecla F: tela cheia.
   -->
   <div id="totem" class="tt"><div class="tt-loading">Carregando…</div></div>
@@ -30,6 +32,7 @@
   <script src="js/data.js"></script>
   <script src="js/shared.js"></script>
   <script src="js/icons.js"></script>
+  <script src="js/map.js"></script>
   <script src="js/totem.js"></script>
 </body>
 </html>

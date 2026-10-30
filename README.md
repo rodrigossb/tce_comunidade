@@ -85,6 +85,16 @@ Móvel do pilar 6, Feira do Agricultor e palco cultural do pilar 8) estão como 
 e aparecem com o selo "só sáb 07/11 · Escola Joaquim Nabuco" no app e no totem. Nesses dois dias a TV, o
 app e o totem destacam os serviços (quadro dos 9 blocos na TV; faixa azul e aba "serviços" no app/totem).
 
+Plantas e mapa digital: `img/planta-jn.jpg` e `img/planta-manga.jpg` são recortes da "Planta de
+ambientação" (arq. Niucéia Fêrnandes, PDF no Drive). Em `js/data.js` → `maps` ficam os ambientes
+(número, nome, posição em pixels da imagem), os acessos e os corredores por onde se anda; cada serviço
+tem `places: { jn, manga }` e itens podem ter `where` (sala específica). `js/map.js` desenha a planta com
+marcadores, calcula a rota a pé do acesso até a sala (Dijkstra sobre os corredores, destino projetado no
+corredor mais próximo) e gera as instruções em texto ("vire à esquerda… Sala 11 fica à sua direita").
+Totem: aba "Mapa" (planta geral, filtro por serviço, toque na sala → rota) e "Onde fica" em cada serviço;
+a origem da rota é o acesso em `?entrada=a1|a2|a3` (padrão a1 = entrada principal). App: `#mapa?local=jn&p=jn-r11&s=pilar-1&entrada=a1`.
+Sem escala: a rota é orientação visual. Ambientes "A definir" e a tenda Webflash ficam ocultos (`hide`).
+
 Pontos a conferir com a organização:
 - Curso 109 (Brinquedistas): a tabela traz um link administrativo; usamos `escon/cursos/109`.
 - Laboratório I – Joaquim Nabuco, 05/11 às 14h: dois cursos no mesmo horário e sala (125 e 145).
@@ -93,6 +103,8 @@ Pontos a conferir com a organização:
 - Extensão de Cílios (127): o cabeçalho diz "2 ocorrências, 05 e 06/11", mas a tabela lista 04, 05 e 06/11; mantivemos os três dias.
 - Gestão Financeira nas Escolas (112): o nome da escola saiu embaralhado no PDF; lemos como "Escola Estadual Indígena Jorge Iaparrá, Aldeia do Manga" (local `iaparra`). O PDF diz "1 ocorrência" mas lista 8h e 14h; mantivemos as duas.
 - Empreendedorismo Feminino (130): "2 ocorrências" no cabeçalho, mas só uma linha (04/11 às 8h).
+- Mapa: vínculo serviço → sala deduzido dos nomes da planta (ex.: "Segurança e direito" = Proteção à Mulher
+  e Justiça; "Sala GEA" = DIAGRO/Amapá Terras/RURAP/CAR; TRE, AMPREV, CGE e cinema do SESC sem sala na planta).
 
 ## Desenvolver / testar
 ```bash

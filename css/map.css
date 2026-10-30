@@ -1,0 +1,56 @@
+/* ===== Mapa digital (planta + marcadores + rota). Compartilhado pelo app e pelo totem. ===== */
+.tcemap{position:relative;border-radius:16px;overflow:hidden;background:#dfe6ef;box-shadow:0 2px 6px rgba(11,18,32,.06),0 12px 30px -14px rgba(11,18,32,.25);border:1px solid rgba(11,18,32,.12)}
+.tcemap-frame{position:relative;width:100%}
+.tcemap-frame img{position:absolute;inset:0;width:100%;height:100%;display:block;user-select:none;-webkit-user-select:none}
+.tcemap-frame svg{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible}
+.tcemap .mk{cursor:pointer;transition:opacity .2s}
+.tcemap .mk circle{fill:#0b1b3d;stroke:#fff;stroke-width:calc(3px * var(--s,1))}
+.tcemap .mk.tenda circle{fill:#7e22ce}
+.tcemap .mk.area circle{fill:#0f766e}
+.tcemap .mk text{fill:#fff;font-family:'Manrope','Inter',system-ui,sans-serif;font-weight:800;text-anchor:middle;pointer-events:none}
+.tcemap .mk.dim{opacity:.45}
+.tcemap .mk.soft circle{fill:#1f3b9a;stroke:#fbbf24;stroke-width:calc(5px * var(--s,1))}
+.tcemap .mk.on circle{fill:#fbbf24;stroke:#0b1b3d;stroke-width:calc(5px * var(--s,1))}
+.tcemap .mk.on text{fill:#0b1b3d}
+.tcemap .mk.on .pulse{fill:#fbbf24;stroke:none;opacity:.35;transform-origin:center;animation:mkpulse 1.6s ease-out infinite}
+@keyframes mkpulse{0%{transform:scale(.6);opacity:.55}100%{transform:scale(1.4);opacity:0}}
+.tcemap .lbl rect{fill:#0b1b3d;stroke:#fff;stroke-width:calc(2px * var(--s,1))}
+.tcemap .lbl text{fill:#fff;font-family:'Inter',system-ui,sans-serif;font-weight:700;text-anchor:middle;pointer-events:none}
+.tcemap .mk.on .lbl rect{fill:#fbbf24}
+.tcemap .mk.on .lbl text{fill:#0b1b3d}
+.tcemap .ent{cursor:pointer}
+.tcemap .ent circle{fill:#fff;stroke:#0b1b3d;stroke-width:calc(3px * var(--s,1))}
+.tcemap .ent text{fill:#0b1b3d;font-family:'Manrope','Inter',system-ui,sans-serif;font-weight:800;text-anchor:middle;pointer-events:none}
+.tcemap .ent.here circle{fill:#e11d48;stroke:#fff}
+.tcemap .ent.here text{fill:#fff}
+.tcemap .ent .lbl.here rect{fill:#e11d48;stroke:#fff}
+.tcemap .ent .lbl.here text{fill:#fff}
+.tcemap .rt-halo{fill:none;stroke:#fff;stroke-linecap:round;stroke-linejoin:round;opacity:.9}
+.tcemap .rt{fill:none;stroke:#1d4ed8;stroke-linecap:round;stroke-linejoin:round;animation:rtdash 1.2s linear infinite}
+@keyframes rtdash{to{stroke-dashoffset:calc(-42px * var(--s,1))}}
+.tcemap .rt-walk{fill:#fbbf24;stroke:#0b1b3d;stroke-width:calc(3px * var(--s,1))}
+@media (prefers-reduced-motion:reduce){.tcemap .rt,.tcemap .mk.on .pulse{animation:none}}
+
+/* passos da rota */
+.steps{display:flex;flex-direction:column;gap:.45em;margin:.6em 0}
+.steps li{display:grid;grid-template-columns:auto 1fr;gap:.7em;align-items:center;background:var(--card,#fff);border:1px solid var(--line,#e4e7ee);border-radius:14px;padding:.6em .8em;font-weight:600;line-height:1.3}
+.steps li i{width:2.2em;height:2.2em;border-radius:50%;display:grid;place-items:center;background:var(--p-soft,#e8edf8);color:var(--primary,#1f3b9a);font-style:normal;flex:none}
+.steps li i .ico{width:1.3em;height:1.3em}
+.steps li.start i{background:#e11d48;color:#fff}
+.steps li.end i{background:#fbbf24;color:#0b1b3d}
+.steps li.end{border-color:#fbbf24;background:color-mix(in srgb,#fbbf24 14%,var(--card,#fff))}
+.place-chips{display:flex;flex-wrap:wrap;gap:.4em}
+.place-chip{display:inline-flex;align-items:center;gap:.45em;background:var(--card,#fff);border:1.5px solid var(--line,#e4e7ee);border-radius:999px;padding:.35em .8em .35em .35em;font:inherit;font-size:.9em;font-weight:700;color:var(--ink,#0b1220);cursor:pointer;text-align:left;max-width:100%}
+.place-chip b{display:inline-grid;place-items:center;min-width:2em;height:2em;padding:0 .4em;border-radius:999px;background:#0b1b3d;color:#fff;font-family:'Manrope','Inter',system-ui,sans-serif;font-size:.9em;flex:none}
+.place-chip.tenda b{background:#7e22ce}
+.place-chip.area b{background:#0f766e}
+.place-chip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.place-chip.on{border-color:#fbbf24;background:color-mix(in srgb,#fbbf24 18%,var(--card,#fff))}
+.place-chip .ico{color:var(--mut,#5f6b7d);flex:none}
+.room-tag{display:inline-flex;align-items:center;gap:.3em;font-size:.74em;font-weight:800;background:#0b1b3d;color:#fff;border-radius:999px;padding:.2em .6em;margin-left:.4em;vertical-align:middle;white-space:nowrap}
+.room-tag.tenda{background:#7e22ce}
+.room-tag.area{background:#0f766e}
+.room-tag .ico{width:.9em;height:.9em}
+.map-legend{display:flex;flex-wrap:wrap;gap:.4em 1em;font-size:.8em;color:var(--mut,#5f6b7d);font-weight:600;margin:.5em 0}
+.map-legend span{display:inline-flex;align-items:center;gap:.35em}
+.map-legend i{width:.9em;height:.9em;border-radius:50%;display:inline-block;font-style:normal}
