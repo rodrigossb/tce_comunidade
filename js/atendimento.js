@@ -7,6 +7,7 @@
   const root = document.getElementById('app');
   const API = (T.params.get('api') || D.event.apiUrl || '').replace(/\/$/, '');
   const LS = 'tce_at';
+  const VER = (document.querySelector('script[src*="atendimento.js"]') || { src: '' }).src.split('?v=')[1] || '0';
   const st = (() => { try { return JSON.parse(localStorage.getItem(LS)) || {}; } catch { return {}; } })();
   if (!st.device) st.device = Math.random().toString(36).slice(2, 10);
   const save = () => { try { localStorage.setItem(LS, JSON.stringify(st)); } catch { /* */ } };
@@ -46,7 +47,7 @@
   function viewPin() {
     return `<div class="pin"><div class="pin-card"><span class="logo-chip big"><img src="img/tce-mark.png" alt=""></span><h1>Atendimento</h1><p>Controle de senhas dos serviços gratuitos.<br>Digite o PIN da equipe para entrar.</p></div><div class="pin-dots">${[0, 1, 2, 3, 4, 5].map((k) => `<i class="${k < pinBuf.length ? 'on' : ''}" ${k >= 4 && pinBuf.length < 5 ? 'style="display:none"' : ''}></i>`).join('')}</div>
       <div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<button data-key="${n}">${n}</button>`).join('')}<button class="soft" data-key="clear" aria-label="Apagar">${I('back')}</button><button data-key="0">0</button><button class="go" data-key="ok">Entrar</button></div>
-      <p class="tiny muted" id="pin-msg">${esc(st.msg || 'PIN de 4 dígitos (equipe) ou 6 dígitos (gestão).')}</p><p class="tiny muted">${esc(D.event.name)} · ${esc(D.event.edition)}</p></div>`;
+      <p class="tiny muted" id="pin-msg">${esc(st.msg || 'PIN de 4 dígitos (equipe) ou 6 dígitos (gestão).')}</p><p class="tiny muted">${esc(D.event.name)} · ${esc(D.event.edition)} · versão ${esc(VER)}</p></div>`;
   }
   function viewRole() {
     const c = ctx();
