@@ -90,6 +90,11 @@
   const roomLabel = (x) => (x.room ? `${x.room} · ${D.venues[x.venue].short}` : D.venues[x.venue].name);
   const stateBadge = (s, c) => (s === 'now' ? `<span class="badge now" style="--c:${c}">agora</span>` : s === 'today' ? '<span class="badge today">hoje</span>' : s === 'past' ? '<span class="badge past">encerrada</span>' : '');
   const focusDate = () => (clock.date < D.event.start ? D.event.start : clock.date > D.event.end ? D.event.end : clock.date);
+  // ---- serviços: dias, rótulos e itens "só em 07/11" ----
+  const onlyLabel = (it) => { const o = T.itemOnly(it); if (!o) return ''; const d = T.serviceDayOf(o); return `<em class="only">${I('calendar')}só ${esc(T.fmtDate(o, 'wdm'))} · ${esc(d ? d.place : '')}</em>`; };
+  const itemLi = (it, date) => { const o = T.itemOnly(it); const off = date && o && o !== date; return `<li class="${off ? 'off' : ''}"><i></i><span>${esc(T.itemText(it))}${onlyLabel(it)}</span></li>`; };
+  const svcDayCard = (d, opts) => { const o = opts || {}; const today = d.date === clock.date; return `<button class="svc-day ${today ? 'today' : ''} ${o.on ? 'on' : ''}" ${o.attrs || `data-go="servicos?dia=${d.date}"`}><span class="sd-date"><small>${today ? 'hoje' : esc(T.fmtDate(d.date, 'wd').split(' ')[0])}</small><b>${d.date.slice(8)}/${d.date.slice(5, 7)}</b></span><span class="sd-body"><b>${esc(d.place)}</b><small>${o.sub || 'Todos os serviços gratuitos · sem inscrição'}</small></span>${I('right')}</button>`; };
+  const whenBox = (sel) => `<div class="when-box"><small>${I('calendar')}Quando e onde</small><div class="svc-days">${T.serviceDays().map((d) => svcDayCard(d, { on: sel === d.date, attrs: `data-param="dia" data-value="${sel === d.date ? '' : d.date}"` })).join('')}</div><p class="tiny muted">Sem inscrição, por ordem de chegada. Itens marcados com “só 07/11” acontecem apenas no sábado, na Escola Joaquim Nabuco.</p></div>`;
   const sessionsOf = (f) => T.allSessions().filter(f);
   const nextOf = (c) => T.nextSession(c, clock) || T.allSessions().find((x) => x.course === c);
   const shiftWin = (k) => [T.toMin(T.SHIFTS[k].start), T.toMin(T.SHIFTS[k].end)];
@@ -131,13 +136,14 @@
       <div class="cc-dates">${T.allSessions().filter((x) => x.course === c).map((x) => `<span class="datec ${st(x)}" style="--c:${shiftColor(x.shift)}"><i></i>${esc(T.fmtDate(x.date, 'wd'))} · ${T.fmtTime(x.time)}${x.room ? ` · ${esc(x.room)}` : ''}</span>`).join('')}</div>
     </button>`;
   };
-  const svcCard = (s, hits) => `<button class="card svc-card" style="--c:${s.color}" data-sheet="servico" data-id="${s.id}"><span class="svc-ico">${I(s.icon)}</span><span><b>${s.num ? `<em>${s.num}.</em>` : ''}${esc(s.title)}</b><small>${esc(s.summary)}</small>${hits && hits.length ? `<ul class="hits">${hits.map((h) => `<li>${I('check')}<span>${esc(h)}</span></li>`).join('')}</ul>` : ''}</span><span class="chev">${I('right')}</span></button>`;
+  const svcCard = (s, hits) => `<button class="card svc-card" style="--c:${s.color}" data-sheet="servico" data-id="${s.id}"><span class="svc-ico">${I(s.icon)}</span><span><b>${s.num ? `<em>${s.num}.</em>` : ''}${esc(s.title)}</b><small>${esc(s.summary)}</small>${hits && hits.length ? `<ul class="hits">${hits.map((h) => `<li>${I('check')}<span>${esc(T.itemText(h))}</span>${onlyLabel(h)}</li>`).join('')}</ul>` : ''}</span><span class="chev">${I('right')}</span></button>`;
   const venueCard = (v) => { const n = sessionsOf((x) => x.venue === v.id).length; const days = [...new Set(sessionsOf((x) => x.venue === v.id).map((x) => x.date))];
     return `<button class="card svc-card venue-card" style="--c:#60a5fa" data-sheet="local" data-id="${v.id}"><span class="svc-ico">${I('building')}</span><span><b>${esc(v.name)}</b><small>${esc(v.city)} · ${n} aula${n === 1 ? '' : 's'} em ${days.length} dia${days.length === 1 ? '' : 's'}</small>${v.rooms.length ? `<span class="rooms">${v.rooms.map((r) => `<span>${esc(r)}</span>`).join('')}</span>` : ''}</span><span class="chev">${I('right')}</span></button>`; };
   const chip = (label, on, attrs, color) => `<button class="chip ${on ? 'on' : ''} ${color ? 'c' : ''}" ${attrs} ${color ? `style="--c:${color}"` : ''}>${color ? '<i></i>' : ''}${label}</button>`;
   const empty = (icon, text) => `<div class="empty">${I(icon)}<p>${text}</p></div>`;
   const searchBox = (q, opts) => { const o = opts || {}; return `<div class="search ${o.big ? 'big' : ''}">${I('search')}<label class="sr-only" for="${o.id || 'q'}">Buscar</label><input id="${o.id || 'q'}" type="search" value="${esc(q || '')}" placeholder="${esc(o.placeholder || 'Buscar curso, serviço, sala…')}" autocomplete="off" enterkeyhint="search" data-search ${o.autofocus ? 'autofocus' : ''} ${TOTEM ? 'inputmode="none"' : ''}>${q ? `<button class="icon-btn" data-param="q" data-value="" aria-label="Limpar busca">${I('x')}</button>` : ''}</div>`; };
   const servicesStrip = () => `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('handshake')}</span><h2>Serviços gratuitos <small>sem inscrição</small></h2><button class="link" data-go="servicos">Todos ${I('right')}</button></div>
+    <div class="svc-days compact">${T.serviceDays().map((d) => svcDayCard(d)).join('')}</div>
     <div class="hscroll">${D.services.map((s) => `<button class="pillar-mini" style="--c:${s.color}" data-sheet="servico" data-id="${s.id}"><i>${I(s.icon)}</i><b>${esc(s.short || s.title)}</b><small>${esc(s.summary)}</small></button>`).join('')}</div></section>`;
   const footer = () => `<footer class="foot">${esc(D.event.organizer)}<br>${esc(D.event.edition)} · ${esc(D.event.place)} · ${esc(D.event.datesLabel)}${TOTEM ? '' : '<br><a href="tv.html">Modo TV</a>'}</footer>`;
   /** Bloco "leve no celular": QR grande, usado no totem no lugar de salvar/compartilhar. */
@@ -149,7 +155,8 @@
     const d = days.includes(p.get('d')) ? p.get('d') : focusDate(); const local = D.venues[p.get('local')] ? p.get('local') : '';
     const list = sessionsOf((x) => x.date === d && (!local || x.venue === local));
     const idx = days.indexOf(clock.date); const diff = Math.round((Date.parse(D.event.start) - Date.parse(clock.date)) / 864e5);
-    const status = idx >= 0 ? `Hoje é o <b>${idx + 1}º dia</b> do evento` : diff > 0 ? (diff === 1 ? 'O evento <b>começa amanhã</b>' : `O evento <b>começa em ${diff} dias</b>`) : 'Evento encerrado · obrigado, Oiapoque!';
+    const tsd = T.serviceDayOf(clock.date);
+    const status = tsd ? `Hoje: <b>serviços gratuitos</b> no ${esc(tsd.place)}` : idx >= 0 ? `Hoje é o <b>${idx + 1}º dia</b> do evento` : diff > 0 ? (diff === 1 ? 'O evento <b>começa amanhã</b>' : `O evento <b>começa em ${diff} dias</b>`) : 'Evento encerrado · obrigado, Oiapoque!';
     // Cartão "agora / a seguir" (só para o dia de hoje).
     let nowCard = '';
     if (d === clock.date) {
@@ -166,11 +173,16 @@
       return `<section class="sec shift-sec ${s} ${collapsed ? 'collapsed' : ''}" id="turno-${k}"><button class="sec-head" data-toggle-shift="${d}-${k}" aria-expanded="${!collapsed}"><span class="sec-ico c" style="--c:${sh.color}">${I(T.SHIFT_ICON[k])}</span><h2>${sh.label} <small>${T.fmtTime(sh.start)} às ${T.fmtTime(sh.end)}</small></h2>${tag}<span class="muted tiny">${l.length} curso${l.length === 1 ? '' : 's'}</span>${collapsed ? I('down') : ''}</button>${collapsed ? '' : `<div class="stack cols">${l.map((x) => sessRow(x)).join('')}</div>`}</section>`;
     }).join('');
     const favList = D.courses.filter((c) => favs.has(c.id));
+    const sd = T.serviceDayOf(d); const nsd = T.nextServiceDay(clock.date);
+    const svcCard = sd && (!local || local === sd.venue)
+      ? `<button class="svc-banner" data-go="servicos?dia=${sd.date}"><span class="sb-ico">${I('handshake')}</span><span><small>${d === clock.date ? 'Hoje' : esc(cap(T.fmtDate(d, 'wdlong')))} é dia de</small><b>Serviços gratuitos · ${esc(sd.place)}</b><span class="sb-list">${D.services.map((s) => `<i style="--c:${s.color}">${I(s.icon)}${esc(s.short)}</i>`).join('')}</span><small>Sem inscrição, por ordem de chegada. Toque para ver tudo.</small></span>${I('right')}</button>`
+      : (nsd && d === clock.date ? `<button class="svc-note" data-go="servicos"><span>${I('handshake')}</span><span>Serviços gratuitos (saúde, documentos, justiça…): <b>${esc(T.serviceDaysLabel())}</b></span>${I('right')}</button>` : '');
     return `${searchBox('', { id: 'q0', big: true, placeholder: 'Buscar curso, serviço, sala ou assunto…' })}
       <p class="status-line">${I('sparkles')}<span>${status} · ${esc(D.event.placeShort)}</span></p>
-      <div class="tabs" role="tablist" aria-label="Dia">${days.map((x) => { const n = sessionsOf((y) => y.date === x && (!local || y.venue === local)).length; return `<button role="tab" aria-selected="${x === d}" class="${x === d ? 'on' : ''} ${x === clock.date ? 'today' : ''} ${x < clock.date ? 'past' : ''}" data-param="d" data-value="${x}"><small>${x === clock.date ? 'hoje' : T.fmtDate(x, 'wd').split(' ')[0]}</small><b>${x.slice(8)}</b><em>${n ? `${n} curso${n > 1 ? 's' : ''}` : '—'}</em></button>`; }).join('')}</div>
+      <div class="tabs" role="tablist" aria-label="Dia">${days.map((x) => { const n = sessionsOf((y) => y.date === x && (!local || y.venue === local)).length; const xs = T.serviceDayOf(x); return `<button role="tab" aria-selected="${x === d}" class="${x === d ? 'on' : ''} ${x === clock.date ? 'today' : ''} ${x < clock.date ? 'past' : ''} ${xs ? 'svc' : ''}" data-param="d" data-value="${x}"><small>${x === clock.date ? 'hoje' : T.fmtDate(x, 'wd').split(' ')[0]}</small><b>${x.slice(8)}</b><em>${xs ? `${I('handshake')}serviços` : n ? `${n} curso${n > 1 ? 's' : ''}` : '—'}</em></button>`; }).join('')}</div>
       <div class="chips scroll" aria-label="Local">${chip(`${I('pin')}Todos os locais`, !local, 'data-param="local" data-value="todos"')}${Object.values(D.venues).map((v) => chip(esc(v.short), local === v.id, `data-param="local" data-value="${v.id}"`)).join('')}</div>
       <p class="page-lead">${esc(cap(T.fmtDate(d)))}${d === clock.date ? ' · hoje' : T.relDay(d, clock.date) === 'amanhã' ? ' · amanhã' : ''} · <b>${list.length} curso${list.length === 1 ? '' : 's'}</b>${local ? ` em ${esc(D.venues[local].name)}` : ' em todos os locais'}</p>
+      ${svcCard}
       ${nowCard}
       ${shifts.length ? sections : empty('calendar', `Nenhum curso ${d === clock.date ? 'hoje' : 'neste dia'}${local ? ` em ${esc(D.venues[local].short)}` : ''}. Toque em outro dia ou local acima, ou veja os serviços gratuitos.`)}
       ${favList.length ? `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('bookmark')}</span><h2>Meus cursos <small>${favList.length}</small></h2><button class="link" data-go="cursos?fav=1">Ver ${I('right')}</button></div><div class="stack cols">${favList.slice(0, 4).map((c) => sessRow(nextOf(c), { showDate: true })).join('')}</div></section>` : ''}
@@ -221,9 +233,13 @@
   }
 
   function viewServicos() {
-    return `<div class="page-head"><span class="page-ico">${I('handshake')}</span><h1>Serviços</h1></div>
-      <p class="page-lead">${esc(D.event.tagline)}, sem inscrição e por ordem de chegada, de ${esc(D.event.datesLabel)}. Toque para ver tudo o que é oferecido e quem atende.</p>
-      <div class="stack cols">${D.services.map((s) => svcCard(s)).join('')}</div>`;
+    const sel = T.serviceDayOf(route.p.get('dia')) ? route.p.get('dia') : '';
+    const selDay = sel ? T.serviceDayOf(sel) : null;
+    return `<div class="page-head"><span class="page-ico">${I('handshake')}</span><h1>Serviços gratuitos</h1></div>
+      <p class="page-lead">Atendimentos para toda a população, <b>sem inscrição</b>, em dois dias: ${esc(T.serviceDaysLabel())}. Toque em um bloco para ver tudo o que é oferecido e quem atende.</p>
+      ${whenBox(sel)}
+      ${selDay ? `<p class="result-line"><span>Mostrando o que há em <b>${esc(T.fmtDate(sel, 'wdlong'))} · ${esc(selDay.place)}</b></span><button class="link" data-param="dia" data-value="">Ver tudo ${I('x')}</button></p>` : ''}
+      <div class="stack cols">${D.services.map((s) => { const n = T.itemsOn(s, sel).length; const hidden = s.items.length - n; return svcCard(s).replace('</small>', `</small>${hidden ? `<small class="only-note">${I('info')}${hidden} ${hidden > 1 ? 'itens' : 'item'} só em 07/11 na Joaquim Nabuco</small>` : ''}`); }).join('')}</div>`;
   }
 
   function viewLocais() {
@@ -265,8 +281,9 @@
   function sheetServico(s) {
     return `<div class="sheet-head"><span class="kicker" style="color:color-mix(in srgb,${s.color} 70%,var(--ink))">${I(s.icon)}${s.num ? `Pilar ${s.num}` : 'Acolhida'} · Serviços gratuitos</span><button class="icon-btn" data-close aria-label="Fechar">${I('x')}</button></div>
       <div class="sheet-body" style="--c:${s.color}"><h2>${esc(s.title)}</h2><p class="muted">${esc(s.summary)}</p>
-        <div class="next-line" style="--c:${s.color};margin-top:.6em">${I('info')}<span>Sem inscrição: basta chegar. ${esc(D.event.datesLabel)}, em ${esc(D.event.place)}.</span></div>
-        <h3>${I('check')}O que é oferecido</h3><ul class="ul">${s.items.map((it) => `<li><i></i><span>${esc(it)}</span></li>`).join('')}</ul>
+        <div class="when-box" style="margin-top:.7em"><small>${I('calendar')}Quando e onde · sem inscrição, por ordem de chegada</small><div class="svc-days compact">${T.serviceDays().map((d) => svcDayCard(d, { attrs: `data-go="programacao?d=${d.date}&local=${d.venue}"`, sub: T.itemsOn(s, d.date).length === s.items.length ? 'Todos os itens abaixo' : `${T.itemsOn(s, d.date).length} de ${s.items.length} itens abaixo` })).join('')}</div></div>
+        <h3>${I('check')}O que é oferecido</h3><ul class="ul">${s.items.map((it) => itemLi(it, route.p.get('dia'))).join('')}</ul>
+        ${s.detail ? `<p class="note">${I('info')}<span>${esc(s.detail)}</span></p>` : ''}
         <h3>${I('users')}Quem atende</h3><div class="partners">${s.partners.map((p) => `<span>${esc(p)}</span>`).join('')}</div>
         ${s.coursesLink ? `<div class="actions"><button class="btn btn-primary" data-go="cursos">${I('graduation')}Ver os ${D.courses.length} cursos com inscrição</button></div>` : ''}
         ${TOTEM ? `${takeAway(`servico/${s.id}`, 'Leve no celular', 'Aponte a câmera para o QR Code e abra esta lista no seu celular.')}<div class="actions"><button class="btn btn-primary" data-close>${I('x')}Fechar</button></div>` : `<div class="share-row"><button class="btn btn-ghost" data-share-svc="${s.id}">${I('share')}Compartilhar</button></div>`}

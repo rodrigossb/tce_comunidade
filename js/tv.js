@@ -35,13 +35,16 @@
     const [a, b] = shiftWin(k); return clock.min >= b ? 'past' : clock.min >= a ? 'now' : 'later';
   };
   /** Dia mostrado no quadro: hoje; se hoje não tem (ou já acabou) neste local, o próximo dia com cursos. */
+  /** Dia de serviços neste local (04/11 Manga, 07/11 Joaquim Nabuco)? */
+  const svcDayAt = (date) => { const d = T.serviceDayOf(date); return d && (!venueSel || d.venue === venueSel) ? d : null; };
+  const hasProgram = (date) => sessionsAt(date).length > 0 || !!svcDayAt(date);
   function boardDate() {
     const days = T.eventDays();
     const base = clock.date < D.event.start ? D.event.start : clock.date;
     const todayList = sessionsAt(base);
-    const over = base === clock.date && todayList.length && todayList.every((x) => st(x) === 'past');
-    if (todayList.length && !over) return base;
-    return days.find((d) => d > base && sessionsAt(d).length) || (todayList.length ? base : days.filter((d) => sessionsAt(d).length).pop() || base);
+    const over = base === clock.date && !svcDayAt(base) && todayList.length && todayList.every((x) => st(x) === 'past');
+    if (hasProgram(base) && !over) return base;
+    return days.find((d) => d > base && hasProgram(d)) || (hasProgram(base) ? base : days.filter((d) => hasProgram(d)).pop() || base);
   }
   const roomIdx = (x) => { const k = D.venues[x.venue].rooms.indexOf(x.room); return k < 0 ? 99 : k; };
   const vIdx = (x) => Object.keys(D.venues).indexOf(x.venue);
@@ -50,7 +53,36 @@
   const dayWord = (date) => (date === clock.date ? 'hoje' : T.relDay(date, clock.date) === 'amanhã' ? 'amanhã' : T.fmtDate(date, 'wdlong'));
 
   // ---------- quadro do dia ----------
+  /** Faixa de aviso dos dias de serviços (dias comuns) ou chips dos pilares. */
+  function svcStripHtml(date) {
+    const sd = svcDayAt(date);
+    if (sd) return '';
+    return `<div class="svc-strip days"><small>${I('handshake')}Serviços gratuitos</small><b>${esc(T.serviceDaysLabel())}</b><span class="svc-icons">${D.services.map((s) => `<i style="--c:${s.color}" title="${esc(s.short)}">${I(s.icon)}</i>`).join('')}</span><span class="svc-hint">sem inscrição · saúde, documentos, justiça, feiras e mais</span></div>`;
+  }
+  /** Quadro do dia de serviços: 9 pilares em destaque + cursos do dia em uma faixa. */
+  function serviceBoardHtml(date, sd) {
+    const list = sessionsAt(date).sort(byRoom);
+    const isToday = date === clock.date; const dayIdx = T.eventDays().indexOf(date);
+    const when = isToday ? 'Hoje' : T.relDay(date, clock.date) === 'amanhã' ? 'Amanhã' : T.fmtDate(date, 'wdlong').replace(/^./, (c) => c.toUpperCase());
+    let h = `<section class="board svc-mode" id="board"><div class="board-head"><div><h1>${I('handshake')}${esc(when)}: <em>serviços gratuitos</em></h1><div class="where">${I('pin')}${esc(sd.placeLong || sd.place)} · sem inscrição, por ordem de chegada</div></div>
+      <span class="board-pill ${isToday ? 'today' : ''}">${I(isToday ? 'sun' : 'calendar')}${esc(T.fmtDate(date))}${dayIdx >= 0 ? ` · ${dayIdx + 1}º dia` : ''}</span></div>`;
+    h += '<div class="svc-grid">';
+    for (const s of D.services) {
+      const items = T.itemsOn(s, date); const MAX = 4;
+      h += `<div class="svc-card" style="--c:${s.color}"><div class="svc-card-h"><i>${I(s.icon)}</i><b>${esc(s.short || s.title)}</b></div><ul>${items.slice(0, MAX).map((it) => `<li>${esc(T.itemText(it))}</li>`).join('')}</ul>${items.length > MAX ? `<small>+${items.length - MAX} ${items.length - MAX > 1 ? 'atendimentos' : 'atendimento'} · veja no celular</small>` : ''}</div>`;
+    }
+    h += '</div>';
+    if (list.length) {
+      h += `<div class="ev-strip"><div class="ev-strip-h"><b>${I('graduation')}Cursos ${isToday ? 'de hoje' : 'do dia'}</b><small>com inscrição pelo QR Code</small></div><div class="ev-row">`;
+      for (const x of list) { const sx = st(x); const sh = T.SHIFTS[x.shift];
+        h += `<div class="ev ${sx}" style="--c:${sh.color}"><div class="ev-room"><b>${esc(roomOf(x))}</b><small>${T.fmtTime(x.time)} às ${T.fmtTime(T.sessionEnd(x))}</small></div><div class="ev-main"><b>${esc(T.title(x.course, true))}</b><small><b>Para:</b> ${esc(x.course.audience)}</small></div>${sx === 'now' ? '<span class="ev-tag">Agora</span>' : sx === 'past' ? '<span class="ev-tag">Encerrado</span>' : ''}</div>`; }
+      h += '</div></div>';
+    }
+    return h + '</section>';
+  }
   function boardHtml(date) {
+    const sd = svcDayAt(date);
+    if (sd) return serviceBoardHtml(date, sd);
     const list = sessionsAt(date).sort(byRoom);
     const cols = T.SHIFT_ORDER.filter((k) => list.some((x) => x.shift === k));
     const states = cols.map((k) => shiftState(k, date));
@@ -82,13 +114,13 @@
       });
       h += '</div>';
     }
-    h += `<div class="svc-strip"><small>Também hoje</small>${D.services.map((s) => `<span class="svc-chip" style="--c:${s.color}"><i>${I(s.icon)}</i><span>${esc(s.short || s.title)}</span></span>`).join('')}</div></section>`;
+    h += svcStripHtml(date) + '</section>';
     return h;
   }
   /** Reduz a escala até caber sem rolagem; se ainda não couber, esconde a linha "Para:". */
   function fitBoard() {
     const b = document.getElementById('board'); if (!b) return;
-    const lists = [...b.querySelectorAll('.col-list')];
+    const lists = [...b.querySelectorAll('.col-list, .svc-card ul')];
     const overflow = () => lists.some((l) => l.scrollHeight > l.clientHeight + 1) || b.scrollHeight > b.clientHeight + 1 || b.scrollWidth > b.clientWidth + 1;
     let fs = 1; b.style.setProperty('--fs', fs); b.classList.remove('compact');
     while (overflow() && fs > 0.74) { fs = Math.round((fs - 0.04) * 100) / 100; b.style.setProperty('--fs', fs); }
@@ -98,6 +130,8 @@
   // ---------- destaques ----------
   /** Candidatos, nesta ordem: em andamento agora, depois os próximos de hoje; em outro dia, todos os do dia. */
   function highlightPool(date) {
+    const sd = svcDayAt(date);
+    if (sd) return { label: `Serviços gratuitos · ${sd.place}`, items: D.services.map((s) => ({ service: s, date })) };
     const list = sessionsAt(date).sort(byRoom);
     const now = list.filter((x) => st(x) === 'now');
     const up = list.filter((x) => st(x) === 'today' || st(x) === 'future');
@@ -105,7 +139,12 @@
     const label = now.length ? 'Agora e a seguir' : `Destaques de ${dayWord(date)}`;
     return { label, items };
   }
+  function hlServiceHtml(s, date) {
+    const items = T.itemsOn(s, date);
+    return `<div class="hl svc" style="--c:${s.color}"><span class="hl-tag" style="--c:${s.color}">${date === clock.date ? 'Hoje' : esc(T.fmtDate(date, 'wdm'))} · sem inscrição</span><div class="hl-room">${I(s.icon)}${esc(s.short || s.title)}</div><ul class="hl-items">${items.slice(0, 5).map((it) => `<li>${esc(T.itemText(it))}</li>`).join('')}</ul>${items.length > 5 ? `<div class="hl-foot">${I('info')}+${items.length - 5} ${items.length - 5 > 1 ? 'atendimentos' : 'atendimento'} · veja no celular</div>` : ''}</div>`;
+  }
   function hlCardHtml(x) {
+    if (x.service) return hlServiceHtml(x.service, x.date);
     const s = st(x); const sh = T.SHIFTS[x.shift]; const v = D.venues[x.venue];
     const tag = s === 'now' ? `<span class="hl-tag live" style="--c:${sh.color}"><i></i>Agora · até ${T.fmtTime(T.sessionEnd(x))}</span>`
       : s === 'today' ? `<span class="hl-tag" style="--c:${sh.color}">Hoje às ${T.fmtTime(x.time)}</span>`
@@ -116,7 +155,7 @@
   function renderHighlights(animate) {
     const wrap = document.getElementById('hl'); const title = document.getElementById('hl-title'); if (!wrap) return;
     const pool = hlPool; const n = pool.items.length;
-    title.innerHTML = `${I('star')}${esc(pool.label)}${n > HL_COUNT ? ` · ${n} cursos` : ''}`;
+    title.innerHTML = `${I('star')}${esc(pool.label)}${n > HL_COUNT ? ` · ${n} ${pool.items[0] && pool.items[0].service ? 'blocos' : 'cursos'}` : ''}`;
     const draw = () => {
       if (!n) { wrap.innerHTML = `<div class="hl-empty">${I('handshake')}<span>Sem cursos neste momento.<br>Os serviços gratuitos continuam: veja a faixa abaixo.</span></div>`; return; }
       const start = (hlPage * HL_COUNT) % n;
@@ -135,15 +174,15 @@
     const url = T.appUrl(venueSel ? `programacao?local=${venueSel}` : '');
     const qr = T.qrSvg(url, { margin: 1 });
     const shortUrl = url.replace(/^https?:\/\//, '').replace(/#.*$/, '').replace(/\/$/, '');
-    const ticker = D.services.map((s) => `${s.title}: ${s.summary.replace(/\.$/, '')}`).concat(['Programação completa, serviços e inscrições no celular: aponte a câmera para o QR Code']).join('   ✦   ') + '   ✦   ';
+    const ticker = [`Serviços gratuitos, sem inscrição: ${T.serviceDaysLabel()}`].concat(D.services.map((s) => `${s.title}: ${s.summary.replace(/\.$/, '')}`)).concat(['Programação completa, serviços e inscrições no celular: aponte a câmera para o QR Code']).join('   ✦   ') + '   ✦   ';
     return `<header class="tv-head"><div class="tv-logo"><img src="img/tce-logo.png" alt="Tribunal de Contas do Estado do Amapá"></div>
       <div class="tv-title"><b>${esc(D.event.name)} · ${esc(D.event.edition)}</b><small>${I('pin')}${esc(venueName)} · ${esc(D.event.datesLabel)} ${T.isSimulated() ? '<span class="tv-live demo"><i></i>demonstração</span>' : '<span class="tv-live"><i></i>ao vivo</span>'}</small></div>
       <div class="tv-clock"><div class="date"><b id="clock-wd"></b><small id="clock-date"></small></div><div class="time" id="clock-time"></div></div></header>
       <div class="tv-body"><div id="board-wrap" class="board-wrap"></div>
         <aside class="tv-side"><div class="side-title" id="hl-title"></div><div class="hl-wrap" id="hl"></div>
           <div class="tv-qr">${qr}<div><b>${I('phone')}Aponte a câmera do celular</b><p>Veja toda a programação, os serviços gratuitos e faça sua inscrição.</p><code>${esc(shortUrl)}</code></div></div></aside></div>
-      <div class="tv-ticker"><span class="tv-ticker-label">${I('megaphone')}Serviços gratuitos</span><div class="tv-ticker-track"><span>${esc(ticker)}</span><span aria-hidden="true">${esc(ticker)}</span></div></div>
-      <footer class="tv-foot"><span>${esc(D.event.organizer)} · ${esc(D.event.tagline)}</span><span>Cursos gratuitos com inscrição pelo QR Code · Serviços sem inscrição, por ordem de chegada</span></footer>`;
+      <div class="tv-ticker"><span class="tv-ticker-label">${I('megaphone')}Serviços · ${esc(T.serviceDays().map((d) => d.date.slice(8) + '/11').join(' e '))}</span><div class="tv-ticker-track"><span>${esc(ticker)}</span><span aria-hidden="true">${esc(ticker)}</span></div></div>
+      <footer class="tv-foot"><span>${esc(D.event.organizer)} · ${esc(D.event.tagline)}</span><span>Cursos gratuitos com inscrição pelo QR Code · Serviços sem inscrição: ${esc(T.serviceDaysLabel())}</span></footer>`;
   }
 
   // ---------- ciclo ----------
@@ -170,7 +209,7 @@
     document.getElementById('board-wrap').innerHTML = boardHtml(date);
     fitBoard();
     const pool = highlightPool(date);
-    const poolKey = pool.label + pool.items.map((x) => `${x.course.id}@${x.date}${x.time}`).join(',');
+    const poolKey = pool.label + pool.items.map((x) => (x.service ? `svc:${x.service.id}` : `${x.course.id}@${x.date}${x.time}`)).join(',');
     if (poolKey !== refresh.poolKey) { refresh.poolKey = poolKey; hlPool = pool; hlPage = 0; renderHighlights(false); scheduleHighlights(); }
     lastTick = Date.now();
   }

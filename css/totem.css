@@ -261,3 +261,37 @@
   .tt.osk-open .tt-main,.tt.osk-open .tt-panel-body{padding-bottom:14em}
   .attract-bar{height:11%}
 }
+
+/* ---------- dias de serviços ---------- */
+.tt .tt-banner{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.9em;width:100%;text-align:left;background:linear-gradient(135deg,var(--navy2),var(--navy));color:#fff;border:0;border-radius:var(--radius);padding:1em 1.1em;margin:0 0 1em;box-shadow:var(--shadow)}
+.tt .tt-banner.soft{background:var(--a-soft);color:var(--ink);border:2px solid color-mix(in srgb,var(--accent) 55%,var(--line))}
+.tt-banner i{width:3em;height:3em;border-radius:16px;background:var(--accent);color:var(--ink-on-c);display:grid;place-items:center;font-style:normal;flex:none;align-self:start}
+.tt-banner i .ico{width:1.6em;height:1.6em}
+.tt-banner small{display:block;font-size:.82em;opacity:.85;line-height:1.3}
+.tt-banner b{display:block;font-family:var(--font-display);font-size:1.25em;line-height:1.15;margin:.1em 0 .3em}
+.tt-banner>.ico{opacity:.7}
+.tt-banner-list{display:flex;flex-wrap:wrap;gap:.3em;margin:.2em 0 .45em}
+.tt-banner-list i{display:inline-flex;align-items:center;gap:.3em;width:auto;height:auto;font-size:.76em;font-weight:700;background:rgba(255,255,255,.14);color:#fff;border-radius:999px;padding:.3em .7em .3em .45em}
+.tt-banner-list i .ico{width:1em;height:1em;color:var(--c)}
+.tt-svcdays{display:grid;grid-template-columns:1fr 1fr;gap:.6em;margin:.2em 0 .8em}
+.tt-svcday{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.7em;text-align:left;background:#fff;border:2px solid var(--line);border-radius:var(--radius);padding:.7em .8em;box-shadow:var(--shadow);min-width:0;min-height:4.6em}
+.tt-svcday.today{border-color:var(--accent);background:var(--a-soft)}
+.tt-svcday.on{border-color:var(--primary);box-shadow:0 0 0 4px color-mix(in srgb,var(--primary) 18%,transparent)}
+.tt-svcday .sd-date{display:flex;flex-direction:column;align-items:center;line-height:1;min-width:3.2em;background:var(--p-soft);color:var(--primary);border-radius:12px;padding:.45em .3em}
+.tt-svcday.today .sd-date{background:var(--accent);color:var(--ink-on-c)}
+.tt-svcday .sd-date small{font-size:.62em;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.tt-svcday .sd-date b{font-family:var(--font-display);font-size:1.1em;font-weight:800;margin-top:.15em;white-space:nowrap}
+.tt-svcday .sd-body{min-width:0;line-height:1.2}
+.tt-svcday .sd-body b{display:block;font-family:var(--font-display);font-size:1.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tt-svcday .sd-body small{display:block;color:var(--mut);font-size:.76em;margin-top:.2em;line-height:1.25}
+.tt-svcday>.ico{color:var(--mut)}
+.tt-days button.svc:not(.on){border-color:color-mix(in srgb,var(--primary) 45%,var(--line));background:var(--p-soft)}
+.tt-days button em .ico{width:.95em;height:.95em;vertical-align:-.15em;margin-right:.15em}
+.tt em.only{display:inline-flex;align-items:center;gap:.25em;font-style:normal;font-size:.7em;font-weight:800;text-transform:uppercase;letter-spacing:.04em;background:var(--a-soft);color:var(--tce-dourado-700);border-radius:999px;padding:.2em .55em;margin-left:.4em;vertical-align:middle;white-space:nowrap}
+.tt em.only .ico{width:.95em;height:.95em}
+.tt-ul li.off{opacity:.45}
+.tt-ul li.off span{text-decoration:line-through;text-decoration-color:var(--mut)}
+.tt .only-note{display:flex;align-items:center;gap:.3em;color:var(--tce-dourado-700);font-size:.78em;font-weight:700;margin-top:.35em}
+.tt .only-note .ico{width:1em;height:1em}
+.tt-lead.tiny{font-size:.82em}
+.tt-svc .hits li{flex-wrap:wrap}.tt-svc .hits li em.only{margin-left:1.6em}

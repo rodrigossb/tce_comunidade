@@ -76,6 +76,15 @@ curso 152 virou "Tecnologia a Serviço do Controle Social e Ouvidoria" (link nov
 (122) passou a 8h; público de "Painéis da Gestão Pública" (141) agora é "Servidores públicos, gestores
 e técnicos".
 
+Serviços (sem inscrição): transcritos de `SERVICOS ATUALIZADOS.docx` (30/10/2026) e complementados com
+detalhes públicos da `RELAÇÃO DE PARCEIROS DA IX EDIÇÃO` (pasta
+https://drive.google.com/drive/folders/1_OG6UGKJTZA1rI5u7s1mixMoyNy4t1N1). Dias de serviços em
+`event.serviceDays`: 04/11 no Distrito do Manga e 07/11 na Escola Joaquim Nabuco. Os itens marcados em
+amarelo no documento oficial (práticas integrativas e Outubro Rosa/Novembro Azul do pilar 1, Castra
+Móvel do pilar 6, Feira do Agricultor e palco cultural do pilar 8) estão como `{ t, only: '2026-11-07' }`
+e aparecem com o selo "só sáb 07/11 · Escola Joaquim Nabuco" no app e no totem. Nesses dois dias a TV, o
+app e o totem destacam os serviços (quadro dos 9 blocos na TV; faixa azul e aba "serviços" no app/totem).
+
 Pontos a conferir com a organização:
 - Curso 109 (Brinquedistas): a tabela traz um link administrativo; usamos `escon/cursos/109`.
 - Laboratório I – Joaquim Nabuco, 05/11 às 14h: dois cursos no mesmo horário e sala (125 e 145).

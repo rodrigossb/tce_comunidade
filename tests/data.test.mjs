@@ -39,6 +39,14 @@ test('estado das sessões segue o relógio', () => {
 test('serviços: acolhida + 8 pilares com itens e parceiros', () => {
   assert.equal(D.services.length, 9);
   for (const s of D.services) assert.ok(s.title && s.summary && s.items.length && s.partners.length && s.icon && s.color, s.id);
+  // itens: texto ou { t, only } com data em um dia de serviços
+  const days = D.event.serviceDays.map((d) => d.date);
+  assert.ok(days.length >= 2 && days.every((d) => d >= D.event.start && d <= D.event.end));
+  for (const s of D.services) for (const it of s.items) {
+    assert.ok(T.itemText(it) && T.itemText(it).length > 3, `${s.id}: item vazio`);
+    if (T.itemOnly(it)) assert.ok(days.includes(T.itemOnly(it)), `${s.id}: only fora dos dias de serviços`);
+  }
+  assert.equal(D.services.flatMap((s) => s.items).filter((it) => T.itemOnly(it)).length, 5, 'itens em amarelo (só 07/11)');
 });
 
 test('ics e QR geram saída válida', () => {

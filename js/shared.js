@@ -53,6 +53,7 @@
     const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
     if (mode === 'short') return `${pad(d)}/${pad(m)}`;
     if (mode === 'wd') return `${WEEKDAYS_SHORT[wd]} ${pad(d)}`;
+    if (mode === 'wdm') return `${WEEKDAYS_SHORT[wd]} ${pad(d)}/${pad(m)}`;
     if (mode === 'wdlong') return `${WEEKDAYS[wd].replace('-feira', '')}, ${pad(d)}/${pad(m)}`;
     if (mode === 'day') return `${d} de ${MONTHS[m - 1]}`;
     return `${WEEKDAYS[wd]}, ${d} de ${MONTHS[m - 1]}`;
@@ -138,25 +139,38 @@
     return lines.join('\r\n');
   }
 
+  // ---- serviços: itens (texto ou { t, only }) e dias de serviços ----
+  const itemText = (it) => (typeof it === 'string' ? it : it.t);
+  const itemOnly = (it) => (typeof it === 'string' ? null : it.only || null);
+  const serviceDays = () => D.event.serviceDays || [];
+  const serviceDayOf = (date) => serviceDays().find((d) => d.date === date) || null;
+  /** Próximo dia de serviços a partir de hoje (inclusive); null se todos já passaram. */
+  const nextServiceDay = (today) => serviceDays().find((d) => d.date >= today) || null;
+  /** "qua 04/11 no Manga e sáb 07/11 na Joaquim Nabuco" */
+  const serviceDaysLabel = (mode) => serviceDays().map((d) => `${fmtDate(d.date, mode || 'wdm')} · ${d.place}`).join(' e ');
+  /** Itens de um serviço disponíveis em um dia (todos, se date for nulo). */
+  const itemsOn = (s, date) => s.items.filter((it) => !date || !itemOnly(it) || itemOnly(it) === date);
+
   // ---- busca única (cursos, serviços e locais), sem acentos, com sinônimos do dia a dia ----
-  const SYNONYMS = { rg: 'identidade', cin: 'identidade', remedio: 'farmacia', remedios: 'farmacia', dentista: 'odontologico', medico: 'consultas', medica: 'consultas', cachorro: 'caes', cachorros: 'caes', gato: 'gatos', advogado: 'juridico', advogada: 'juridico', justica: 'juridico', computador: 'tecnologia', celular: 'tecnologia', emprego: 'profissional', escola: 'escolares', professor: 'professores', professora: 'professores', crianca: 'criancas', idoso: 'idosos', animal: 'animais', pet: 'caes', veterinario: 'antirrabica', vacina: 'vacinacao', vacinas: 'vacinacao', titulo: 'eleitorais', eleitor: 'eleitorais', habilitacao: 'cnh', pai: 'pai presente', pensao: 'pensoes', aposentadoria: 'aposentadorias', inss: 'previdenciarios', mulher: 'mulheres', comida: 'alimentos', pao: 'panificacao', paes: 'panificacao', costura: 'textil', camisa: 'camisas', natal: 'natalino', presente: 'presentes', venda: 'vender', ia: 'inteligencia artificial', video: 'videomaker', rio: 'rios', madeira: 'madeireiros', socorro: 'socorros' };
+  const SYNONYMS = { rg: 'identidade', cin: 'identidade', remedio: 'farmacia', remedios: 'farmacia', dentista: 'odontologico', medico: 'consultas', medica: 'consultas', cachorro: 'caes', cachorros: 'caes', gato: 'gatos', advogado: 'juridico', advogada: 'juridico', justica: 'juridico', computador: 'tecnologia', celular: 'tecnologia', emprego: 'profissional', escola: 'escolares', professor: 'professores', professora: 'professores', crianca: 'criancas', idoso: 'idosos', animal: 'animais', pet: 'caes', veterinario: 'antirrabica', vacina: 'vacinacao', vacinas: 'vacinacao', titulo: 'eleitorais', eleitor: 'eleitorais', habilitacao: 'cnh', pai: 'pai presente', pensao: 'pensoes', aposentadoria: 'aposentadorias', inss: 'previdenciarios', mulher: 'mulheres', comida: 'alimentos', pao: 'panificacao', paes: 'panificacao', costura: 'textil', camisa: 'camisas', natal: 'natalino', presente: 'presentes', venda: 'vender', ia: 'inteligencia artificial', video: 'videomaker', rio: 'rios', madeira: 'madeireiros', socorro: 'socorros', castracao: 'castra', castrar: 'castra', luz: 'energia', equatorial: 'energia', conta: 'energia', oculos: 'oftalmologista', olho: 'oftalmologista', olhos: 'oftalmologista', dente: 'dentista', dentes: 'dentista', psicologo: 'psicologo', psicologa: 'psicologo', fisioterapia: 'fisioterapeuta', casar: 'casamento', procon: 'procon', terra: 'fundiaria', terreno: 'fundiaria', agricultor: 'agricultura', feira: 'feira', cinema: 'cinema', teatro: 'teatro', bazar: 'bazar', roupa: 'bazar', henna: 'henna', sobrancelha: 'sobrancelhas', massagem: 'massagens', exame: 'exames', sangue: 'laboratoriais', pezinho: 'pezinho', pressao: 'pressao', diabetes: 'glicemia', glicose: 'glicemia', autismo: 'autismo', tea: 'autismo', tdah: 'tdah', barco: 'embarcacoes', embarcacao: 'embarcacoes', carro: 'veiculos', moto: 'veiculos', cnh: 'cnh', sus: 'sus', leishmaniose: 'leishmaniose', raiva: 'antirrabica' };
   const searchTerms = (q) => norm(q).split(/\s+/).filter((w) => w.length > 1).map((w) => (SYNONYMS[w] ? [w, SYNONYMS[w]] : [w]));
   const searchMatch = (text, tt) => tt.every((alts) => alts.some((w) => text.includes(w)));
   const searchableCourse = (c) => norm([c.title, c.short, c.audience, c.tags.map((t) => D.tags[t]).join(' '), c.sessions.map((x) => `${D.venues[x.venue].name} ${D.venues[x.venue].short} ${x.room} ${fmtDate(x.date, 'wd')}`).join(' '), String(c.id), 'curso'].join(' '));
-  const searchableService = (s) => norm([s.title, s.short, s.summary, s.items.join(' '), s.partners.join(' '), 'servico gratuito'].join(' '));
+  const searchableService = (s) => norm([s.title, s.short, s.summary, s.items.map(itemText).join(' '), s.detail || '', s.partners.join(' '), 'servico gratuito'].join(' '));
   const searchableVenue = (v) => norm([v.name, v.short, v.city, v.rooms.join(' '), 'local'].join(' '));
   /** Resultado agrupado: { terms, courses, services:[{s,hits}], venues, total }. */
   function search(q) {
     const tt = searchTerms(q || '');
     if (!tt.length) return { terms: tt, courses: [], services: [], venues: [], total: 0 };
     const courses = D.courses.filter((c) => searchMatch(searchableCourse(c), tt));
-    const services = D.services.map((s) => ({ s, hits: s.items.filter((it) => searchMatch(norm(it), tt)).slice(0, 3) })).filter((r) => r.hits.length || searchMatch(searchableService(r.s), tt));
+    const services = D.services.map((s) => ({ s, hits: s.items.filter((it) => searchMatch(norm(itemText(it)), tt)).slice(0, 3) })).filter((r) => r.hits.length || searchMatch(searchableService(r.s), tt));
     const venues = Object.values(D.venues).filter((v) => searchMatch(searchableVenue(v), tt));
     return { terms: tt, courses, services, venues, total: courses.length + services.length + venues.length };
   }
-  const SUGGESTIONS = ['Saúde', 'Vacina', 'Identidade', 'Mulheres', 'Crianças', 'Empreendedorismo', 'Tecnologia', 'Jurídico', 'Animais', 'Feira'];
+  const SUGGESTIONS = ['Saúde', 'Vacina', 'Identidade', 'Dentista', 'Castração', 'Casamento', 'Corte de cabelo', 'Energia', 'Mulheres', 'Crianças', 'Empreendedorismo', 'Feira'];
 
   root.TCE = { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay,
     sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, appUrl, icsFor, params,
-    search, searchTerms, searchMatch, searchableCourse, SUGGESTIONS };
+    search, searchTerms, searchMatch, searchableCourse, SUGGESTIONS,
+    itemText, itemOnly, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn };
 })(typeof window !== 'undefined' ? window : globalThis);

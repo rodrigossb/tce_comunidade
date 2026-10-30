@@ -54,13 +54,16 @@
   const byNext = (a, b) => { const sa = T.courseState(a, clock) === 'past'; const sb = T.courseState(b, clock) === 'past'; if (sa !== sb) return sa ? 1 : -1; const na = nextOf(a); const nb = nextOf(b); return na.date.localeCompare(nb.date) || T.toMin(na.time) - T.toMin(nb.time) || T.title(a, true).localeCompare(T.title(b, true)); };
   const badge = (s, c) => (s === 'now' ? `<span class="badge now" style="--c:${c}">agora</span>` : s === 'today' ? '<span class="badge today">hoje</span>' : s === 'past' ? '<span class="badge">encerrada</span>' : '');
   const qrFor = (hash) => T.qrSvg(T.appUrl(hash), { margin: 1 });
+  // ---- serviços: dias e itens "só em 07/11" ----
+  const onlyLabel = (it) => { const o = T.itemOnly(it); if (!o) return ''; const d = T.serviceDayOf(o); return `<em class="only">${I('calendar')}só ${esc(T.fmtDate(o, 'wdm'))} · ${esc(d ? d.place : '')}</em>`; };
+  const svcDayCard = (d, opts) => { const o = opts || {}; const today = d.date === clock.date; return `<button class="tt-svcday ${today ? 'today' : ''} ${o.on ? 'on' : ''}" ${o.attrs || `data-go="servicos?dia=${d.date}"`}><span class="sd-date"><small>${today ? 'hoje' : esc(T.fmtDate(d.date, 'wd').split(' ')[0])}</small><b>${d.date.slice(8)}/${d.date.slice(5, 7)}</b></span><span class="sd-body"><b>${esc(d.place)}</b><small>${o.sub || 'Todos os serviços gratuitos · sem inscrição'}</small></span>${I('right')}</button>`; };
 
   // ---------- componentes ----------
   const row = (x, o) => { o = o || {}; const s = st(x); const c = col(x.shift);
     return `<button class="tt-row ${s}" style="--c:${c}" data-panel="curso" data-id="${x.course.id}"><span class="tt-time"><b>${T.fmtTime(x.time)}</b><small>${o.date ? esc(T.fmtDate(x.date, 'wd')) : `até ${T.fmtTime(T.sessionEnd(x))}`}</small></span><span class="tt-body"><span class="room">${I('door')}${esc(roomLabel(x))}${x.label ? ` · ${esc(x.label)}` : ''}</span><b>${esc(T.title(x.course, true))}</b><small>Para: ${esc(x.course.audience)}</small></span><span class="tt-right">${badge(s, c)}${I('right')}</span></button>`; };
   const courseRow = (c) => { const s = T.courseState(c, clock); const nx = nextOf(c); const cc = col(nx.shift);
     return `<button class="tt-row two ${s === 'now' ? 'now' : s === 'past' ? 'past' : ''}" style="--c:${cc}" data-panel="curso" data-id="${c.id}"><span class="tt-body"><span class="room">${I('tag')}${c.tags.map((t) => esc(D.tags[t])).join(' · ')}</span><b>${esc(c.title)}</b><small>Para: ${esc(c.audience)}</small><span class="tt-dates">${T.allSessions().filter((x) => x.course === c).map((x) => `<span class="tt-date ${st(x)}" style="--c:${col(x.shift)}"><i></i>${esc(T.fmtDate(x.date, 'wd'))} · ${T.fmtTime(x.time)}${x.room ? ` · ${esc(x.room)}` : ''}</span>`).join('')}</span></span><span class="tt-right">${badge(s, cc)}${I('right')}</span></button>`; };
-  const svcCard = (s, hits) => `<button class="tt-svc" style="--c:${s.color}" data-panel="servico" data-id="${s.id}"><i>${I(s.icon)}</i><span><b>${s.num ? `<em>${s.num}.</em>` : ''}${esc(s.title)}</b><small>${esc(s.summary)}</small>${hits && hits.length ? `<ul class="hits">${hits.map((h) => `<li>${I('check')}<span>${esc(h)}</span></li>`).join('')}</ul>` : ''}</span>${I('right')}</button>`;
+  const svcCard = (s, hits) => `<button class="tt-svc" style="--c:${s.color}" data-panel="servico" data-id="${s.id}"><i>${I(s.icon)}</i><span><b>${s.num ? `<em>${s.num}.</em>` : ''}${esc(s.title)}</b><small>${esc(s.summary)}</small>${hits && hits.length ? `<ul class="hits">${hits.map((h) => `<li>${I('check')}<span>${esc(T.itemText(h))}</span>${onlyLabel(h)}</li>`).join('')}</ul>` : ''}</span>${I('right')}</button>`;
   const venueCard = (v) => { const list = sessionsOf((x) => x.venue === v.id); const days = new Set(list.map((x) => x.date));
     return `<button class="tt-svc" style="--c:#60a5fa" data-panel="local" data-id="${v.id}"><i>${I('building')}</i><span><b>${esc(v.name)}</b><small>${esc(v.city)} · ${list.length} aula${list.length === 1 ? '' : 's'} em ${days.size} dia${days.size === 1 ? '' : 's'}</small>${v.rooms.length ? `<span class="tt-rooms">${v.rooms.map((r) => `<span>${esc(r)}</span>`).join('')}</span>` : ''}</span>${I('right')}</button>`; };
   const chip = (label, on, attrs, c) => `<button class="tt-chip ${on ? 'on' : ''} ${c ? 'c' : ''}" ${attrs} ${c ? `style="--c:${c}"` : ''}>${c ? '<i></i>' : ''}${label}</button>`;
@@ -71,7 +74,11 @@
   // ---------- telas ----------
   function viewInicio() {
     const days = T.eventDays(); const idx = days.indexOf(clock.date); const diff = Math.round((Date.parse(D.event.start) - Date.parse(clock.date)) / 864e5);
-    const status = idx >= 0 ? `<b>${cap(T.fmtDate(clock.date, 'wdlong'))}</b> · ${idx + 1}º dia do evento` : diff > 0 ? `O evento <b>começa ${diff === 1 ? 'amanhã' : `em ${diff} dias`}</b> · ${esc(D.event.datesLabel)}` : 'Evento encerrado · obrigado, Oiapoque!';
+    const tsd = T.serviceDayOf(clock.date);
+    const status = idx >= 0 ? `<b>${cap(T.fmtDate(clock.date, 'wdlong'))}</b> · ${idx + 1}º dia do evento${tsd ? ` · <b>dia de serviços gratuitos no ${esc(tsd.place)}</b>` : ''}` : diff > 0 ? `O evento <b>começa ${diff === 1 ? 'amanhã' : `em ${diff} dias`}</b> · ${esc(D.event.datesLabel)}` : 'Evento encerrado · obrigado, Oiapoque!';
+    const svcBanner = tsd && tsd.venue === LOCAL
+      ? `<button class="tt-banner" data-go="servicos?dia=${tsd.date}"><i>${I('handshake')}</i><span><small>Hoje, aqui</small><b>Serviços gratuitos · ${esc(tsd.place)}</b><small>Saúde, documentos, justiça, feiras e muito mais. Sem inscrição, por ordem de chegada.</small></span>${I('right')}</button>`
+      : `<button class="tt-banner soft" data-go="servicos"><i>${I('handshake')}</i><span><small>Serviços gratuitos · sem inscrição</small><b>${esc(T.serviceDaysLabel())}</b></span>${I('right')}</button>`;
     const date = focusDate(); const here = sessionsOf((x) => x.date === date && x.venue === LOCAL);
     const now = here.filter((x) => st(x) === 'now'); const up = here.filter((x) => st(x) === 'today');
     const list = now.length ? now : up.length ? up.filter((x) => x.shift === up[0].shift) : here.filter((x) => x.shift === (here[0] || {}).shift);
@@ -81,12 +88,13 @@
     return `<h1 class="tt-h1">Olá! <em>O que você procura?</em></h1>
       <p class="tt-status">${I('sparkles')}<span>${status}</span></p>
       <button class="tt-search" data-go="busca">${I('search')}<span>Toque para buscar curso, serviço ou sala</span></button>
+      ${svcBanner}
       <div class="tt-tiles">
         <button class="tt-tile primary" style="--c:${D.event.shifts.manha.color}" data-go="programacao">${live}<i>${I('calendar')}</i><span><b>Programação de hoje</b><small>${here.length} curso${here.length === 1 ? '' : 's'} em ${esc(VENUE.short)}</small></span></button>
         <button class="tt-tile" style="--c:#34d399" data-go="cursos"><i>${I('graduation')}</i><span><b>Cursos gratuitos</b><small>${D.courses.length} cursos com inscrição</small></span></button>
         <button class="tt-tile" style="--c:${s1.color}" data-panel="servico" data-id="${s1.id}"><i>${I(s1.icon)}</i><span><b>${esc(s1.short)}</b><small>${esc(s1.summary)}</small></span></button>
         <button class="tt-tile" style="--c:${s2.color}" data-panel="servico" data-id="${s2.id}"><i>${I(s2.icon)}</i><span><b>${esc(s2.short)}</b><small>${esc(s2.summary)}</small></span></button>
-        <button class="tt-tile" style="--c:${D.event.shifts.manha.color}" data-go="servicos"><i>${I('handshake')}</i><span><b>Todos os serviços</b><small>${D.services.length} blocos de atendimento gratuito, sem inscrição</small></span></button>
+        <button class="tt-tile" style="--c:${D.event.shifts.manha.color}" data-go="servicos"><i>${I('handshake')}</i><span><b>Todos os serviços</b><small>${esc(T.serviceDaysLabel('wd'))}</small></span></button>
         <button class="tt-tile" style="--c:#c084fc" data-go="locais"><i>${I('pin')}</i><span><b>Onde fica</b><small>${Object.keys(D.venues).length} locais em Oiapoque e no Manga</small></span></button>
       </div>
       ${list.length ? `<section class="tt-sec">${secHead('clock', title, `<button class="tt-link" data-go="programacao">Ver tudo ${I('right')}</button>`)}<div class="tt-stack">${list.slice(0, 4).map((x) => row(x, { date: date !== clock.date })).join('')}</div></section>` : ''}`;
@@ -101,15 +109,18 @@
       if (now.length) { const k = now[0].shift; nowCard = `<button class="tt-now" style="--c:${col(k)}" data-scroll="turno-${k}"><i>${I('clock')}</i><span><b>Acontecendo agora · ${T.SHIFTS[k].label} até ${T.fmtTime(T.SHIFTS[k].end)}</b><small>${now.length} curso${now.length > 1 ? 's' : ''} em andamento</small></span>${I('down')}</button>`; }
       else if (up.length) { const k = up[0].shift; const n = up.filter((x) => x.shift === k).length; nowCard = `<button class="tt-now next" style="--c:${col(k)}" data-scroll="turno-${k}"><i>${I('next')}</i><span><b>A seguir · ${T.SHIFTS[k].label} às ${T.fmtTime(T.SHIFTS[k].start)}</b><small>${n} curso${n > 1 ? 's' : ''}</small></span>${I('down')}</button>`; }
     }
+    const sd = T.serviceDayOf(d);
+    const svcCardHtml = sd && (all || sd.venue === LOCAL) ? `<button class="tt-banner" data-go="servicos?dia=${sd.date}"><i>${I('handshake')}</i><span><small>${d === clock.date ? 'Hoje' : esc(cap(T.fmtDate(d, 'wdlong')))} é dia de</small><b>Serviços gratuitos · ${esc(sd.place)}</b><span class="tt-banner-list">${D.services.map((s) => `<i style="--c:${s.color}">${I(s.icon)}${esc(s.short)}</i>`).join('')}</span><small>Sem inscrição, por ordem de chegada. Toque para ver tudo.</small></span>${I('right')}</button>` : '';
     const shifts = T.SHIFT_ORDER.filter((k) => list.some((x) => x.shift === k));
     const secs = shifts.map((k) => { const sh = T.SHIFTS[k]; const l = list.filter((x) => x.shift === k); const s = shiftState(k, d); const collapsed = s === 'past' && !openShifts.has(`${d}-${k}`);
       return `<section class="tt-shift ${s} ${collapsed ? 'collapsed' : ''}" id="turno-${k}"><button data-toggle-shift="${d}-${k}"><span class="tt-sec-ico c" style="--c:${sh.color}">${I(T.SHIFT_ICON[k])}</span><h2>${sh.label} <small>${T.fmtTime(sh.start)} às ${T.fmtTime(sh.end)}</small></h2>${s === 'now' ? `<span class="badge now" style="--c:${sh.color}">agora</span>` : s === 'past' ? '<span class="badge">encerrado</span>' : ''}<span class="muted tiny">${l.length} curso${l.length === 1 ? '' : 's'}</span>${collapsed ? I('down') : ''}</button>${collapsed ? '' : `<div class="tt-stack">${l.map((x) => row(x)).join('')}</div>`}</section>`; }).join('');
     return `<h1 class="tt-h1">Programação</h1>
-      <div class="tt-days">${days.map((x) => { const n = sessionsOf((y) => y.date === x && (all || y.venue === LOCAL)).length; return `<button class="${x === d ? 'on' : ''} ${x === clock.date ? 'today' : ''}" data-param="d" data-value="${x}"><small>${x === clock.date ? 'hoje' : T.fmtDate(x, 'wd').split(' ')[0]}</small><b>${x.slice(8)}</b><em>${n ? `${n} curso${n > 1 ? 's' : ''}` : '—'}</em></button>`; }).join('')}</div>
+      <div class="tt-days">${days.map((x) => { const n = sessionsOf((y) => y.date === x && (all || y.venue === LOCAL)).length; const xs = T.serviceDayOf(x); return `<button class="${x === d ? 'on' : ''} ${x === clock.date ? 'today' : ''} ${xs ? 'svc' : ''}" data-param="d" data-value="${x}"><small>${x === clock.date ? 'hoje' : T.fmtDate(x, 'wd').split(' ')[0]}</small><b>${x.slice(8)}</b><em>${xs ? `${I('handshake')}serviços` : n ? `${n} curso${n > 1 ? 's' : ''}` : '—'}</em></button>`; }).join('')}</div>
       <div class="tt-chips">${chip(`${I('pin')}${esc(VENUE.short)}`, !all, 'data-param="todos" data-value=""')}${chip(`${I('layers')}Todos os locais`, all, 'data-param="todos" data-value="1"')}</div>
       <p class="tt-lead">${esc(cap(T.fmtDate(d)))}${d === clock.date ? ' · hoje' : ''} · <b>${list.length} curso${list.length === 1 ? '' : 's'}</b> ${all ? 'em todos os locais' : `em ${esc(VENUE.name)}`}</p>
+      ${svcCardHtml}
       ${nowCard}
-      ${shifts.length ? secs : empty('calendar', `Nenhum curso ${d === clock.date ? 'hoje' : 'neste dia'} ${all ? '' : `em ${esc(VENUE.short)}`}. Toque em outro dia ou em "Todos os locais".`)}`;
+      ${shifts.length ? secs : (svcCardHtml ? '' : empty('calendar', `Nenhum curso ${d === clock.date ? 'hoje' : 'neste dia'} ${all ? '' : `em ${esc(VENUE.short)}`}. Toque em outro dia ou em "Todos os locais".`))}`;
   }
 
   function viewCursos() {
@@ -124,8 +135,11 @@
   }
 
   function viewServicos() {
-    return `<h1 class="tt-h1">Serviços gratuitos</h1><p class="tt-lead">Sem inscrição, por ordem de chegada, de ${esc(D.event.datesLabel)}. Toque para ver tudo o que é oferecido e quem atende.</p>
-      <div class="tt-stack">${D.services.map((s) => svcCard(s)).join('')}</div>`;
+    const sel = T.serviceDayOf(route.p.get('dia')) ? route.p.get('dia') : '';
+    return `<h1 class="tt-h1">Serviços gratuitos</h1><p class="tt-lead">Atendimentos para toda a população, <b>sem inscrição</b>, por ordem de chegada, em dois dias:</p>
+      <div class="tt-svcdays">${T.serviceDays().map((d) => svcDayCard(d, { on: sel === d.date, attrs: `data-param="dia" data-value="${sel === d.date ? '' : d.date}"` })).join('')}</div>
+      <p class="tt-lead tiny">Itens marcados com “só 07/11” acontecem apenas no sábado, na Escola Joaquim Nabuco. Toque em um bloco para ver tudo o que é oferecido e quem atende.</p>
+      <div class="tt-stack">${D.services.map((s) => { const hidden = s.items.length - T.itemsOn(s, sel).length; return svcCard(s).replace('</small>', `</small>${hidden ? `<small class="only-note">${I('info')}${hidden} ${hidden > 1 ? 'itens' : 'item'} só em 07/11 na Joaquim Nabuco</small>` : ''}`); }).join('')}</div>`;
   }
   function viewLocais() {
     return `<h1 class="tt-h1">Onde fica</h1><p class="tt-lead">Locais dos cursos em Oiapoque e no Distrito do Manga. Toque para ver a programação de cada um.</p>
@@ -165,8 +179,9 @@
   function panelServico(s) {
     return `<div class="tt-panel-top"><button class="tt-back" data-close>${I('back')}Voltar</button><span class="tt-kicker" style="color:color-mix(in srgb,${s.color} 70%,var(--ink))">${I(s.icon)}${s.num ? `Pilar ${s.num}` : 'Acolhida'} · Serviços gratuitos</span></div>
       <div class="tt-panel-body" style="--c:${s.color}"><h2>${esc(s.title)}</h2><p class="muted">${esc(s.summary)}</p>
-        <div class="tt-next" style="--c:${s.color};margin-top:.7em">${I('info')}<span>Sem inscrição: basta chegar. ${esc(D.event.datesLabel)}, em ${esc(D.event.place)}.</span></div>
-        <h3>${I('check')}O que é oferecido</h3><ul class="tt-ul">${s.items.map((it) => `<li><i></i><span>${esc(it)}</span></li>`).join('')}</ul>
+        <div class="tt-svcdays" style="margin-top:.8em">${T.serviceDays().map((d) => svcDayCard(d, { attrs: `data-go="programacao?d=${d.date}${d.venue !== LOCAL ? '&todos=1' : ''}"`, sub: T.itemsOn(s, d.date).length === s.items.length ? 'Todos os itens abaixo · sem inscrição' : `${T.itemsOn(s, d.date).length} de ${s.items.length} itens abaixo · sem inscrição` })).join('')}</div>
+        <h3>${I('check')}O que é oferecido</h3><ul class="tt-ul">${s.items.map((it) => { const o = T.itemOnly(it); const sel = route.p.get('dia'); const off = sel && o && o !== sel; return `<li class="${off ? 'off' : ''}"><i></i><span>${esc(T.itemText(it))}${onlyLabel(it)}</span></li>`; }).join('')}</ul>
+        ${s.detail ? `<p class="tt-note">${I('info')}<span>${esc(s.detail)}</span></p>` : ''}
         <h3>${I('users')}Quem atende</h3><div class="tt-partners">${s.partners.map((x) => `<span>${esc(x)}</span>`).join('')}</div>
         ${s.coursesLink ? `<div class="tt-actions" style="margin-top:1em"><button class="tt-btn primary" data-go="cursos">${I('graduation')}Ver os ${D.courses.length} cursos com inscrição</button></div>` : ''}
         <div class="tt-qr">${qrFor(`servico/${s.id}`)}<div><b>${I('phone')}Leve no celular</b><small>Aponte a câmera para o QR Code e abra esta lista no seu celular.</small></div></div>
