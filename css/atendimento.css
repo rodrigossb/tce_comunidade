@@ -10,14 +10,21 @@
 .sync.off i{background:#f59e0b;animation:pulse 1.4s infinite}
 .sync.err i{background:#dc2626}
 /* PIN */
-.pin{display:flex;flex-direction:column;align-items:center;gap:1em;margin:1.5em 0}
-.pin-dots{display:flex;gap:.6em;height:1.2em}
-.pin-dots i{width:1em;height:1em;border-radius:50%;border:2px solid var(--primary);background:transparent}
-.pin-dots i.on{background:var(--primary)}
-.keypad{display:grid;grid-template-columns:repeat(3,4.6em);gap:.6em}
-.keypad button{height:4.2em;border-radius:16px;background:var(--card);border:1.5px solid var(--line);font:inherit;font-size:1.3em;font-weight:800;color:var(--ink);box-shadow:var(--shadow)}
-.keypad button:active{background:var(--p-soft)}
-.keypad button.soft{background:var(--chip);font-size:1em;font-weight:700;color:var(--ink2)}
+.pin{display:flex;flex-direction:column;align-items:center;gap:1.1em;margin:1.2em auto 1.5em;width:min(100%,22em)}
+.pin-dots{display:flex;gap:.8em;height:1.4em;align-items:center}
+.pin-dots i{width:1.1em;height:1.1em;border-radius:50%;border:2.5px solid var(--primary);background:transparent;transition:background-color .15s,transform .15s}
+.pin-dots i.on{background:var(--primary);transform:scale(1.1)}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:.7em;width:100%}
+.keypad button{height:4.2rem;border-radius:20px;background:var(--card);border:1.5px solid var(--line);font:inherit;font-family:var(--font-display);font-size:1.7rem;font-weight:800;color:var(--ink);box-shadow:var(--shadow);display:grid;place-items:center;line-height:1;padding:0;margin:0;transition:background-color .1s,transform .1s}
+.keypad button>*{display:block}
+.keypad button:active{background:var(--p-soft);transform:scale(.96)}
+.keypad button.soft{background:var(--chip);font-family:var(--font-text);font-size:1rem;font-weight:700;color:var(--ink2)}
+.keypad button.go{background:var(--primary);color:#fff;border-color:var(--primary);font-family:var(--font-text);font-size:1.1rem;font-weight:800}
+.keypad button.go:active{background:color-mix(in srgb,var(--primary) 85%,#000)}
+.keypad button .ico{width:1.5rem;height:1.5rem}
+#pin-msg{text-align:center;min-height:1.4em}
+.numpad-sheet .keypad{max-width:20em}
+.numpad-sheet .keypad button{height:3.4rem;font-size:1.4rem}
 /* escolha de função */
 .roles{display:grid;gap:.8em;margin:1em 0}
 .role{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.9em;padding:1.1em 1em;border-radius:var(--radius);background:var(--card);border:1.5px solid var(--line);box-shadow:var(--shadow);text-align:left;font:inherit;color:inherit}

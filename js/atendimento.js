@@ -46,7 +46,7 @@
   function viewPin() {
     return `<section class="hero"><span class="eyebrow">${esc(D.event.edition)} · uso da equipe</span><h1>Atendimento</h1><p>Controle de senhas dos serviços gratuitos. Digite o PIN da equipe para entrar.</p></section>
       <div class="pin"><div class="pin-dots">${[0, 1, 2, 3, 4, 5].map((k) => `<i class="${k < pinBuf.length ? 'on' : ''}" ${k >= 4 && pinBuf.length < 5 ? 'style="display:none"' : ''}></i>`).join('')}</div>
-      <div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<button data-key="${n}">${n}</button>`).join('')}<button class="soft" data-key="clear">Limpar</button><button data-key="0">0</button><button class="soft" data-key="ok">Entrar</button></div>
+      <div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<button data-key="${n}">${n}</button>`).join('')}<button class="soft" data-key="clear" aria-label="Apagar">${I('back')}</button><button data-key="0">0</button><button class="go" data-key="ok">Entrar</button></div>
       <p class="tiny muted" id="pin-msg">${esc(st.msg || 'PIN de 4 dígitos (equipe) ou 6 dígitos (gestão).')}</p></div>`;
   }
   function viewRole() {
@@ -103,7 +103,7 @@
         return `<div class="svc-stat" style="--c:${s.color}"><div class="hd"><i>${I(s.icon)}</i><b>${esc(s.title)}</b><small>${x.avg_min == null ? 'sem média' : `média ${x.avg_min} min`}</small></div><div class="bar"><i class="s" style="width:${w(x.served)}"></i><i class="a" style="width:${w(x.absent)}"></i><i class="p" style="width:${w(x.pending_result)}"></i></div><div class="nums"><span>entregues <b>${x.issued}</b></span><span>chamadas <b>${x.called}</b></span><span>atendidas <b>${x.served}</b></span><span>faltas <b>${x.absent}</b></span><span>aguardando <b>${x.not_called}</b></span>${x.est_wait_min != null ? `<span>espera estimada <b>${x.est_wait_min} min</b></span>` : ''}</div>${x.places.length ? `<div class="rooms">${x.places.map((p) => `<span class="${p.current && p.current.status === 'served' && p.current.in_service_min != null ? 'live' : ''}">${esc(placeName(p.place_id).split(' · ')[0])}: senha <b>${p.current ? p.current.ticket ?? '—' : '—'}</b> · ${p.served} atend.${p.avg_min != null ? ` · ${p.avg_min} min` : ''}</span>`).join('')}</div>` : ''}</div>`; }).join('')}</div>`;
   }
   function viewNum(title, value) {
-    return `<div class="sheet-root" id="sheet-root"><div class="sheet numpad-sheet"><div class="sheet-head"><span class="kicker">${I('ticket')}${esc(title)}</span><button class="icon-btn" data-close aria-label="Fechar">${I('x')}</button></div><div class="sheet-body"><input class="bigin" id="num" type="number" inputmode="numeric" value="${value}" min="0" max="100000"><div class="keypad" style="margin:1em auto">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<button data-num="${n}">${n}</button>`).join('')}<button class="soft" data-num="back">⌫</button><button data-num="0">0</button><button class="soft" data-num="ok">OK</button></div></div></div></div>`;
+    return `<div class="sheet-root" id="sheet-root"><div class="sheet numpad-sheet"><div class="sheet-head"><span class="kicker">${I('ticket')}${esc(title)}</span><button class="icon-btn" data-close aria-label="Fechar">${I('x')}</button></div><div class="sheet-body"><input class="bigin" id="num" type="number" inputmode="numeric" value="${value}" min="0" max="100000"><div class="keypad" style="margin:1em auto">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<button data-num="${n}">${n}</button>`).join('')}<button class="soft" data-num="back" aria-label="Apagar">${I('back')}</button><button data-num="0">0</button><button class="go" data-num="ok">OK</button></div></div></div></div>`;
   }
 
   // ---------- render ----------
@@ -148,7 +148,7 @@
     const el = (s) => e.target.closest(s); let b;
     if ((b = el('[data-key]'))) {
       const k = b.dataset.key;
-      if (k === 'clear') pinBuf = ''; else if (k === 'ok') { await login(); return; } else if (pinBuf.length < 6) pinBuf += k;
+      if (k === 'clear') pinBuf = pinBuf.slice(0, -1); else if (k === 'ok') { await login(); return; } else if (pinBuf.length < 6) pinBuf += k;
       if (pinBuf.length === 4 || pinBuf.length === 6) { render(); if (pinBuf.length === 6) await login(); return; }
       render(); return;
     }
