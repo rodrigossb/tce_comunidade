@@ -134,7 +134,7 @@
   function shellHtml() {
     const url = T.appUrl(venueSel ? `programacao?local=${venueSel}` : '');
     const qr = T.qrSvg(url, { margin: 1 });
-    const shortUrl = url.replace(/^https?:\/\//, '').replace(/\/#.*$/, '').replace(/\/$/, '');
+    const shortUrl = url.replace(/^https?:\/\//, '').replace(/#.*$/, '').replace(/\/$/, '');
     const ticker = D.services.map((s) => `${s.title}: ${s.summary.replace(/\.$/, '')}`).concat(['Programação completa, serviços e inscrições no celular: aponte a câmera para o QR Code']).join('   ✦   ') + '   ✦   ';
     return `<header class="tv-head"><div class="tv-logo"><img src="img/tce-logo.png" alt="Tribunal de Contas do Estado do Amapá"></div>
       <div class="tv-title"><b>${esc(D.event.name)} · ${esc(D.event.edition)}</b><small>${I('pin')}${esc(venueName)} · ${esc(D.event.datesLabel)} ${T.isSimulated() ? '<span class="tv-live demo"><i></i>demonstração</span>' : '<span class="tv-live"><i></i>ao vivo</span>'}</small></div>
