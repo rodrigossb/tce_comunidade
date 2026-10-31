@@ -1,14 +1,14 @@
 /* ===== Mapa digital (planta + marcadores + rota). Compartilhado pelo app e pelo totem. ===== */
 .tcemap{position:relative;border-radius:16px;overflow:hidden;background:#dfe6ef;box-shadow:0 2px 6px rgba(11,18,32,.06),0 12px 30px -14px rgba(11,18,32,.25);border:1px solid rgba(11,18,32,.12)}
 .tcemap-frame{position:relative;width:100%}
-.tcemap-frame img{position:absolute;inset:0;width:100%;height:100%;display:block;user-select:none;-webkit-user-select:none}
+.tcemap-frame img{position:absolute;inset:0;width:100%;height:100%;display:block;user-select:none;-webkit-user-select:none;filter:saturate(1.08) contrast(1.04)}
 .tcemap-frame svg{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible}
 .tcemap .mk{cursor:pointer;transition:opacity .2s}
-.tcemap .mk circle{fill:#0b1b3d;stroke:#fff;stroke-width:calc(3px * var(--s,1))}
+.tcemap .mk circle{fill:#0b1b3d;stroke:#fff;stroke-width:calc(3.5px * var(--s,1));filter:drop-shadow(0 calc(2px * var(--s,1)) calc(3px * var(--s,1)) rgba(0,0,0,.35))}
 .tcemap .mk.tenda circle{fill:#7e22ce}
 .tcemap .mk.area circle{fill:#0f766e}
 .tcemap .mk text{fill:#fff;font-family:'Manrope','Inter',system-ui,sans-serif;font-weight:800;text-anchor:middle;pointer-events:none}
-.tcemap .mk.dim{opacity:.45}
+.tcemap .mk.dim{opacity:.55}
 .tcemap .mk.soft circle{fill:#1f3b9a;stroke:#fbbf24;stroke-width:calc(5px * var(--s,1))}
 .tcemap .mk.on circle{fill:#fbbf24;stroke:#0b1b3d;stroke-width:calc(5px * var(--s,1))}
 .tcemap .mk.on text{fill:#0b1b3d}
