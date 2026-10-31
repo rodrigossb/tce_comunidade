@@ -123,6 +123,12 @@ Sem escala: a rota é orientação visual. Ambientes "A definir" e a tenda Webfl
 Início do totem: "mapa vivo" (destaca um serviço a cada 4 s, com as salas nomeadas; toque na sala abre o
 caminho; chips por serviço). Rota com "Ouvir o caminho" (síntese de voz pt-BR, quando o navegador tem).
 App: "Ampliar o mapa" abre a planta em tela cheia, arrastável, com 2,2× ou 3,2×, centrada no destino.
+Início do totem = busca + mapa: resultados instantâneos (serviços com suas salas, salas por nome/número,
+cursos), toque em uma sala ou resultado traça o caminho ali mesmo (com "Voltar ao mapa geral"), legenda
+dos serviços ao lado do mapa (toque filtra), botão flutuante "Mapa e busca" nas demais telas.
+Salas dos cursos na planta: `js/salas-cursos.js` (DE → PARA, sugestão a validar: Lab I/II = 01/02;
+Salas I–V = 04, 05, 07, 08, 09 na Joaquim Nabuco; no Manga Sala I = 13 e Lab I = 12). Por enquanto só o
+totem usa (etiqueta "Sala 04 na planta" nas aulas e "Onde fica na planta" no curso).
 
 Pontos a conferir com a organização:
 - Curso 109 (Brinquedistas): a tabela traz um link administrativo; usamos `escon/cursos/109`.
