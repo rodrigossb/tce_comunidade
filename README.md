@@ -117,6 +117,9 @@ corredor mais próximo) e gera as instruções em texto ("vire à esquerda… Sa
 Totem: aba "Mapa" (planta geral, filtro por serviço, toque na sala → rota) e "Onde fica" em cada serviço;
 a origem da rota é o acesso em `?entrada=a1|a2|a3` (padrão a1 = entrada principal). App: `#mapa?local=jn&p=jn-r11&s=pilar-1&entrada=a1`.
 Sem escala: a rota é orientação visual. Ambientes "A definir" e a tenda Webflash ficam ocultos (`hide`).
+Início do totem: "mapa vivo" (destaca um serviço a cada 4 s, com as salas nomeadas; toque na sala abre o
+caminho; chips por serviço). Rota com "Ouvir o caminho" (síntese de voz pt-BR, quando o navegador tem).
+App: "Ampliar o mapa" abre a planta em tela cheia, arrastável, com 2,2× ou 3,2×, centrada no destino.
 
 Pontos a conferir com a organização:
 - Curso 109 (Brinquedistas): a tabela traz um link administrativo; usamos `escon/cursos/109`.

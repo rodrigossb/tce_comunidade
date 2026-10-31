@@ -51,6 +51,7 @@
   function openSheet(kind, id) { sheetPushed = true; location.hash = `#${kind}/${id}`; }
   function closeSheet() {
     const el = document.getElementById('sheet-root');
+    if (el && !route.sheet) { el.classList.add('closing'); setTimeout(() => { document.getElementById('sheet').innerHTML = ''; document.body.style.overflow = ''; }, 150); return; }
     if (el) el.classList.add('closing');
     setTimeout(() => { if (sheetPushed && history.length > 1) history.back(); else go(hashOf(route.view, route.p), true); sheetPushed = false; }, 150);
   }
@@ -255,6 +256,7 @@
       <div class="chips scroll">${chip('Todos', !sid && !placeId, `data-go="mapa?local=${venue}"`)}${D.services.map((s) => chip(`${I(s.icon)}${esc(s.short)}`, sid === s.id, `data-go="mapa?local=${venue}&s=${s.id}"`)).join('')}</div>
       <div class="chips scroll" aria-label="Onde você está">${map.entrances.map((e) => chip(`${I('pin')}${esc(e.id === ent ? 'Você está no ' + e.short : e.short)}`, e.id === ent, `data-go="mapa?local=${venue}&entrada=${e.id}${placeId ? `&p=${placeId}` : ''}${sid ? `&s=${sid}` : ''}"`)).join('')}</div>
       <div id="map" class="tcemap"></div>
+      <div class="map-actions"><button class="btn btn-ghost" data-map-full="${venue}">${I('zoomin')}Ampliar o mapa</button>${place && window.speechSynthesis ? `<button class="btn btn-ghost" data-speak="${placeId}">${I('megaphone')}Ouvir o caminho</button>` : ''}</div>
       <div class="map-legend"><span><i style="background:#e11d48"></i>Você</span><span><i style="background:#0b1b3d"></i>Sala</span><span><i style="background:#7e22ce"></i>Tenda</span><span><i style="background:#0f766e"></i>Área</span><span><i style="background:#fbbf24"></i>Destino</span></div>
       ${place ? `<section class="sec"><div class="sec-head"><span class="sec-ico" style="background:#fbbf24;color:#0b1b3d">${I('footprints')}</span><h2>Como chegar: ${esc(M.placeLabel(place))} <small>${esc(place.name)}</small></h2></div>${stepsHtml(M.route(venue, placeId, ent))}
           ${servicesHere.length ? `<div class="chips">${servicesHere.map((s) => `<button class="chip" data-sheet="servico" data-id="${s.id}">${I(s.icon)}${esc(s.short)}</button>`).join('')}</div>` : ''}
@@ -399,6 +401,19 @@
       go(`#${view}${qs ? `?${qs}` : ''}`); return;
     }
     if ((b = el('[data-scroll]'))) { const t = document.getElementById(b.dataset.scroll); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+    if ((b = el('[data-speak]'))) { const venue = M.mapOf(route.p.get('local')) ? route.p.get('local') : defaultMapVenue(); const ent = M.entranceOf(M.mapOf(venue), route.p.get('entrada')).id; if (!M.speak(M.route(venue, b.dataset.speak, ent))) toast('Este navegador não tem leitura em voz alta', 'info'); return; }
+    if ((b = el('[data-map-full]'))) {
+      const venue = b.dataset.mapFull; const p = route.p; const svc = p.get('s') ? T.serviceById(p.get('s')) : null; const ent = M.entranceOf(M.mapOf(venue), p.get('entrada')).id;
+      const holder = document.getElementById('sheet');
+      holder.innerHTML = `<div class="sheet-root" id="sheet-root" role="dialog" aria-modal="true"><div class="sheet"><div class="sheet-grab"></div><div class="sheet-head"><span class="kicker">${I('map')}${esc(M.mapOf(venue).title)}</span><button class="icon-btn" data-close aria-label="Fechar">${I('x')}</button></div><div class="sheet-body"><p class="tiny muted" style="margin:0 0 .5em">Arraste para mover. Toque em uma sala para ver o caminho.</p><div class="map-zoom" id="map-zoom"><div id="map-full" class="tcemap"></div></div><div class="map-actions"><button class="btn btn-ghost" data-zoom-toggle>${I('zoomin')}Mais zoom</button></div></div></div></div>`;
+      document.body.style.overflow = 'hidden';
+      const r = M.render(document.getElementById('map-full'), venue, { entrance: ent, scale: 1.1, place: p.get('p') || null, highlight: svc ? T.placesOf(svc, venue) : [], showAll: !svc && !p.get('p'), onPick: (id) => { holder.innerHTML = ''; document.body.style.overflow = ''; go(`#mapa?local=${venue}&p=${id}&entrada=${ent}${p.get('s') ? `&s=${p.get('s')}` : ''}`); } });
+      // Centraliza no destino (ou no acesso).
+      const z = document.getElementById('map-zoom'); const m = M.mapOf(venue); const f = z.querySelector('.tcemap-frame'); const fx = (r ? r.place.x : M.entranceOf(m, ent).x) / m.w; const fy = (r ? r.place.y : M.entranceOf(m, ent).y) / m.h;
+      requestAnimationFrame(() => { z.scrollLeft = fx * f.clientWidth - z.clientWidth / 2; z.scrollTop = fy * f.clientHeight - z.clientHeight / 2; });
+      return;
+    }
+    if ((b = el('[data-zoom-toggle]'))) { const z = document.getElementById('map-zoom'); z.classList.toggle('x3'); b.innerHTML = `${I('zoomin')}${z.classList.contains('x3') ? 'Menos zoom' : 'Mais zoom'}`; return; }
     if ((b = el('[data-toggle-shift]'))) { const k = b.dataset.toggleShift; if (openShifts.has(k)) openShifts.delete(k); else openShifts.add(k); renderMain(true); return; }
     if ((b = el('[data-param]')) && b.tagName !== 'SELECT') { setParam(b.dataset.param, b.dataset.value, route.view === 'programacao' && b.dataset.param !== 'q'); return; }
     if ((b = el('[data-toggle-filters]'))) { filtersOpen = !filtersOpen; renderMain(true); return; }

@@ -93,9 +93,14 @@
     const title = now.length ? 'Acontecendo agora' : up.length ? `A seguir · ${T.SHIFTS[up[0].shift].label} às ${T.fmtTime(T.SHIFTS[up[0].shift].start)}` : here.length ? `${cap(dayWord(date))} · ${T.SHIFTS[here[0].shift].label}` : '';
     const live = now.length ? `<span class="live"><i></i>${now.length} agora</span>` : '';
     const s1 = T.serviceById('pilar-1'); const s2 = T.serviceById('pilar-2');
+    const mv = defaultMapVenue(); const mp = M.mapOf(mv);
+    const heroW = mp ? Math.min(100, Math.round(100 * (0.42 * 1920 / 1080) / (mp.h / mp.w) * 100) / 100) : 100; // limita a altura do mapa a ~42% da tela em pé
     return `<h1 class="tt-h1">Olá! <em>O que você procura?</em></h1>
       <p class="tt-status">${I('sparkles')}<span>${status}</span></p>
       <button class="tt-search" data-go="busca">${I('search')}<span>Toque para buscar curso, serviço ou sala</span></button>
+      ${mp ? `<section class="tt-maphero"><div class="tt-maphero-head"><span class="tt-sec-ico">${I('map')}</span><div><b>Mapa da escola · ${esc(mp.short)}</b><small id="hero-cap">Toque em uma sala para ver o caminho a partir daqui</small></div><button class="tt-link" data-go="mapa?local=${mv}">Ampliar ${I('right')}</button></div>
+        <div class="tt-maphero-map" style="width:${heroW}%"><div id="map-hero" class="tcemap"></div></div>
+        <div class="tt-maphero-chips" id="hero-chips">${D.services.map((s) => `<button class="tt-chip" data-hero="${s.id}" data-go="mapa?local=${mv}&s=${s.id}" style="--c:${s.color}">${I(s.icon)}${esc(s.short)}</button>`).join('')}</div></section>` : ''}
       ${svcBanner}
       <div class="tt-tiles">
         <button class="tt-tile primary" style="--c:${D.event.shifts.manha.color}" data-go="programacao">${live}<i>${I('calendar')}</i><span><b>Programação de hoje</b><small>${here.length} curso${here.length === 1 ? '' : 's'} em ${esc(VENUE.short)}</small></span></button>
@@ -103,7 +108,7 @@
         <button class="tt-tile" style="--c:${s1.color}" data-panel="servico" data-id="${s1.id}"><i>${I(s1.icon)}</i><span><b>${esc(s1.short)}</b><small>${esc(s1.summary)}</small></span></button>
         <button class="tt-tile" style="--c:${s2.color}" data-panel="servico" data-id="${s2.id}"><i>${I(s2.icon)}</i><span><b>${esc(s2.short)}</b><small>${esc(s2.summary)}</small></span></button>
         <button class="tt-tile" style="--c:${D.event.shifts.manha.color}" data-go="servicos"><i>${I('handshake')}</i><span><b>Todos os serviços</b><small>${esc(T.serviceDaysLabel('wd'))}</small></span></button>
-        <button class="tt-tile" style="--c:#c084fc" data-go="mapa"><i>${I('map')}</i><span><b>Mapa da escola</b><small>Planta com todas as salas e o caminho até cada atendimento</small></span></button>
+        <button class="tt-tile" style="--c:#c084fc" data-go="locais"><i>${I('pin')}</i><span><b>Onde fica</b><small>${Object.keys(D.venues).length} locais em Oiapoque e no Manga</small></span></button>
       </div>
       ${list.length ? `<section class="tt-sec">${secHead('clock', title, `<button class="tt-link" data-go="programacao">Ver tudo ${I('right')}</button>`)}<div class="tt-stack">${list.slice(0, 4).map((x) => row(x, { date: date !== clock.date })).join('')}</div></section>` : ''}`;
   }
@@ -172,6 +177,7 @@
       <div class="map-legend"><span><i style="background:#e11d48"></i>Você está aqui</span><span><i style="background:#0b1b3d"></i>Sala</span><span><i style="background:#7e22ce"></i>Tenda</span><span><i style="background:#0f766e"></i>Área</span><span><i style="background:#fbbf24"></i>Destino</span></div>
       ${place ? `<section class="tt-sec"><div class="tt-sec-head"><span class="tt-sec-ico" style="background:#fbbf24;color:#0b1b3d">${I('footprints')}</span><h2>Como chegar: ${esc(M.placeLabel(place))} <small>${esc(place.name)}</small></h2></div>
           ${stepsHtml(M.route(venue, placeId, ENTRANCE))}
+          ${window.speechSynthesis ? `<div class="map-actions"><button class="tt-btn" data-speak="${placeId}">${I('megaphone')}Ouvir o caminho</button></div>` : ''}
           ${servicesHere.length ? `<p class="tt-lead" style="margin-top:.8em">Neste local: ${servicesHere.map((s) => `<button class="tt-chip" data-panel="servico" data-id="${s.id}" style="font-size:.8em">${I(s.icon)}${esc(s.short)}</button>`).join(' ')}</p>` : ''}
           <div class="tt-actions"><button class="tt-btn" data-go="mapa?local=${venue}${sid ? `&s=${sid}` : ''}">${I('map')}Ver o mapa geral</button>${svc ? `<button class="tt-btn primary" data-panel="servico" data-id="${svc.id}">${I(svc.icon)}Ver ${esc(svc.short)}</button>` : `<button class="tt-btn primary" data-go="servicos">${I('handshake')}Ver os serviços</button>`}</div></section>`
         : svc ? `<section class="tt-sec"><div class="tt-sec-head"><span class="tt-sec-ico" style="--c:${svc.color}">${I(svc.icon)}</span><h2>${esc(svc.title)} <small>${hl.length} local${hl.length === 1 ? '' : 'is'}</small></h2></div><p class="tt-lead">Toque em uma sala para ver o caminho.</p><div class="place-chips">${hl.map((id) => placeChip(id, { s: sid })).join('')}</div></section>`
@@ -255,7 +261,8 @@
     if (!keepScroll) main.scrollTop = 0;
     const mapEl = main.querySelector('#map');
     if (mapEl) { const p = route.p; const venue = M.mapOf(p.get('local')) ? p.get('local') : defaultMapVenue(); const svc = p.get('s') ? T.serviceById(p.get('s')) : null;
-      M.render(mapEl, venue, { entrance: ENTRANCE, place: p.get('p') || null, highlight: svc ? T.placesOf(svc, venue) : [], showAll: !svc && !p.get('p'), onPick: (id) => go(`#mapa?local=${venue}&p=${id}${p.get('s') ? `&s=${p.get('s')}` : ''}`, true) }); }
+      M.render(mapEl, venue, { entrance: ENTRANCE, scale: 1.25, place: p.get('p') || null, highlight: svc ? T.placesOf(svc, venue) : [], showAll: !svc && !p.get('p'), onPick: (id) => go(`#mapa?local=${venue}&p=${id}${p.get('s') ? `&s=${p.get('s')}` : ''}`, true) }); }
+    startHero();
     const inp = main.querySelector('[data-search]');
     if (inp && (wasSearch || route.view === 'busca')) { inp.focus({ preventScroll: true }); try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch { /* */ } }
     else hideKeyboard();
@@ -270,6 +277,21 @@
     if (!inner) { closePanel(); return; }
     holder.innerHTML = `<div class="tt-panel" id="panel" role="dialog" aria-modal="true">${inner}</div>`;
     hideKeyboard();
+  }
+  // Mapa vivo do início: destaca um serviço de cada vez (a cada 4 s); toque na sala abre o caminho.
+  let heroTimer = null; let heroIdx = -1;
+  function startHero() {
+    clearInterval(heroTimer); heroTimer = null;
+    const el = document.getElementById('map-hero'); if (!el) return;
+    const venue = defaultMapVenue();
+    const draw = () => {
+      const s = heroIdx >= 0 ? D.services[heroIdx % D.services.length] : null;
+      M.render(el, venue, { entrance: ENTRANCE, scale: 1.3, highlight: s ? T.placesOf(s, venue) : [], showAll: !s, onPick: (id) => go(`#mapa?local=${venue}&p=${id}${s ? `&s=${s.id}` : ''}`) });
+      const cap = document.getElementById('hero-cap'); if (cap) cap.innerHTML = s ? `${esc(s.short)}: ${T.placesOf(s, venue).slice(0, 4).map((id) => { const p = T.placeInfo(id); return p ? esc(M.placeLabel(p)) : ''; }).filter(Boolean).join(', ')}${T.placesOf(s, venue).length > 4 ? '…' : ''}` : 'Toque em uma sala para ver o caminho a partir daqui';
+      document.querySelectorAll('#hero-chips [data-hero]').forEach((b) => b.classList.toggle('on', !!s && b.dataset.hero === s.id));
+    };
+    draw();
+    heroTimer = setInterval(() => { if (!document.getElementById('map-hero')) { clearInterval(heroTimer); return; } heroIdx++; draw(); }, 4000);
   }
   function reset() {
     openShifts.clear(); hideKeyboard();
@@ -317,6 +339,7 @@
     if ((b = el('[data-scroll]'))) { const t = document.getElementById(b.dataset.scroll); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     if ((b = el('[data-toggle-shift]'))) { const k = b.dataset.toggleShift; if (openShifts.has(k)) openShifts.delete(k); else openShifts.add(k); renderMain(true); return; }
     if ((b = el('[data-clear]'))) { setParam('q', ''); return; }
+    if ((b = el('[data-speak]'))) { const venue = M.mapOf(route.p.get('local')) ? route.p.get('local') : defaultMapVenue(); M.speak(M.route(venue, b.dataset.speak, ENTRANCE)); return; }
     if ((b = el('[data-param]'))) { setParam(b.dataset.param, b.dataset.value); return; }
   });
   let searchTimer = null;

@@ -54,3 +54,12 @@
 .map-legend{display:flex;flex-wrap:wrap;gap:.4em 1em;font-size:.8em;color:var(--mut,#5f6b7d);font-weight:600;margin:.5em 0}
 .map-legend span{display:inline-flex;align-items:center;gap:.35em}
 .map-legend i{width:.9em;height:.9em;border-radius:50%;display:inline-block;font-style:normal}
+
+.tcemap .mk.soft .pulse{fill:#fbbf24;opacity:.25;transform-origin:center;animation:mkpulse 2.2s ease-out infinite}
+.tcemap .lbl.soft rect{fill:#1f3b9a}
+.tcemap .lbl.soft text{font-weight:600}
+/* mapa ampliado (celular): rola com o dedo */
+.map-zoom{overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;border-radius:14px;background:#dfe6ef;max-height:calc(100dvh - 11em)}
+.map-zoom .tcemap{width:220%;border-radius:0}
+.map-zoom.x3 .tcemap{width:320%}
+.map-actions{display:flex;gap:.5em;flex-wrap:wrap;margin:.6em 0}

@@ -296,3 +296,18 @@
 .tt-lead.tiny{font-size:.82em}
 .tt-svc .hits li{flex-wrap:wrap}.tt-svc .hits li em.only{margin-left:1.6em}
 .tt .tt-banner.static{grid-template-columns:auto 1fr;margin-bottom:.7em;border-radius:var(--radius) var(--radius) 10px 10px}
+
+/* ---------- mapa vivo no início ---------- */
+.tt-maphero{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:.8em .9em .7em;box-shadow:var(--shadow);margin:0 0 1em}
+.tt-maphero-head{display:flex;align-items:center;gap:.6em;margin-bottom:.6em}
+.tt-maphero-head>div{flex:1;min-width:0}
+.tt-maphero-head b{display:block;font-family:var(--font-display);font-size:1.1em;line-height:1.1}
+.tt-maphero-head small{display:block;color:var(--mut);font-size:.82em;margin-top:.15em;min-height:1.2em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tt-maphero-map{margin:0 auto}
+.tt-maphero .tcemap{border-radius:14px}
+.tt-maphero-chips{display:flex;flex-wrap:wrap;gap:.35em;margin-top:.6em}
+.tt-maphero-chips .tt-chip{font-size:.78em;padding:.45em .8em;min-height:2.2em;gap:.3em}
+.tt-maphero-chips .tt-chip .ico{color:var(--c)}
+.tt-maphero-chips .tt-chip.on{background:var(--c);border-color:var(--c);color:var(--ink-on-c)}
+.tt-maphero-chips .tt-chip.on .ico{color:var(--ink-on-c)}
+.tt .map-actions .tt-btn{flex:1}

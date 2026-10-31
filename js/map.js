@@ -111,11 +111,17 @@
     const r = o.place ? route(venue, o.place, from.id) : null;
     const hl = new Set(o.highlight || []);
     const places = map.places.filter((p) => !p.hide || p.id === o.place);
-    const S = Math.max(map.w, map.h) / 1000; // escala dos marcadores (px da imagem)
+    const S = (Math.max(map.w, map.h) / 1000) * (o.scale || 1); // escala dos marcadores (px da imagem)
+    const labelSoft = hl.size > 0 && hl.size <= 6 && !o.place; // poucas salas em destaque: mostra o nome de cada uma
+    // Rótulos de vizinhos alternam acima/abaixo para não se sobrepor (ordem por x).
+    const softOrder = [...hl].map((id) => places.find((p) => p.id === id)).filter(Boolean).sort((a, b) => a.x - b.x).map((p) => p.id);
     const pin = (p) => {
       const on = p.id === o.place; const soft = hl.has(p.id); const rr = (on ? 30 : soft ? 22 : 17) * S;
       const cls = `mk ${p.kind} ${on ? 'on' : ''} ${soft ? 'soft' : ''} ${o.showAll || on || soft ? '' : 'dim'}`;
-      return `<g class="${cls}" data-place="${p.id}" transform="translate(${p.x} ${p.y})" tabindex="0" role="button" aria-label="${esc(placeFull(p))}">${on ? `<circle class="pulse" r="${rr * 1.6}"/>` : ''}<circle r="${rr}"/><text dy="${rr * 0.36}" font-size="${rr * 1.05}">${esc(p.num || '•')}</text>${on ? `<g class="lbl" transform="translate(0 ${-rr - 10 * S})"><rect x="${-(placeFull(p).length * 5.4 * S + 16 * S)}" y="${-24 * S}" width="${placeFull(p).length * 10.8 * S + 32 * S}" height="${30 * S}" rx="${8 * S}"/><text font-size="${16 * S}" dy="${-3 * S}">${esc(placeFull(p))}</text></g>` : ''}</g>`;
+      const lblText = on ? placeFull(p) : (soft && labelSoft ? p.name : '');
+      const below = !on && softOrder.indexOf(p.id) % 2 === 1;
+      const lbl = lblText ? `<g class="lbl ${on ? '' : 'soft'}" transform="translate(0 ${below ? rr + 34 * S : -rr - 10 * S})"><rect x="${-(lblText.length * 5.4 * S + 16 * S)}" y="${-24 * S}" width="${lblText.length * 10.8 * S + 32 * S}" height="${30 * S}" rx="${8 * S}"/><text font-size="${16 * S}" dy="${-3 * S}">${esc(lblText)}</text></g>` : '';
+      return `<g class="${cls}" data-place="${p.id}" transform="translate(${p.x} ${p.y})" tabindex="0" role="button" aria-label="${esc(placeFull(p))}">${on || soft ? `<circle class="pulse" r="${rr * 1.6}"/>` : ''}<circle r="${rr}"/><text dy="${rr * 0.36}" font-size="${rr * 1.05}">${esc(p.num || '•')}</text>${lbl}</g>`;
     };
     const ent = map.entrances.map((e) => `<g class="ent ${e.id === from.id ? 'here' : ''}" data-entrance="${e.id}" transform="translate(${e.x} ${e.y})" role="button" tabindex="0" aria-label="${esc(e.label)}"><circle r="${18 * S}"/><text dy="${6 * S}" font-size="${16 * S}">${e.id === from.id ? '★' : esc(e.id.slice(1))}</text>${e.id === from.id ? `<g class="lbl here" transform="translate(0 ${30 * S})"><rect x="${-80 * S}" y="0" width="${160 * S}" height="${28 * S}" rx="${8 * S}"/><text y="${20 * S}" font-size="${15 * S}">Você está aqui</text></g>` : ''}</g>`).join('');
     const pts = r ? r.points.map((p) => p.join(',')).join(' ') : '';
@@ -131,5 +137,14 @@
     return r;
   }
 
-  root.TCEMap = { maps: MAPS, mapOf, placeById, placeLabel, placeFull, entranceOf, route, render, turn };
+  /** Lê os passos em voz alta (pt-BR), quando o navegador tem síntese de voz. Devolve false se não houver. */
+  function speak(r) {
+    if (!root.speechSynthesis || !r) return false;
+    root.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(r.steps.map((s) => s.text).join(' '));
+    u.lang = 'pt-BR'; u.rate = 0.95;
+    const v = (root.speechSynthesis.getVoices() || []).find((x) => /pt[-_]BR/i.test(x.lang)); if (v) u.voice = v;
+    root.speechSynthesis.speak(u); return true;
+  }
+  root.TCEMap = { maps: MAPS, mapOf, placeById, placeLabel, placeFull, entranceOf, route, render, turn, speak };
 })(typeof window !== 'undefined' ? window : globalThis);
