@@ -119,3 +119,21 @@
 .chart text{font-family:var(--font-text);font-size:11px;fill:var(--mut)}
 .chart rect{fill:var(--primary)}
 .chart .lbl{font-weight:700;fill:var(--ink)}
+
+/* filas por sala/instituição */
+.tri-h{display:flex;align-items:center;gap:.45em;font-size:.82em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:color-mix(in srgb,var(--c) 60%,var(--ink));margin:1.1em 0 .4em}
+.tri-h .ico{width:1.1em;height:1.1em}
+.roles.compact{gap:.5em;margin:.2em 0 .6em}
+.roles.compact .role{padding:.7em .8em}
+.roles.compact .role i{width:2.4em;height:2.4em}
+.roles.compact .role i .ico{width:1.2em;height:1.2em}
+.roles.compact .role b{font-size:1em}
+.qt{width:100%;border-collapse:collapse;font-size:.82em;margin-top:.4em}
+.qt th{text-align:right;font-size:.72em;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);padding:.2em .3em;border-bottom:1px solid var(--line);font-weight:800}
+.qt th:first-child,.qt td:first-child{text-align:left}
+.qt td{padding:.45em .3em;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;vertical-align:top}
+.qt td:first-child b{display:block;font-family:var(--font-display);font-size:1.05em;line-height:1.1}
+.qt td:first-child small{display:block;color:var(--mut);font-size:.8em}
+.qt td small{display:block;color:var(--mut);font-size:.75em}
+.qt .bar.mini{height:.35em;margin-top:.3em;max-width:9em}
+.qt .badge.served{background:#dcfce7;color:#166534}.qt .badge.absent{background:#fee2e2;color:#991b1b}.qt .badge.called{background:var(--a-soft);color:var(--tce-dourado-700)}

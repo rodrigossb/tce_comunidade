@@ -333,7 +333,7 @@
         { id: 'jn-r22', kind: 'sala', num: '22', name: 'Castramóvel', x: 497, y: 212 },
         { id: 'jn-r23', kind: 'sala', num: '23', name: 'A definir', x: 396, y: 212, hide: true },
         { id: 'jn-r24', kind: 'sala', num: '24', name: 'CERPIS (práticas integrativas)', x: 291, y: 212 },
-        { id: 'jn-r25', kind: 'area', num: '25', name: 'Quadra (feiras, bazar, palco)', x: 1240, y: 692, door: [1500, 593] },
+        { id: 'jn-r25', kind: 'area', num: '25', name: 'Quadra (feiras, bazar, palco)', x: 1240, y: 692, door: [1500, 593], svc: 'pilar-8' },
         { id: 'jn-triagem', kind: 'area', num: '', name: 'Triagem', x: 343, y: 537 },
         { id: 'jn-escov', kind: 'area', num: '', name: 'Escovódromo (SESC)', x: 80, y: 537 },
         { id: 'jn-t1', kind: 'tenda', num: '1', name: 'Webflash (internet)', x: 1570, y: 428, hide: true },

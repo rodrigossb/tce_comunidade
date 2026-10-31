@@ -27,10 +27,11 @@ CREATE TABLE IF NOT EXISTS issued_log (id INTEGER PRIMARY KEY, day TEXT NOT NULL
 CREATE INDEX IF NOT EXISTS issued_day ON issued_log(day, venue, service_id, ts);
 CREATE TABLE IF NOT EXISTS calls (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, ticket INTEGER, called_at INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'called', status_at INTEGER, ended_at INTEGER, device TEXT, note TEXT);
 CREATE INDEX IF NOT EXISTS calls_day ON calls(day, venue, service_id, place_id, called_at);`);
+if (!db.prepare(`PRAGMA table_info(issued_log)`).all().some((c) => c.name === 'place_id')) db.exec(`ALTER TABLE issued_log ADD COLUMN place_id TEXT NOT NULL DEFAULT ''`);
 const q = {
-  issuedLatest: db.prepare(`SELECT service_id, count, ts FROM issued_log i WHERE day=? AND venue=? AND ts=(SELECT MAX(ts) FROM issued_log WHERE day=i.day AND venue=i.venue AND service_id=i.service_id)`),
-  issuedInsert: db.prepare(`INSERT INTO issued_log (day, venue, service_id, count, device, ts) VALUES (?,?,?,?,?,?)`),
-  issuedHistory: db.prepare(`SELECT service_id, count, ts FROM issued_log WHERE day=? AND venue=? ORDER BY ts`),
+  issuedLatest: db.prepare(`SELECT service_id, place_id, count, ts FROM issued_log i WHERE day=? AND venue=? AND ts=(SELECT MAX(ts) FROM issued_log WHERE day=i.day AND venue=i.venue AND service_id=i.service_id AND place_id=i.place_id)`),
+  issuedInsert: db.prepare(`INSERT INTO issued_log (day, venue, service_id, place_id, count, device, ts) VALUES (?,?,?,?,?,?,?)`),
+  issuedHistory: db.prepare(`SELECT service_id, place_id, count, ts FROM issued_log WHERE day=? AND venue=? ORDER BY ts`),
   callsDay: db.prepare(`SELECT * FROM calls WHERE day=? AND venue=? ORDER BY called_at, id`),
   callsPlace: db.prepare(`SELECT * FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=? ORDER BY called_at DESC, id DESC LIMIT ?`),
   callInsert: db.prepare(`INSERT INTO calls (day, venue, service_id, place_id, ticket, called_at, status, device) VALUES (?,?,?,?,?,?,'called',?)`),
@@ -69,9 +70,9 @@ const routes = {
   'GET /api/health': () => ({ ok: true, ts: Date.now() }),
   'GET /api/login': (req) => ({ role: need(req, ['operador', 'gestor']) }),
   'GET /api/state': (req, u) => { need(req, ['operador', 'gestor']); const day = u.searchParams.get('day'); const venue = clean(u.searchParams.get('venue'), 16); if (!isDay(day) || !venue) throw err(400, 'day/venue'); return state(day, venue); },
-  'GET /api/queue': (req, u) => { need(req, ['operador', 'gestor']); const day = u.searchParams.get('day'); const venue = clean(u.searchParams.get('venue'), 16); const s = clean(u.searchParams.get('service'), 32); const p = clean(u.searchParams.get('place'), 32); if (!isDay(day) || !venue || !s || !p) throw err(400, 'parâmetros'); const open = q.openServed.all(day, venue, s, p); return { calls: q.callsPlace.all(day, venue, s, p, 30), open: open.map((x) => x.id), last_ticket: q.lastTicket.get(day, venue, s, p).t, issued: q.issuedLatest.all(day, venue).find((x) => x.service_id === s) || null }; },
+  'GET /api/queue': (req, u) => { need(req, ['operador', 'gestor']); const day = u.searchParams.get('day'); const venue = clean(u.searchParams.get('venue'), 16); const s = clean(u.searchParams.get('service'), 32); const p = clean(u.searchParams.get('place'), 32); if (!isDay(day) || !venue || !s || !p) throw err(400, 'parâmetros'); const open = q.openServed.all(day, venue, s, p); return { calls: q.callsPlace.all(day, venue, s, p, 30), open: open.map((x) => x.id), last_ticket: q.lastTicket.get(day, venue, s, p).t, issued: q.issuedLatest.all(day, venue).find((x) => x.place_id === p) || null }; },
   'GET /api/stats': (req, u) => { need(req, ['operador', 'gestor']); const day = u.searchParams.get('day'); const venue = clean(u.searchParams.get('venue'), 16); if (!isDay(day) || !venue) throw err(400, 'day/venue'); const st = state(day, venue); st.issued_history = q.issuedHistory.all(day, venue); return st; },
-  'POST /api/issued': async (req) => { need(req, ['operador', 'gestor']); const b = await readJson(req); const count = Number(b.count); if (!isDay(b.day) || !clean(b.venue, 16) || !clean(b.service_id, 32) || !Number.isInteger(count) || count < 0 || count > 100000) throw err(400, 'dados'); const ts = Date.now(); q.issuedInsert.run(b.day, clean(b.venue, 16), clean(b.service_id, 32), count, clean(b.device, 40), ts); return { ok: true, ts }; },
+  'POST /api/issued': async (req) => { need(req, ['operador', 'gestor']); const b = await readJson(req); const count = Number(b.count); if (!isDay(b.day) || !clean(b.venue, 16) || !clean(b.service_id, 32) || !Number.isInteger(count) || count < 0 || count > 100000) throw err(400, 'dados'); const ts = Date.now(); q.issuedInsert.run(b.day, clean(b.venue, 16), clean(b.service_id, 32), clean(b.place_id, 32), count, clean(b.device, 40), ts); return { ok: true, ts }; },
   'POST /api/call': async (req) => {
     need(req, ['operador', 'gestor']); const b = await readJson(req);
     const day = b.day; const venue = clean(b.venue, 16); const s = clean(b.service_id, 32); const p = clean(b.place_id, 32); const ticket = b.ticket == null ? null : Number(b.ticket);

@@ -65,11 +65,14 @@ Recarrega sozinho às 4h.
 
 ## Atendimento · controle de senhas (`atendimento.html` + `server/`)
 Uso interno da equipe, com PIN (4 dígitos = equipe; 6 dígitos = gestão, que também exporta CSV).
-Três funções, cada aparelho escolhe a sua: **Triagem** (toque em +1 a cada senha entregue, ou toque no
-número para digitar o total), **Porta da sala** (escolhe serviço e sala uma vez; depois é só "Chamar
-próxima", e "Entrou" / "Não veio"; "Chamar outro número", "Finalizar atendimento" e "Desfazer" para os
-casos fora da ordem) e **Painel** (senhas entregues, chamadas, atendidas, faltas, tempo médio e mediana de
-atendimento, espera estimada, por serviço e por sala, chamadas por hora; atualiza a cada 15 s).
+As **filas de senhas são por sala/instituição** (Politec, Superfácil, Detran, Vacina e farmácia, Castra
+Móvel…): `T.queuesOf(venue)` deriva as filas das salas da planta usadas por cada serviço (30 na Joaquim
+Nabuco, 27 no Manga), agrupadas pelo pilar só para exibição (`svc` em um ambiente força o grupo).
+Três funções, cada aparelho escolhe a sua: **Triagem** (lista por sala; +1 a cada senha entregue, ou toque
+no número para digitar o total), **Porta da sala** (escolhe a sala uma vez; depois um toque em "Entrou ·
+senha N" ou "Não veio · senha N" registra chamada e resultado; "Outro número", "Finalizar atendimento" e
+"Desfazer" para os casos fora da ordem) e **Painel** (por sala: entregues, chamadas, atendidas, faltas,
+aguardando com espera estimada, tempo médio e senha atual; totais por pilar e gerais; chamadas por hora).
 Tempo de atendimento = de "Entrou" até "Finalizar" ou até a próxima pessoa entrar na mesma sala.
 Fila offline: gravações sem rede ficam no aparelho e são reenviadas.
 

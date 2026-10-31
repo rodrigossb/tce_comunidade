@@ -61,26 +61,32 @@
       </div>
       <p class="tiny muted">Aparelho ${esc(st.device)} · <button class="link" data-act="logout">sair</button></p>`;
   }
+  // Filas = salas/instituições do local do dia (Politec, Superfácil, Vacina e farmácia…), agrupadas por pilar.
+  const queues = () => T.queuesOf(ctx().venue);
+  const queueById = (id) => { for (const g of queues()) for (const p of g.places) if (p.id === id) return Object.assign({ svc: g.service }, p); return null; };
+  const qLabel = (p) => T.queueLabel(p);
   function viewTriagem() {
     const c = ctx(); const issued = (data && data.issued) || [];
-    const cnt = (id) => { const l = (st.local && st.local[`${c.day}|${id}`]); const r = issued.find((x) => x.service_id === id); return l != null && (!r || l.ts >= r.ts) ? l.count : r ? r.count : 0; };
+    const cnt = (pid) => { const l = (st.local && st.local[`${c.day}|${pid}`]); const r = issued.find((x) => x.place_id === pid); return l != null && (!r || l.ts >= r.ts) ? l.count : r ? r.count : 0; };
+    const statOf = (sid, pid) => { const s = data && data.stats.services.find((x) => x.service_id === sid); return s ? s.places.find((p) => p.place_id === pid) : null; };
     return `${top('Triagem · senhas entregues', `${esc(c.place)} · ${esc(T.fmtDate(c.day, 'wdlong'))}`, 'home')}
-      <p class="page-lead">Toque em <b>+1</b> a cada senha entregue. Para lançar de uma vez, toque no número e <b>digite o total já entregue</b>.</p>
-      <div class="tri">${D.services.map((s) => { const n = cnt(s.id); const stt = data && data.stats.services.find((x) => x.service_id === s.id); return `<div class="tri-row" style="--c:${s.color}"><span class="ic">${I(s.icon)}</span><span class="nm"><b>${esc(s.short)}</b><small>${stt ? `${stt.called} chamada${stt.called === 1 ? '' : 's'} · ${stt.served} atendida${stt.served === 1 ? '' : 's'}` : 'sem chamadas ainda'}</small></span><button class="minus" data-act="issued" data-id="${s.id}" data-delta="-1" aria-label="Menos um">${I('x')}</button><button class="cnt" data-act="issued-set" data-id="${s.id}" aria-label="Digitar o total entregue"><b>${n}</b><small>${I('sliders')}digitar</small></button><button class="plus" data-act="issued" data-id="${s.id}" data-delta="1">+1</button></div>`; }).join('')}</div>`;
+      <p class="page-lead">Uma fila por sala/instituição. Toque em <b>+1</b> a cada senha entregue; para lançar de uma vez, toque no número e <b>digite o total já entregue</b>.</p>
+      ${queues().map((g) => `<h3 class="tri-h" style="--c:${g.service.color}">${I(g.service.icon)}${esc(g.service.title)}</h3><div class="tri">${g.places.map((p) => { const n = cnt(p.id); const stt = statOf(g.service.id, p.id); return `<div class="tri-row" style="--c:${g.service.color}"><span class="ic">${I(p.kind === 'tenda' ? 'tent' : 'door')}</span><span class="nm"><b>${esc(p.name)}</b><small>${esc(M.placeLabel(p))}${stt ? ` · ${stt.called} chamada${stt.called === 1 ? '' : 's'} · ${stt.served} atendida${stt.served === 1 ? '' : 's'}` : ''}</small></span><button class="minus" data-act="issued" data-id="${p.id}" data-svc="${g.service.id}" data-delta="-1" aria-label="Menos um">${I('x')}</button><button class="cnt" data-act="issued-set" data-id="${p.id}" data-svc="${g.service.id}" aria-label="Digitar o total entregue"><b>${n}</b><small>${I('sliders')}digitar</small></button><button class="plus" data-act="issued" data-id="${p.id}" data-svc="${g.service.id}" data-delta="1">+1</button></div>`; }).join('')}</div>`).join('')}`;
   }
   function viewPortaSetup() {
-    const c = ctx(); const s = st.service ? svc(st.service) : null;
-    if (!s) return `${top('Porta da sala', 'Qual serviço você vai registrar?', 'home')}<div class="roles">${D.services.map((x) => `<button class="role" style="--c:${x.color}" data-act="svc" data-id="${x.id}"><i>${I(x.icon)}</i><span><b>${esc(x.title)}</b><small>${esc(x.summary)}</small></span>${I('right')}</button>`).join('')}</div>`;
-    const ids = T.placesOf(s, c.venue);
-    return `${top(`Porta da sala · ${esc(s.short)}`, 'Em qual sala você está?', 'svc-clear')}<div class="roles">${ids.map((id) => { const p = T.placeInfo(id); return `<button class="role" style="--c:${s.color}" data-act="place" data-id="${id}"><i>${I(p && p.kind === 'tenda' ? 'tent' : 'door')}</i><span><b>${esc(placeName(id))}</b></span>${I('right')}</button>`; }).join('')}<button class="role" style="--c:#64748b" data-act="place" data-id="outro"><i>${I('pin')}</i><span><b>Outro local</b><small>sem sala definida na planta</small></span>${I('right')}</button></div>`;
+    const c = ctx();
+    return `${top('Porta da sala', `Em qual sala/atendimento você está? · ${esc(c.place)}`, 'home')}
+      ${queues().map((g) => `<h3 class="tri-h" style="--c:${g.service.color}">${I(g.service.icon)}${esc(g.service.title)}</h3><div class="roles compact">${g.places.map((p) => `<button class="role" style="--c:${g.service.color}" data-act="place" data-id="${p.id}" data-svc="${g.service.id}"><i>${I(p.kind === 'tenda' ? 'tent' : 'door')}</i><span><b>${esc(p.name)}</b><small>${esc(M.placeLabel(p))}</small></span>${I('right')}</button>`).join('')}</div>`).join('')}
+      <div class="roles compact"><button class="role" style="--c:#64748b" data-act="place" data-id="outro" data-svc="acolhida"><i>${I('pin')}</i><span><b>Outro local</b><small>sem sala definida na planta</small></span>${I('right')}</button></div>`;
   }
   function viewPorta() {
-    const c = ctx(); const s = svc(st.service); const calls = (queue && queue.calls) || []; const cur = calls[0] || null;
+    const c = ctx(); const s = svc(st.service) || D.services[0]; const qd = queueById(st.place); const calls = (queue && queue.calls) || []; const cur = calls[0] || null;
     const issued = queue && queue.issued ? queue.issued.count : null; const last = queue && queue.last_ticket != null ? queue.last_ticket : (cur ? cur.ticket : 0);
     const next = (last || 0) + 1; const inService = cur && cur.status === 'served' && !cur.ended_at;
     const svcStat = data && data.stats.services.find((x) => x.service_id === s.id);
-    const called = svcStat ? svcStat.called : calls.length;
-    return `${top(`${esc(placeName(st.place))}`, `${esc(s.title)} · ${esc(c.place)}`, 'place-clear')}
+    const plStat = svcStat ? svcStat.places.find((p) => p.place_id === st.place) : null;
+    const called = plStat ? plStat.called : calls.length;
+    return `${top(`${esc(qd ? qd.name : placeName(st.place))}`, `${esc(qd ? M.placeLabel(qd) + ' · ' : '')}${esc(s.title)} · ${esc(c.place)}`, 'place-clear')}
       <div class="door">
         ${cur ? `<div class="door-now"><small>${cur.status === 'called' ? 'Chamando agora' : cur.status === 'served' ? (inService ? 'Em atendimento' : 'Atendida') : 'Não compareceu'}</small><b>${cur.ticket ?? '—'}</b><span class="st ${cur.status}">${cur.status === 'called' ? `${I('megaphone')}chamada às ${fmtT(cur.called_at)}` : cur.status === 'served' ? `${I('check')}entrou às ${fmtT(cur.status_at)}${inService ? ` · há ${Math.max(0, Math.round((Date.now() - cur.status_at) / 60000))} min` : ''}` : `${I('x')}faltou`}</span></div>` : `<div class="door-now idle"><small>Nenhuma senha chamada ainda</small><b>—</b></div>`}
         ${cur && cur.status === 'called'
@@ -100,8 +106,10 @@
       <div class="kpis"><div class="kpi hi"><small>Senhas entregues</small><b>${t.issued}</b><em>triagem</em></div><div class="kpi"><small>Chamadas</small><b>${t.called}</b><em>${t.not_called} aguardando chamada</em></div><div class="kpi"><small>Atendidas</small><b>${t.served}</b><em>${t.in_service} em atendimento agora</em></div><div class="kpi"><small>Não compareceram</small><b>${t.absent}</b><em>${t.absent_rate == null ? '—' : `${t.absent_rate}% das chamadas`}</em></div><div class="kpi"><small>Tempo médio de atendimento</small><b>${t.avg_min == null ? '—' : `${t.avg_min} min`}</b><em>${t.samples} atendimento${t.samples === 1 ? '' : 's'} medido${t.samples === 1 ? '' : 's'}</em></div><div class="kpi"><small>Sem registro de resultado</small><b>${t.pending_result}</b><em>chamadas sem entrou/faltou</em></div></div>
       ${chart}
       <h2 style="margin:1.2em 0 .5em">Por serviço</h2>
-      <div class="stack">${D.services.map((s) => { const x = S.services.find((y) => y.service_id === s.id) || { issued: 0, called: 0, served: 0, absent: 0, pending_result: 0, not_called: 0, in_service: 0, places: [], avg_min: null, est_wait_min: null }; const base = Math.max(1, x.issued, x.called); const w = (n) => `${Math.round((100 * n) / base)}%`;
-        return `<div class="svc-stat" style="--c:${s.color}"><div class="hd"><i>${I(s.icon)}</i><b>${esc(s.title)}</b><small>${x.avg_min == null ? 'sem média' : `média ${x.avg_min} min`}</small></div><div class="bar"><i class="s" style="width:${w(x.served)}"></i><i class="a" style="width:${w(x.absent)}"></i><i class="p" style="width:${w(x.pending_result)}"></i></div><div class="nums"><span>entregues <b>${x.issued}</b></span><span>chamadas <b>${x.called}</b></span><span>atendidas <b>${x.served}</b></span><span>faltas <b>${x.absent}</b></span><span>aguardando <b>${x.not_called}</b></span>${x.est_wait_min != null ? `<span>espera estimada <b>${x.est_wait_min} min</b></span>` : ''}</div>${x.places.length ? `<div class="rooms">${x.places.map((p) => `<span class="${p.current && p.current.status === 'served' && p.current.in_service_min != null ? 'live' : ''}">${esc(placeName(p.place_id).split(' · ')[0])}: senha <b>${p.current ? p.current.ticket ?? '—' : '—'}</b> · ${p.served} atend.${p.avg_min != null ? ` · ${p.avg_min} min` : ''}</span>`).join('')}</div>` : ''}</div>`; }).join('')}</div>`;
+      <div class="stack">${queues().map((g) => { const s = g.service; const x = S.services.find((y) => y.service_id === s.id) || { issued: 0, called: 0, served: 0, absent: 0, pending_result: 0, not_called: 0, in_service: 0, places: [], avg_min: null };
+        const rows = g.places.map((p) => Object.assign({ place: p }, x.places.find((y) => y.place_id === p.id) || { issued: 0, called: 0, served: 0, absent: 0, pending_result: 0, not_called: 0, in_service: 0, avg_min: null, est_wait_min: null, current: null }));
+        return `<div class="svc-stat" style="--c:${s.color}"><div class="hd"><i>${I(s.icon)}</i><b>${esc(s.title)}</b><small>${x.issued} entregues · ${x.served} atendidas${x.avg_min != null ? ` · ${x.avg_min} min` : ''}</small></div>
+          <table class="qt"><thead><tr><th>Sala / instituição</th><th>Entr.</th><th>Cham.</th><th>Atend.</th><th>Faltas</th><th>Aguard.</th><th>Média</th><th>Agora</th></tr></thead><tbody>${rows.map((r) => { const base = Math.max(1, r.issued, r.called); const w = (n) => `${Math.round((100 * n) / base)}%`; const live = r.current && r.current.status === 'served' && r.current.in_service_min != null; return `<tr><td><b>${esc(r.place.name)}</b><small>${esc(M.placeLabel(r.place))}</small><div class="bar mini"><i class="s" style="width:${w(r.served)}"></i><i class="a" style="width:${w(r.absent)}"></i><i class="p" style="width:${w(r.pending_result)}"></i></div></td><td>${r.issued}</td><td>${r.called}</td><td>${r.served}</td><td>${r.absent}</td><td>${r.not_called}${r.est_wait_min != null ? `<small>~${r.est_wait_min} min</small>` : ''}</td><td>${r.avg_min == null ? '—' : `${r.avg_min}′`}</td><td>${r.current ? `<span class="badge ${live ? 'served' : r.current.status}">${r.current.ticket ?? '—'}</span>` : '—'}</td></tr>`; }).join('')}</tbody></table></div>`; }).join('')}</div>`;
   }
   function viewNum(title, value) {
     return `<div class="sheet-root" id="sheet-root"><div class="sheet numpad-sheet"><div class="sheet-head"><span class="kicker">${I('ticket')}${esc(title)}</span><button class="icon-btn" data-close aria-label="Fechar">${I('x')}</button></div><div class="sheet-body"><input class="bigin" id="num" type="number" inputmode="numeric" value="${value}" min="0" max="100000"><div class="keypad" style="margin:1em auto">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<button data-num="${n}">${n}</button>`).join('')}<button class="soft" data-num="back" aria-label="Apagar">${I('back')}</button><button data-num="0">0</button><button class="go" data-num="ok">OK</button></div></div></div></div>`;
@@ -134,10 +142,10 @@
   function toast(msg, icon) { const el = document.getElementById('toast'); if (!el) return; el.innerHTML = `<div class="toast">${I(icon || 'check')}${esc(msg)}</div>`; clearTimeout(toast.t); toast.t = setTimeout(() => { el.innerHTML = ''; }, 2600); }
 
   // ---------- ações ----------
-  async function setIssued(id, count) {
+  async function setIssued(id, sid, count) {
     const c = ctx(); count = Math.max(0, Math.min(100000, count));
     st.local = st.local || {}; st.local[`${c.day}|${id}`] = { count, ts: Date.now() }; save(); render();
-    clearTimeout(setIssued.t[id]); setIssued.t[id] = setTimeout(() => post('/api/issued', { day: c.day, venue: c.venue, service_id: id, count, device: st.device }).then(() => refresh()).then(render), 700);
+    clearTimeout(setIssued.t[id]); setIssued.t[id] = setTimeout(() => post('/api/issued', { day: c.day, venue: c.venue, service_id: sid, place_id: id, count, device: st.device }).then(() => refresh()).then(render), 700);
   }
   setIssued.t = {};
   const curCount = (id) => { const el = document.querySelector(`.cnt[data-id="${id}"] b`); return el ? Number(el.textContent) || 0 : 0; };
@@ -161,12 +169,10 @@
     if (a === 'logout') { st.role = null; st.pin = ''; st.mode = null; save(); pinBuf = ''; render(); return; }
     if (a === 'day') { st.day = b.dataset.day; save(); data = null; queue = null; await refresh(); render(); return; }
     if (a === 'mode') { st.mode = b.dataset.mode; save(); render(); await refresh(); render(); return; }
-    if (a === 'svc') { st.service = b.dataset.id; st.place = null; save(); render(); return; }
-    if (a === 'svc-clear') { st.service = null; st.place = null; save(); render(); return; }
-    if (a === 'place-clear') { st.place = null; save(); render(); return; }
-    if (a === 'place') { st.place = b.dataset.id; save(); render(); await refresh(); render(); return; }
-    if (a === 'issued') { const id = b.dataset.id; setIssued(id, curCount(id) + Number(b.dataset.delta)); return; }
-    if (a === 'issued-set') { const id = b.dataset.id; askNumber(`${svc(id).short}: total de senhas entregues`, curCount(id), (v) => setIssued(id, v)); return; }
+    if (a === 'place-clear') { st.place = null; st.service = null; save(); render(); return; }
+    if (a === 'place') { st.place = b.dataset.id; st.service = b.dataset.svc; save(); render(); await refresh(); render(); return; }
+    if (a === 'issued') { const id = b.dataset.id; setIssued(id, b.dataset.svc, curCount(id) + Number(b.dataset.delta)); return; }
+    if (a === 'issued-set') { const id = b.dataset.id; const qd = queueById(id); askNumber(`${qd ? qd.name : id}: total de senhas entregues`, curCount(id), (v) => setIssued(id, b.dataset.svc, v)); return; }
     if (a === 'call') { const t = Number(b.dataset.ticket); b.disabled = true; await post('/api/call', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket: t, status: b.dataset.status || undefined, device: st.device }); await refresh(); render(); return; }
     if (a === 'call-other') { askNumber('Qual senha você vai chamar?', (queue && queue.last_ticket != null ? queue.last_ticket + 1 : 1), async (v) => { await post('/api/call', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket: v, device: st.device }); await refresh(); render(); }); return; }
     if (a === 'status') { await post(`/api/call/${b.dataset.id}/status`, { status: b.dataset.status }); await refresh(); render(); return; }

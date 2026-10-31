@@ -17,7 +17,8 @@ function summarize(issued, calls, nowMs) {
   const now = nowMs || Date.now();
   const byService = {};
   const svc = (id) => (byService[id] = byService[id] || { service_id: id, issued: 0, issued_at: null, called: 0, served: 0, absent: 0, pending_result: 0, in_service: 0, durations: [], places: {}, per_hour: {}, last_ticket: null });
-  for (const i of issued) { const s = svc(i.service_id); s.issued = i.count; s.issued_at = i.ts; }
+  const issuedByPlace = {};
+  for (const i of issued) { const s = svc(i.service_id); if (i.place_id) { issuedByPlace[i.place_id] = i; s.issued += i.count; } else s.issued += i.count; if (!s.issued_at || i.ts > s.issued_at) s.issued_at = i.ts; }
   // Duração de atendimento: do "entrou" até o fim explícito ou até o próximo "entrou" na mesma sala.
   const byPlace = {};
   for (const c of calls) (byPlace[`${c.service_id}|${c.place_id}`] = byPlace[`${c.service_id}|${c.place_id}`] || []).push(c);
@@ -32,7 +33,7 @@ function summarize(issued, calls, nowMs) {
   }
   for (const c of calls) {
     const s = svc(c.service_id);
-    const p = (s.places[c.place_id] = s.places[c.place_id] || { place_id: c.place_id, called: 0, served: 0, absent: 0, pending_result: 0, in_service: 0, durations: [], current: null, last_call_at: null });
+    const p = (s.places[c.place_id] = s.places[c.place_id] || { place_id: c.place_id, issued: issuedByPlace[c.place_id] ? issuedByPlace[c.place_id].count : 0, called: 0, served: 0, absent: 0, pending_result: 0, in_service: 0, durations: [], current: null, last_call_at: null });
     s.called++; p.called++;
     if (c.ticket != null && (s.last_ticket == null || c.ticket > s.last_ticket)) s.last_ticket = c.ticket;
     const hour = hourOf(c.called_at); s.per_hour[hour] = (s.per_hour[hour] || 0) + 1;
@@ -47,8 +48,10 @@ function summarize(issued, calls, nowMs) {
     o.samples = o.durations.length; delete o.durations;
     return o;
   };
+  // Salas com senhas entregues mas ainda sem chamada também aparecem.
+  for (const i of issued) if (i.place_id) { const s = svc(i.service_id); if (!s.places[i.place_id]) s.places[i.place_id] = { place_id: i.place_id, issued: i.count, called: 0, served: 0, absent: 0, pending_result: 0, in_service: 0, durations: [], current: null, last_call_at: null }; }
   const services = Object.values(byService).map((s) => {
-    s.places = Object.values(s.places).map(finish);
+    s.places = Object.values(s.places).map(finish).map((p) => { p.not_called = Math.max(0, (p.issued || 0) - p.called); p.est_wait_min = p.avg_min != null ? round1(p.not_called * p.avg_min) : null; return p; });
     s.not_called = Math.max(0, (s.issued || 0) - (s.called || 0));
     s.absent_rate = s.called ? round1((100 * s.absent) / s.called) : null;
     // Estimativa de espera: senhas ainda não chamadas × tempo médio ÷ salas ativas.
