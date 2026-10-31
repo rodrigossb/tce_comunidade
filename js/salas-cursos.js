@@ -1,23 +1,23 @@
-/* DE → PARA das salas dos cursos (como aparecem na programação da Escola de Contas) para os ambientes
-   numerados da planta de ambientação. SUGESTÃO A VALIDAR com a organização: a programação usa nomes
-   antigos (Sala I–V, Laboratório I–II) e a planta numera todos os ambientes (01–25).
-   Usado, por enquanto, só pelo totem (mapa e caminho até a sala do curso). Chaves = venue da programação;
-   valores = id do ambiente em js/data.js → maps[venue].places. */
+/* DE → PARA das salas dos cursos (nomes usados na programação da Escola de Contas) para os ambientes
+   numerados da planta de ambientação. VALIDADO pela organização em 31/10/2026.
+   Chaves = venue da programação; valores = id do ambiente em js/data.js → maps[venue].places
+   (o número depois do "jn-r"/"mg-r" é o número da sala na planta). Usado pelo app, pelo totem e pelo resumo. */
 (function (root) {
   'use strict';
   root.TCE_COURSE_ROOMS = {
     jn: { // Escola Estadual Joaquim Nabuco
-      'Laboratório I': 'jn-r01',  // 01 · Laboratório de informática
-      'Laboratório II': 'jn-r02', // 02 · Laboratório de informática
-      'Sala I': 'jn-r04',         // 04 (fileira de baixo, perto do Acesso 1)
-      'Sala II': 'jn-r05',        // 05
-      'Sala III': 'jn-r07',       // 07
-      'Sala IV': 'jn-r08',        // 08
-      'Sala V': 'jn-r09',         // 09
+      'Laboratório I': 'jn-r01',  // Laboratório de Informática I  = 01
+      'Laboratório II': 'jn-r02', // Laboratório de Informática II = 02
+      'Sala I': 'jn-r08',         // = 08
+      'Sala II': 'jn-r09',        // = 09
+      'Sala III': 'jn-r11',       // = 11
+      'Sala IV': 'jn-r13',        // = 13
+      'Sala V': 'jn-r20',         // = 20
+      'Sala VI': 'jn-r24',        // = 24
     },
     manga: { // Escola Estadual Indígena Jorge Iaparrá · Aldeia do Manga
-      'Sala I': 'mg-r13',         // 13 · Educação e qualificação profissional
-      'Laboratório I': 'mg-r12',  // 12 · TCE Orienta · sala de informática
+      'Laboratório I': 'mg-r12',  // Laboratório de informática = 12
+      'Sala I': 'mg-r13',         // Sala 1 = 13
     },
     // sebrae e auditorio: locais sem planta.
   };

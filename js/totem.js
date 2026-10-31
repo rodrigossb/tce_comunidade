@@ -77,9 +77,8 @@
   // ---- lugares (salas/tendas) ----
   const M = window.TCEMap;
   const defaultMapVenue = () => (M.mapOf(LOCAL) ? LOCAL : (T.nextServiceDay(clock.date) || T.serviceDays()[0]).venue);
-  const COURSE_ROOMS = window.TCE_COURSE_ROOMS || {};
-  /** Ambiente da planta para a sala de uma aula (DE → PARA em js/salas-cursos.js); null se não mapeado. */
-  const courseRoomPlace = (x) => { const id = COURSE_ROOMS[x.venue] && COURSE_ROOMS[x.venue][x.room]; return id ? T.placeInfo(id) : null; };
+  const courseRoomPlace = T.courseRoomPlace;
+  const courseAlias = (x) => `${x.room} · ${T.title(x.course, true)}`;
   const roomTags = (it, venue) => T.itemWhere(it, venue).map((id) => { const p = T.placeInfo(id); return p ? `<span class="room-tag ${p.kind}">${I(p.kind === 'tenda' ? 'tent' : 'door')}${esc(M.placeLabel(p))}</span>` : ''; }).join('');
   const placeChip = (id, opts) => { const o = opts || {}; const p = T.placeInfo(id); if (!p) return ''; return `<button class="place-chip ${p.kind} ${o.on ? 'on' : ''}" data-go="mapa?local=${p.venue}&p=${p.id}${o.s ? `&s=${o.s}` : ''}"><b>${esc(p.num || '•')}</b><span>${esc(p.kind === 'area' && !p.num ? p.name : `${M.placeLabel(p)} · ${p.name}`)}</span>${I('right')}</button>`; };
   const stepsHtml = (r) => `<ol class="steps">${r.steps.map((st) => `<li class="${st.kind}"><i>${I(STEP_ICON[st.kind] || 'arrowup')}</i><span>${esc(st.text)}</span></li>`).join('')}</ol>`;
@@ -242,14 +241,14 @@
         <p><b>Para quem é:</b> ${esc(c.audience)}</p>
         ${c.note ? `<p class="tt-note">${I('info')}<span>${esc(c.note)}</span></p>` : ''}
         ${(() => { const seen = new Map(); for (const x of sessions) { const pl = courseRoomPlace(x); if (pl && !seen.has(pl.id)) seen.set(pl.id, { pl, x }); } if (!seen.size) return '';
-          const sel = (route.p.get('sala') && seen.get(route.p.get('sala'))) || [...seen.values()].find(({ x }) => x === nx) || [...seen.values()][0]; const r = M.route(sel.pl.venue, sel.pl.id, ENTRANCE);
+          const sel = (route.p.get('sala') && seen.get(route.p.get('sala'))) || [...seen.values()].find(({ x }) => x === nx) || [...seen.values()][0]; const r = M.route(sel.pl.venue, sel.pl.id, ENTRANCE, courseAlias(sel.x));
           return `<h3>${I('map')}Onde fica · caminho até a sala</h3>
-            ${seen.size > 1 ? `<div class="place-chips" style="margin-bottom:.6em">${[...seen.values()].map(({ pl, x }) => `<button class="place-chip ${pl.kind} ${pl.id === sel.pl.id ? 'on' : ''}" data-go="curso/${c.id}?sala=${pl.id}"><b>${esc(pl.num || '•')}</b><span>${esc(x.room)} = ${esc(M.placeLabel(pl))}</span></button>`).join('')}</div>` : `<p class="tt-lead tiny">${esc(sel.x.room)} da programação = <b>${esc(M.placeLabel(sel.pl))} · ${esc(sel.pl.name)}</b> na planta.</p>`}
-            <div id="map-course" class="tcemap" data-venue="${sel.pl.venue}" data-place="${sel.pl.id}"></div>
+            ${seen.size > 1 ? `<div class="place-chips" style="margin-bottom:.6em">${[...seen.values()].map(({ pl, x }) => `<button class="place-chip ${pl.kind} ${pl.id === sel.pl.id ? 'on' : ''}" data-go="curso/${c.id}?sala=${pl.id}"><b>${esc(pl.num || '•')}</b><span>${esc(x.room)} = ${esc(M.placeLabel(pl))}</span></button>`).join('')}</div>` : `<p class="tt-lead tiny">${esc(sel.x.room)} da programação = <b>${esc(M.placeLabel(sel.pl))}</b> na planta.</p>`}
+            <div id="map-course" class="tcemap" data-venue="${sel.pl.venue}" data-place="${sel.pl.id}" data-alias="${esc(courseAlias(sel.x))}"></div>
             ${r ? stepsHtml(r) : ''}
             <div class="tt-actions">${window.speechSynthesis ? `<button class="tt-btn" data-speak-venue="${sel.pl.venue}" data-speak="${sel.pl.id}">${I('megaphone')}Ouvir o caminho</button>` : ''}<button class="tt-btn" data-go="inicio?p=${sel.pl.id}">${I('map')}Abrir no mapa geral</button></div>`; })()}
         <h3>${I('calendar')}Dias e horários (${sessions.length})</h3>
-        ${Object.keys(byDay).map((d) => `<div class="tt-day"><small class="${d === clock.date ? 'today' : ''}">${esc(T.fmtDate(d))}${d === clock.date ? ' · hoje' : ''}</small>${byDay[d].map((x) => { const sx = st(x); return `<div class="tt-sess ${sx}" style="--c:${col(x.shift)}"><span class="tt-time"><b>${T.fmtTime(x.time)}</b><small>até ${T.fmtTime(T.sessionEnd(x))}</small></span><span class="tt-body"><b>${esc(x.room || D.venues[x.venue].short)}${x.label ? ` · ${esc(x.label)}` : ''}</b><small>${esc(D.venues[x.venue].name)}</small></span><span class="tt-right">${badge(sx, col(x.shift))}</span></div>`; }).join('')}</div>`).join('')}
+        ${Object.keys(byDay).map((d) => `<div class="tt-day"><small class="${d === clock.date ? 'today' : ''}">${esc(T.fmtDate(d))}${d === clock.date ? ' · hoje' : ''}</small>${byDay[d].map((x) => { const sx = st(x); return `<div class="tt-sess ${sx}" style="--c:${col(x.shift)}"><span class="tt-time"><b>${T.fmtTime(x.time)}</b><small>até ${T.fmtTime(T.sessionEnd(x))}</small></span><span class="tt-body"><b>${esc(x.room || D.venues[x.venue].short)}${x.label ? ` · ${esc(x.label)}` : ''}${(() => { const pl = courseRoomPlace(x); return pl ? `<em class="room-tag ${pl.kind}">${I('map')}${esc(M.placeLabel(pl))}</em>` : ''; })()}</b><small>${esc(D.venues[x.venue].name)}</small></span><span class="tt-right">${badge(sx, col(x.shift))}</span></div>`; }).join('')}</div>`).join('')}
         <div class="tt-qr">${qrFor(`curso/${c.id}`)}<div><b>${I('phone')}Inscreva-se pelo celular</b><small>Aponte a câmera do celular para o QR Code. Abre esta página do curso com o botão de inscrição. <b>É gratuito.</b></small></div></div>
         <div class="tt-actions"><button class="tt-btn" data-go="programacao?d=${nx.date}${nx.venue !== LOCAL ? '&todos=1' : ''}">${I('calendar')}Ver o dia</button><button class="tt-btn primary" data-close>${I('back')}Voltar</button></div>
       </div>`;
@@ -319,7 +318,7 @@
     holder.innerHTML = `<div class="tt-panel" id="panel" role="dialog" aria-modal="true">${inner}</div>`;
     hideKeyboard();
     const mc = holder.querySelector('#map-course');
-    if (mc) M.render(mc, mc.dataset.venue, { entrance: ENTRANCE, scale: 1.5, place: mc.dataset.place, onPick: (id) => go(`#inicio?p=${id}`) });
+    if (mc) M.render(mc, mc.dataset.venue, { entrance: ENTRANCE, scale: 1.5, place: mc.dataset.place, alias: mc.dataset.alias || '', onPick: (id) => go(`#inicio?p=${id}`) });
   }
   // Mapa vivo do início: destaca um serviço de cada vez (a cada 4 s); toque na sala abre o caminho.
   let heroTimer = null; let heroIdx = -1;

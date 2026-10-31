@@ -166,6 +166,8 @@
     }
     return groups;
   }
+  /** Ambiente da planta da sala de uma aula (DE → PARA em js/salas-cursos.js); null se não mapeado. */
+  const courseRoomPlace = (x) => { const map = root.TCE_COURSE_ROOMS || {}; const id = map[x.venue] && map[x.venue][x.room]; return id ? placeInfo(id) : null; };
   const queueLabel = (p) => (p.kind === 'area' && !p.num ? p.name : `${p.name} · ${p.kind === 'sala' ? 'Sala' : p.kind === 'tenda' ? 'Tenda' : 'Ambiente'} ${p.num}`);
 
   // ---- busca única (cursos, serviços e locais), sem acentos, com sinônimos do dia a dia ----
@@ -189,5 +191,5 @@
   root.TCE = { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay,
     sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, appUrl, icsFor, params,
     search, searchTerms, searchMatch, searchableCourse, SUGGESTIONS,
-    itemText, itemOnly, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, queueLabel };
+    itemText, itemOnly, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, queueLabel, courseRoomPlace };
 })(typeof window !== 'undefined' ? window : globalThis);

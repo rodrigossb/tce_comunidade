@@ -365,3 +365,5 @@ em.only .ico{width:.95em;height:.95em}
 .svc-focus{margin-top:.2em}
 .svc-banner.static{grid-template-columns:auto 1fr;margin-bottom:.7em;border-radius:18px 18px 8px 8px}
 .svc-focus .stack.cols{margin-top:0}
+.sess-body .room .room-tag{margin-left:.4em;font-size:.72em;text-transform:none;letter-spacing:0}
+.sess-static .sess-body b .room-tag{font-size:.6em;vertical-align:middle}

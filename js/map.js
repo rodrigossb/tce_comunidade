@@ -62,9 +62,10 @@
   const entranceOf = (map, id) => map.entrances.find((e) => e.id === id) || map.entrances.find((e) => e.default) || map.entrances[0];
 
   /** Rota do acesso até a sala: pontos (px da imagem) e passos em texto. */
-  function route(venue, placeId, entranceId) {
+  function route(venue, placeId, entranceId, alias) {
     const map = mapOf(venue); if (!map) return null;
-    const place = map.places.find((p) => p.id === placeId); if (!place) return null;
+    let place = map.places.find((p) => p.id === placeId); if (!place) return null;
+    if (alias) place = Object.assign({}, place, { name: alias }); // ex.: curso usa a sala 08 → "Sala I (curso)" em vez de "Ortopedia"
     const from = entranceOf(map, entranceId);
     const start = [from.x, from.y]; const goal = place.door || [place.x, place.y];
     const adj = graph(map, [start, goal]);
@@ -108,9 +109,9 @@
   function render(el, venue, opts) {
     const o = opts || {}; const map = mapOf(venue); if (!el || !map) return;
     const from = entranceOf(map, o.entrance);
-    const r = o.place ? route(venue, o.place, from.id) : null;
+    const r = o.place ? route(venue, o.place, from.id, o.alias) : null;
     const hl = new Set(o.highlight || []);
-    const places = map.places.filter((p) => !p.hide || p.id === o.place);
+    const places = map.places.filter((p) => !p.hide || p.id === o.place).map((p) => (o.alias && p.id === o.place ? Object.assign({}, p, { name: o.alias }) : p));
     const S = (Math.max(map.w, map.h) / 1000) * (o.scale || 1); // escala dos marcadores (px da imagem)
     const labelSoft = hl.size > 0 && hl.size <= 6 && !o.place; // poucas salas em destaque: mostra o nome de cada uma
     // Rótulos de vizinhos alternam acima/abaixo para não se sobrepor (ordem por x).
