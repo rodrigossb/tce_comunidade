@@ -119,7 +119,7 @@
       const on = p.id === o.place; const soft = hl.has(p.id); const rr = (on ? 30 : soft ? 22 : 17) * S;
       const cls = `mk ${p.kind} ${on ? 'on' : ''} ${soft ? 'soft' : ''} ${o.showAll || on || soft ? '' : 'dim'}`;
       // Vizinho destacado muito perto (na mesma fileira): os rótulos se sobreporiam; o nome fica só na lista.
-      const crowded = soft && [...hl].some((id) => { const q = places.find((x) => x.id === id); return q && q !== p && Math.abs(q.y - p.y) < 90 * S && Math.abs(q.x - p.x) < 260 * S; });
+      const crowded = soft && [...hl].some((id) => { const q = places.find((x) => x.id === id); return q && q !== p && Math.abs(q.y - p.y) < map.h * 0.06 && Math.abs(q.x - p.x) < map.w * 0.14; });
       const lblText = on ? placeFull(p) : (soft && labelSoft && !crowded ? p.name : '');
       const below = !on && softOrder.indexOf(p.id) % 2 === 1;
       // Mantém o rótulo dentro da planta (desloca horizontalmente perto das bordas).
