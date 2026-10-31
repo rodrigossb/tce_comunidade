@@ -80,6 +80,12 @@ Roda no pm2 como `tce-senhas`; o nginx expõe em `https://dev.gerenciahub.com.br
 em `event.apiUrl` (`js/data.js`); `?api=http://127.0.0.1:3015` sobrescreve para testes. CORS libera só os
 domínios do site. Testes das agregações: `tests/stats.test.mjs`.
 
+Backup (mesmo padrão do Painel Escolar): `node server/backup.js [rótulo]` gera um zip com cópia consistente
+do banco (`VACUUM INTO`, seguro com a API no ar), o `.env` e um LEIA-ME com totais, em `server/backups/`
+(fora do git; mantém os últimos 60). `server/backup-cron.sh` roda isso e copia para `~/backups/tce-senhas/`
+(90 dias). Cron instalado: diário às 03:40 e de hora em hora (7h–20h) de 03 a 07/11. Restaurar: `pm2 stop
+tce-senhas`, copiar `senhas.db` para `server/data/` e `.env` para `server/`, `pm2 start tce-senhas`.
+
 ## Dados
 `js/data.js` é a fonte única (evento, locais, cursos com sessões, serviços por pilar), transcrita de
 `Tabela com links COM AJUSTES FINAIS LEON.pdf` ("Programação por Curso", versão de 29/10/2026, que
