@@ -1,5 +1,6 @@
 // API do controle de senhas (atendimentos dos serviços) — Node 22 puro + SQLite embutido (node:sqlite).
-// Sem dependências. Configuração em server/.env (PIN_OPERADOR, PIN_GESTOR, PORT, ORIGINS, DB_PATH).
+// Sem dependências. Configuração em server/.env (PIN_OPERADOR, PIN_GESTOR, PORT, DB_PATH).
+// Front e API no mesmo servidor: não há lista de origens; qualquer origem é aceita (a API exige PIN).
 // Rotas (prefixo /api): health, state, stats, issued (POST), call (POST), call/:id/status (POST),
 // call/:id/end (POST), export.csv. Autenticação por PIN no cabeçalho X-Pin.
 // Também serve o front do atendimento (atendimento.html + css/js/img/vendor da raiz do repo), de modo que
@@ -17,7 +18,6 @@ if (fs.existsSync(envPath)) for (const line of fs.readFileSync(envPath, 'utf8').
 const PORT = Number(process.env.PORT || 3015);
 const PIN_OP = String(process.env.PIN_OPERADOR || '');
 const PIN_GE = String(process.env.PIN_GESTOR || '');
-const ORIGINS = String(process.env.ORIGINS || 'https://www.tce.ap.gov.br,https://tce.ap.gov.br,https://rodrigossb.github.io').split(',').map((s) => s.trim()).filter(Boolean);
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'senhas.db');
 if (!PIN_OP || !PIN_GE) { console.error('Defina PIN_OPERADOR e PIN_GESTOR em server/.env'); process.exit(1); }
 
@@ -71,11 +71,11 @@ const isDay = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
 const clean = (s, n) => String(s == null ? '' : s).slice(0, n || 64).replace(/[^\w.@:\- ]/g, '');
 const readJson = (req) => new Promise((resolve, reject) => { let s = ''; req.on('data', (c) => { s += c; if (s.length > 10000) { reject(err(413, 'corpo grande demais')); req.destroy(); } }); req.on('end', () => { try { resolve(s ? JSON.parse(s) : {}); } catch { reject(err(400, 'JSON inválido')); } }); });
 function cors(req, res) {
+  // Projeto inteiro no mesmo servidor (depois, em servidor local): libera qualquer origem; a proteção é o PIN.
   const origin = req.headers.origin || '';
-  const ok = !origin || ORIGINS.includes(origin) || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) || origin === 'null';
-  if (ok && origin) { res.setHeader('Access-Control-Allow-Origin', origin); res.setHeader('Vary', 'Origin'); }
+  res.setHeader('Access-Control-Allow-Origin', origin || '*'); if (origin) res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Pin'); res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); res.setHeader('Access-Control-Max-Age', '600');
-  return ok;
+  return true;
 }
 const role = (req) => { const pin = String(req.headers['x-pin'] || ''); return pin && pin === PIN_GE ? 'gestor' : pin && pin === PIN_OP ? 'operador' : null; };
 const need = (req, roles) => { const r = role(req); if (!r || !roles.includes(r)) throw err(401, 'PIN inválido'); return r; };
@@ -121,7 +121,7 @@ const routes = {
 
 const server = http.createServer(async (req, res) => {
   try {
-    if (!cors(req, res)) return send(res, 403, { error: 'origem não permitida' });
+    cors(req, res);
     if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
     const u = new URL(req.url, 'http://x'); let p = u.pathname.replace(/\/+$/, '');
     if (p.startsWith('/tce-senhas')) p = p.slice('/tce-senhas'.length); // caso o proxy não remova o prefixo

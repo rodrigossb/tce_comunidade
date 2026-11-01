@@ -94,7 +94,8 @@ Servidor: `server/senhas.js` (Node 22 + SQLite embutido, sem dependências; port
 `server/data/senhas.db`, fora do git). PINs em `server/.env` (`PIN_OPERADOR`, `PIN_GESTOR`; nunca commitar).
 **Front e API rodam juntos neste servidor**: o próprio Node serve `atendimento.html` e os `css/js/img/vendor`
 da raiz do repo (só leitura, sem `..`), injetando `<meta name="tce-api" content="./">` para a página usar a
-API na mesma origem (sem CORS). Endereço da equipe: **`https://dev.gerenciahub.com.br/tce-senhas/`**.
+API na mesma origem. O servidor aceita qualquer origem (não há lista `ORIGINS`; a proteção é o PIN), então
+funciona igual em `https://…`, `http://IP:porta` ou `localhost` quando for levado para um servidor local. Endereço da equipe: **`https://dev.gerenciahub.com.br/tce-senhas/`**.
 Roda no pm2 como `tce-senhas` (reiniciar após `git pull`: `pm2 restart tce-senhas`); o nginx faz o proxy
 de `/tce-senhas/` para a porta 3015 (bloco em `server/nginx-tce-senhas.conf`; `sudo server/install-nginx.sh`).
 A cópia de `atendimento.html` publicada no GitHub Pages continua funcionando, apontando para `event.apiUrl`
