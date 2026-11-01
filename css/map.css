@@ -47,6 +47,9 @@
 .place-chip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .place-chip.on{border-color:#fbbf24;background:color-mix(in srgb,#fbbf24 18%,var(--card,#fff))}
 .place-chip .ico{color:var(--mut,#5f6b7d);flex:none}
+.place-chip .go-map{display:inline-flex;align-items:center;gap:.3em;margin-left:.2em;background:var(--primary,#1f3b9a);color:#fff;border-radius:999px;padding:.25em .65em;font-size:.76em;font-weight:800;font-style:normal;letter-spacing:.02em;flex:none}
+.place-chip .go-map .ico{width:1em;height:1em;color:#fff}
+.place-chip:hover .go-map{background:#0b1b3d}
 .room-tag{display:inline-flex;align-items:center;gap:.3em;font-size:.74em;font-weight:800;background:#0b1b3d;color:#fff;border-radius:999px;padding:.2em .6em;margin-left:.4em;vertical-align:middle;white-space:nowrap}
 .room-tag.tenda{background:#7e22ce}
 .room-tag.area{background:#0f766e}

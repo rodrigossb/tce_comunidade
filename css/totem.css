@@ -367,3 +367,9 @@
 .tt-chip.c i{width:.6em;height:.6em;border-radius:50%;background:var(--c);font-style:normal;flex:none}
 .tt-chip.c.on i{background:#fff}
 .tt-dest{background:color-mix(in srgb,#fbbf24 10%,#fff);border:2px solid color-mix(in srgb,#fbbf24 45%,var(--line));border-radius:18px;padding:.9em 1em}
+
+.tt-btn.map{width:100%;justify-content:flex-start;gap:.7em;background:var(--primary);color:#fff;border-color:var(--primary);text-align:left;padding:.8em 1em;margin:.3em 0 .7em}
+.tt-btn.map>.ico:first-child{width:1.6em;height:1.6em;flex:none;background:rgba(255,255,255,.18);border-radius:12px;padding:.3em;box-sizing:content-box;color:#fff}
+.tt-btn.map span{flex:1;min-width:0;display:block;font-weight:800;line-height:1.2}
+.tt-btn.map span small{display:block;font-weight:500;font-size:.78em;opacity:.85;margin-top:.1em}
+.tt-btn.map>.ico:last-child{width:1em;height:1em;opacity:.8;color:#fff}
