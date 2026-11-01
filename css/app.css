@@ -367,3 +367,21 @@ em.only .ico{width:.95em;height:.95em}
 .svc-focus .stack.cols{margin-top:0}
 .sess-body .room .room-tag{margin-left:.4em;font-size:.72em;text-transform:none;letter-spacing:0}
 .sess-static .sess-body b .room-tag{font-size:.6em;vertical-align:middle}
+
+/* ===== mapa: barra compacta (local + onde você está) e filtros por tipo com cor ===== */
+.map-bar{display:flex;align-items:center;gap:.6em;flex-wrap:wrap;margin:.2em 0 .4em}
+.seg{display:inline-flex;background:var(--card);border:1.5px solid var(--line);border-radius:999px;padding:.2em;gap:.2em}
+.seg button{border:0;background:none;font:inherit;font-size:.86em;font-weight:700;color:var(--ink2);padding:.4em .9em;border-radius:999px;cursor:pointer}
+.seg button.on{background:var(--primary);color:#fff}
+.here{display:inline-flex;align-items:center;gap:.35em;font-size:.86em;font-weight:600;color:var(--ink2);background:var(--card);border:1.5px solid var(--line);border-radius:999px;padding:.25em .5em .25em .8em;margin-left:auto}
+.here .ico{width:1em;height:1em;color:#e11d48}
+.here select{font:inherit;font-weight:700;color:var(--ink);border:0;background:transparent;padding:.2em .2em;max-width:9em}
+.chips.types .chip{font-size:.84em;padding:.4em .75em}
+.chips.types .chip i{width:.55em;height:.55em}
+.chips.types .chip.on.c .ico{color:#1f1300}
+.map-foot{display:flex;align-items:center;justify-content:space-between;gap:.6em;margin:.4em 0 .8em}
+.map-foot .map-legend{margin:0}
+.btn.sm{padding:.45em .8em;font-size:.86em}
+.sec.dest{background:color-mix(in srgb,#fbbf24 10%,var(--card));border:1px solid color-mix(in srgb,#fbbf24 45%,var(--line));border-radius:var(--radius);padding:.8em .9em}
+.sec.dest .sec-head{margin-bottom:.4em}
+.sec.dest .actions{margin-top:.4em}

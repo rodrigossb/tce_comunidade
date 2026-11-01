@@ -363,3 +363,7 @@
 .tt-maphero-body>.tt-legend{grid-area:legend}
 #map-course{margin:.4em 0 .6em;border-radius:14px}
 .place-chip.on{border-color:#fbbf24;background:color-mix(in srgb,#fbbf24 18%,#fff)}
+
+.tt-chip.c i{width:.6em;height:.6em;border-radius:50%;background:var(--c);font-style:normal;flex:none}
+.tt-chip.c.on i{background:#fff}
+.tt-dest{background:color-mix(in srgb,#fbbf24 10%,#fff);border:2px solid color-mix(in srgb,#fbbf24 45%,var(--line));border-radius:18px;padding:.9em 1em}

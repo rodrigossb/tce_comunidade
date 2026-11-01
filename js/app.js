@@ -12,11 +12,10 @@
     busca: { label: 'Buscar', icon: 'search' },
     cursos: { label: 'Cursos', icon: 'graduation' },
     servicos: { label: 'Serviços', icon: 'handshake' },
-    locais: { label: 'Locais', icon: 'pin' },
-    mapa: { label: 'Mapa', icon: 'map', hidden: true },
+    mapa: { label: 'Mapa', icon: 'map' },
+    locais: { label: 'Locais', icon: 'pin', hidden: true },
   };
   const M = window.TCEMap;
-  const STEP_ICON = { start: 'pin', left: 'turnleft', right: 'turnright', straight: 'arrowup', turn: 'uturn', end: 'flag' };
   const SHEETS = { curso: 'cursos', servico: 'servicos', local: 'locais' };
   const LS_FAV = 'tce_favs';
   const LS_PREFS = 'tce_prefs';
@@ -149,7 +148,6 @@
   const defaultMapVenue = () => { const l = prefs.local; if (l && M.mapOf(l)) return l; const d = T.nextServiceDay(clock.date) || T.serviceDays()[0]; return d.venue; };
   const roomTags = (it, venue) => T.itemWhere(it, venue).map((id) => { const p = T.placeInfo(id); return p ? `<span class="room-tag ${p.kind}">${I(p.kind === 'tenda' ? 'tent' : 'door')}${esc(M.placeLabel(p))}</span>` : ''; }).join('');
   const placeChip = (id, opts) => { const o = opts || {}; const p = T.placeInfo(id); if (!p) return ''; return `<button class="place-chip ${p.kind} ${o.on ? 'on' : ''}" data-go="mapa?local=${p.venue}&p=${p.id}${o.s ? `&s=${o.s}` : ''}"><b>${esc(p.num || '•')}</b><span>${esc(p.kind === 'area' && !p.num ? p.name : `${M.placeLabel(p)} · ${p.name}`)}</span>${I('right')}</button>`; };
-  const stepsHtml = (r) => `<ol class="steps">${r.steps.map((st) => `<li class="${st.kind}"><i>${I(STEP_ICON[st.kind] || 'arrowup')}</i><span>${esc(st.text)}</span></li>`).join('')}</ol>`;
   const searchBox = (q, opts) => { const o = opts || {}; return `<div class="search ${o.big ? 'big' : ''}">${I('search')}<label class="sr-only" for="${o.id || 'q'}">Buscar</label><input id="${o.id || 'q'}" type="search" value="${esc(q || '')}" placeholder="${esc(o.placeholder || 'Buscar curso, serviço, sala…')}" autocomplete="off" enterkeyhint="search" data-search ${o.autofocus ? 'autofocus' : ''} ${TOTEM ? 'inputmode="none"' : ''}>${q ? `<button class="icon-btn" data-param="q" data-value="" aria-label="Limpar busca">${I('x')}</button>` : ''}</div>`; };
   const servicesStrip = () => `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('handshake')}</span><h2>Serviços gratuitos <small>sem inscrição</small></h2><button class="link" data-go="servicos">Todos ${I('right')}</button></div>
     <div class="svc-days compact">${T.serviceDays().map((d) => svcDayCard(d)).join('')}</div>
@@ -252,19 +250,21 @@
     const servicesHere = place ? D.services.filter((s) => T.placesOf(s, venue).includes(placeId)) : [];
     const course = p.get('curso') ? T.courseById(p.get('curso')) : null; const cx = course ? T.allSessions().find((x) => x.course === course && T.courseRoomPlace(x) && T.courseRoomPlace(x).id === placeId) : null;
     const alias = cx ? `${cx.room} · ${T.title(course, true)}` : '';
+    const typeChips = `${chip('Todos', !sid && !placeId, `data-go="mapa?local=${venue}&entrada=${ent}"`)}${D.services.map((s) => chip(`${I(s.icon)}${esc(s.short)}`, sid === s.id, `data-go="mapa?local=${venue}&entrada=${ent}${sid === s.id ? '' : `&s=${s.id}`}"`, s.color)).join('')}`;
+    const dest = place ? `<section class="sec dest"><div class="sec-head"><span class="sec-ico" style="background:#fbbf24;color:#0b1b3d">${I('flag')}</span><h2>${esc(M.placeLabel(place))} <small>${esc(alias || place.name)}</small></h2>${window.speechSynthesis ? `<button class="icon-btn" data-speak="${placeId}" aria-label="Ouvir o caminho" title="Ouvir o caminho">${I('megaphone')}</button>` : ''}</div>
+          ${cx ? `<p class="page-lead" style="margin:0 0 .5em">${esc(T.title(course))} · ${esc(T.fmtDate(cx.date, 'wdlong'))} às ${T.fmtTime(cx.time)}</p>` : ''}
+          ${!course && servicesHere.length ? `<div class="chips">${servicesHere.map((s) => `<button class="chip c" style="--c:${s.color}" data-sheet="servico" data-id="${s.id}"><i></i>${I(s.icon)}${esc(s.short)}</button>`).join('')}</div>` : ''}
+          <div class="actions"><button class="btn btn-ghost" data-go="mapa?local=${venue}&entrada=${ent}${sid ? `&s=${sid}` : ''}">${I('map')}Mapa geral</button>${course ? `<button class="btn btn-primary" data-sheet="curso" data-id="${course.id}">${I('graduation')}Voltar ao curso</button>` : svc ? `<button class="btn btn-primary" data-sheet="servico" data-id="${svc.id}">${I(svc.icon)}${esc(svc.short)}</button>` : ''}</div></section>` : '';
     return `<div class="page-head"><span class="page-ico">${I('map')}</span><h1>Mapa</h1></div>
-      <p class="page-lead">${esc(map.title)}${day ? ` · serviços gratuitos em <b>${esc(T.fmtDate(day.date, 'wdlong'))}</b>` : ''}. Toque em uma sala no mapa para ver o caminho.</p>
-      <div class="chips scroll">${Object.values(D.maps).map((m) => chip(`${I('map')}${esc(m.short)}`, m.venue === venue, `data-go="mapa?local=${m.venue}"`)).join('')}</div>
-      <div class="chips scroll">${chip('Todos', !sid && !placeId, `data-go="mapa?local=${venue}"`)}${D.services.map((s) => chip(`${I(s.icon)}${esc(s.short)}`, sid === s.id, `data-go="mapa?local=${venue}&s=${s.id}"`)).join('')}</div>
-      <div class="chips scroll" aria-label="Onde você está">${map.entrances.map((e) => chip(`${I('pin')}${esc(e.id === ent ? 'Você está no ' + e.short : e.short)}`, e.id === ent, `data-go="mapa?local=${venue}&entrada=${e.id}${placeId ? `&p=${placeId}` : ''}${sid ? `&s=${sid}` : ''}"`)).join('')}</div>
+      <div class="map-bar"><div class="seg">${Object.values(D.maps).map((m) => `<button class="${m.venue === venue ? 'on' : ''}" data-go="mapa?local=${m.venue}">${esc(m.short)}</button>`).join('')}</div>
+        <label class="here">${I('pin')}<span>Você está</span><select data-param="entrada" aria-label="Onde você está">${map.entrances.map((e) => `<option value="${e.id}" ${e.id === ent ? 'selected' : ''}>${esc(e.short)}</option>`).join('')}</select></label></div>
+      <div class="chips scroll types">${typeChips}</div>
       <div id="map" class="tcemap"></div>
-      <div class="map-actions"><button class="btn btn-ghost" data-map-full="${venue}">${I('zoomin')}Ampliar o mapa</button>${place && window.speechSynthesis ? `<button class="btn btn-ghost" data-speak="${placeId}">${I('megaphone')}Ouvir o caminho</button>` : ''}</div>
-      <div class="map-legend"><span><i style="background:#e11d48"></i>Você</span><span><i style="background:#0b1b3d"></i>Sala</span><span><i style="background:#7e22ce"></i>Tenda</span><span><i style="background:#0f766e"></i>Área</span><span><i style="background:#fbbf24"></i>Destino</span></div>
-      ${place ? `<section class="sec"><div class="sec-head"><span class="sec-ico" style="background:#fbbf24;color:#0b1b3d">${I('footprints')}</span><h2>Como chegar: ${esc(M.placeLabel(place))} <small>${esc(alias || place.name)}</small></h2></div>${cx ? `<p class="page-lead" style="margin:-.3em 0 .6em">${esc(T.title(course))} · ${esc(T.fmtDate(cx.date, 'wdlong'))} às ${T.fmtTime(cx.time)} · ${esc(cx.room)} = ${esc(M.placeLabel(place))}</p>` : ''}${stepsHtml(M.route(venue, placeId, ent, alias))}
-          ${!course && servicesHere.length ? `<div class="chips">${servicesHere.map((s) => `<button class="chip" data-sheet="servico" data-id="${s.id}">${I(s.icon)}${esc(s.short)}</button>`).join('')}</div>` : ''}
-          <div class="actions"><button class="btn btn-ghost" data-go="mapa?local=${venue}${sid ? `&s=${sid}` : ''}">${I('map')}Mapa geral</button>${course ? `<button class="btn btn-primary" data-sheet="curso" data-id="${course.id}">${I('graduation')}Voltar ao curso</button>` : svc ? `<button class="btn btn-primary" data-sheet="servico" data-id="${svc.id}">${I(svc.icon)}${esc(svc.short)}</button>` : `<button class="btn btn-primary" data-go="servicos">${I('handshake')}Serviços</button>`}</div></section>`
-        : svc ? `<section class="sec"><div class="sec-head"><span class="sec-ico c" style="--c:${svc.color}">${I(svc.icon)}</span><h2>${esc(svc.title)} <small>${hl.length} local${hl.length === 1 ? '' : 'is'}</small></h2></div><div class="place-chips">${hl.map((id) => placeChip(id, { s: sid })).join('')}</div></section>`
-        : `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('door')}</span><h2>Salas e tendas <small>${map.places.filter((x) => !x.hide).length}</small></h2></div><div class="place-chips">${map.places.filter((x) => !x.hide).map((x) => placeChip(x.id)).join('')}</div></section>`}`;
+      <div class="map-foot"><div class="map-legend"><span><i style="background:#e11d48"></i>Você</span><span><i style="background:#0b1b3d"></i>Sala</span><span><i style="background:#7e22ce"></i>Tenda</span><span><i style="background:#0f766e"></i>Área</span><span><i style="background:#fbbf24"></i>Destino</span></div><button class="btn btn-ghost sm" data-map-full="${venue}">${I('zoomin')}Ampliar</button></div>
+      ${dest}
+      ${!place && svc ? `<section class="sec"><div class="sec-head"><span class="sec-ico c" style="--c:${svc.color}">${I(svc.icon)}</span><h2>${esc(svc.title)} <small>${hl.length} local${hl.length === 1 ? '' : 'is'}</small></h2><button class="icon-btn" data-sheet="servico" data-id="${svc.id}" aria-label="Detalhes do serviço">${I('info')}</button></div><p class="page-lead" style="margin:0 0 .5em">${day ? `${esc(T.fmtDate(day.date, 'wdlong'))} · ` : ''}toque em uma sala para ver o caminho.</p><div class="place-chips">${hl.map((id) => placeChip(id, { s: sid })).join('')}</div></section>` : ''}
+      ${!place && !svc ? `<section class="sec"><div class="sec-head"><span class="sec-ico">${I('door')}</span><h2>Salas e tendas <small>${map.places.filter((x) => !x.hide).length}</small></h2></div><p class="page-lead" style="margin:0 0 .5em">${day ? `Serviços gratuitos em <b>${esc(T.fmtDate(day.date, 'wdlong'))}</b>. ` : ''}Toque em uma sala, no mapa ou na lista, para ver o caminho.</p><div class="place-chips">${map.places.filter((x) => !x.hide).map((x) => placeChip(x.id)).join('')}</div>
+        <div class="sec-head" style="margin-top:1.2em"><span class="sec-ico">${I('pin')}</span><h2>Programação por local</h2></div><div class="chips">${Object.values(D.venues).map((v) => chip(esc(v.short), false, `data-go="programacao?local=${v.id}"`)).join('')}</div></section>` : ''}`;
   }
 
   function viewServicos() {
