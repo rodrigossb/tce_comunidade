@@ -72,7 +72,7 @@
         h += `<tr><td class="num">${T.fmtTime(x.time)}–${T.fmtTime(T.sessionEnd(x))}</td><td><b>${esc(T.title(x.course))}</b>${x.label ? ` <span class="muted">· ${esc(x.label)}</span>` : ''}<span class="aud">${esc(x.course.audience)}</span></td><td class="sala">${pl ? chip(pl) : '<span class="room none">—</span>'}${x.room ? `<span class="prog">${esc(x.room)}</span>` : ''}</td><td class="num">${x.course.seats}</td></tr>`;
       }
     }
-    return `<table class="t1"><thead><tr><th>Horário</th><th>Curso · público</th><th>Sala (planta · programação)</th><th>Vagas</th></tr></thead><tbody>${h}</tbody></table>`;
+    return `<table class="t1"><thead><tr><th>Horário</th><th>Curso · público</th><th>Sala</th><th>Vagas</th></tr></thead><tbody>${h}</tbody></table>`;
   }
   function servicesTable(venue, date) {
     const rows = []; const placed = new Set();
