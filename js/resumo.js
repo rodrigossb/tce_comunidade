@@ -11,6 +11,7 @@
   const days = T.eventDays();
   const VENUE_ORDER = ['jn', 'manga', 'sebrae', 'auditorio', 'iaparra'];
   const svcDay = (venue) => T.serviceDays().find((d) => d.venue === venue);
+  const at = (sd, long) => `${sd.venue === 'jn' ? 'na' : 'no'} ${(long && sd.placeLong) || sd.place}`; // "na Escola…" / "no Distrito…"
   const today = new Date().toLocaleDateString('pt-BR');
 
   const chip = (p, cls) => (p ? `<span class="room ${p.kind} ${cls || ''}">${esc(M.placeLabel(p))}</span>` : '');
@@ -21,7 +22,7 @@
   const roomsOf = (venue) => (D.maps[venue] ? D.maps[venue].places.filter((p) => !p.hide).map((p) => Object.assign({ venue }, p)) : []);
   const roomSort = (a, b) => (Number(a.num) || 999) - (Number(b.num) || 999) || String(a.num).localeCompare(String(b.num));
   const plural = (n, s, p) => `${n} ${n === 1 ? s : p || s + 's'}`;
-  const h2 = (num, text, sub) => `<h2><span class="n">${num}</span>${esc(text)}${sub ? `<span class="h2sub">${sub}</span>` : ''}</h2>`;
+  const h2 = (num, text, sub) => `<h2><span class="n">${num}.</span> ${esc(text)}${sub ? `<span class="h2sub">${sub}</span>` : ''}</h2>`;
 
   // ---- Capa + sumário ----
   function cover() {
@@ -32,20 +33,18 @@
       <p class="kicker">Resumo da organização</p>
       <h1>${esc(D.event.name)}<br><span>${esc(D.event.edition)}</span></h1>
       <p class="sub">${esc(D.event.place)} · ${esc(D.event.datesLabel)}</p>
-      <div class="kpis">
-        <div><b>${D.courses.length}</b><span>cursos gratuitos</span></div>
-        <div><b>${all.length}</b><span>aulas, ${nMapped} com sala na planta</span></div>
-        <div><b>${D.services.length}</b><span>blocos de serviços</span></div>
-        <div><b>2</b><span>dias de serviços: ${esc(T.serviceDaysLabel('wdm'))}</span></div>
-        <div><b>${venuesUsed.length}</b><span>locais de atividade</span></div>
-      </div>
+      <p class="facts">${D.courses.length} cursos gratuitos · ${all.length} aulas (${nMapped} com sala na planta) · ${D.services.length} blocos de serviços gratuitos em ${esc(T.serviceDaysLabel('wdm'))} · ${venuesUsed.length} locais</p>
       <nav class="toc"><h3>Sumário</h3><ol>
         <li><a href="#s1"><span>1</span>Visão geral — dias × locais e blocos de serviços</a></li>
-        <li><a href="#s2"><span>2</span>Programação por dia e local</a><ol>${days.map((d, i) => `<li><a href="#d${d.slice(8)}"><span>2.${i + 1}</span>${esc(cap(T.fmtDate(d)))}${T.serviceDayOf(d) ? ` <em>· serviços gratuitos no ${esc(T.serviceDayOf(d).place)}</em>` : ''}</a></li>`).join('')}</ol></li>
+        <li><a href="#s2"><span>2</span>Programação por dia e local</a><ol>${days.map((d, i) => `<li><a href="#d${d.slice(8)}"><span>2.${i + 1}</span>${esc(cap(T.fmtDate(d)))}${T.serviceDayOf(d) ? ` <em>· serviços gratuitos ${esc(at(T.serviceDayOf(d)))}</em>` : ''}</a></li>`).join('')}</ol></li>
         <li><a href="#s3"><span>3</span>Plantas e uso de cada sala</a></li>
         <li><a href="#s4"><span>4</span>Cursos de A a Z</a></li>
         <li><a href="#s5"><span>5</span>Pendências e fontes</a></li></ol></nav>
-      <p class="legend-note"><b>Como ler:</b> o número escuro <span class="room">Sala 08</span> é a sala na planta de ambientação; em cinza, o nome usado na programação da Escola de Contas (ex.: Sala I). <span class="room tenda">Tenda 07</span> e <span class="room area">Ambiente 16</span> são tendas e espaços abertos. Cursos têm inscrição pelo site da ESCON; serviços são por ordem de chegada. O selo <span class="only">só sáb 07/11</span> marca atendimentos que acontecem apenas na Joaquim Nabuco.</p>
+      <div class="legend-note"><h3>Como ler este documento</h3><ul>
+        <li><span class="room">Sala 08</span> é o número da sala na planta de ambientação. Ao lado, em cinza, o nome usado na programação da Escola de Contas (ex.: Sala I).</li>
+        <li><span class="room tenda">Tenda 07</span> e <span class="room area">Ambiente 16</span> são tendas e espaços abertos da planta.</li>
+        <li>Cursos: inscrição pelo site da ESCON. Serviços: sem inscrição, por ordem de chegada.</li>
+        <li><span class="only">só sáb 07/11</span> marca atendimentos que acontecem apenas na Escola Joaquim Nabuco.</li></ul></div>
       <p class="version">Versão gerada em ${today} a partir dos dados publicados no site · www.tce.ap.gov.br/tce-na-comunidade</p>
     </section>`;
   }
@@ -55,12 +54,11 @@
     const vs = VENUE_ORDER.filter((v) => all.some((x) => x.venue === v) || svcDay(v));
     const rows = days.map((d) => `<tr><th>${esc(cap(T.fmtDate(d, 'wdm')))}</th>${vs.map((v) => { const n = all.filter((x) => x.date === d && x.venue === v).length; const sd = T.serviceDayOf(d); const svc = sd && sd.venue === v; return `<td class="${n || svc ? 'has' : ''}">${n ? plural(n, 'aula') : ''}${svc ? `<span class="svcday">serviços gratuitos</span>` : ''}${!n && !svc ? '<span class="muted">—</span>' : ''}</td>`; }).join('')}</tr>`).join('');
     const matrix = `<div class="ovwrap"><table class="ov"><thead><tr><th>Dia</th>${vs.map((v) => `<th>${esc(D.venues[v].short)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
-    const cards = D.services.map((s) => `<article class="svc-card" style="--c:${s.color}"><h4><i>${I(s.icon)}</i>${s.num ? `${s.num}. ` : ''}${esc(s.title)}</h4><p>${esc(s.summary)}</p>
-      <div class="svc-rooms">${['manga', 'jn'].map((v) => { const ids = T.placesOf(s, v).map((id) => T.placeInfo(id)).filter(Boolean).sort(roomSort); return `<div><b>${esc(T.fmtDate(svcDay(v).date, 'wdm'))} · ${esc(D.venues[v].short)}</b>${ids.length ? ids.map((p) => chip(p, 'sm')).join(' ') : '<span class="muted">sem sala definida</span>'}</div>`; }).join('')}</div>
-      <p class="partners">${s.partners.map(esc).join(' · ')}</p></article>`).join('');
+    const svcRows = D.services.map((s) => `<tr><td><b>${dot(s)}${s.num ? `${s.num}. ` : ''}${esc(s.title)}</b><span class="aud">${esc(s.summary)}</span></td>${['manga', 'jn'].map((v) => { const ids = T.placesOf(s, v).map((id) => T.placeInfo(id)).filter(Boolean).sort(roomSort); return `<td class="chips">${ids.length ? ids.map((p) => chip(p, 'sm')).join(' ') : '<span class="muted">sem sala definida</span>'}</td>`; }).join('')}<td class="aud-cell">${s.partners.map(esc).join(' · ')}</td></tr>`).join('');
+    const svcTable = `<table class="tsvc"><thead><tr><th>Bloco de serviços</th><th>${esc(cap(T.fmtDate(svcDay('manga').date, 'wdm')))} · Manga</th><th>${esc(cap(T.fmtDate(svcDay('jn').date, 'wdm')))} · Joaquim Nabuco</th><th>Quem atende</th></tr></thead><tbody>${svcRows}</tbody></table>`;
     return `<section class="sec" id="s1">${h2(1, 'Visão geral')}
       <h3>Dias e locais</h3>${matrix}
-      <h3>Blocos de serviços gratuitos e suas salas</h3><div class="svc-grid">${cards}</div></section>`;
+      <h3>Blocos de serviços gratuitos e suas salas</h3>${svcTable}</section>`;
   }
 
   // ---- 2. Programação por dia e local ----
@@ -68,7 +66,7 @@
     let h = '';
     for (const k of T.SHIFT_ORDER) {
       const l = list.filter((x) => x.shift === k); if (!l.length) continue;
-      h += `<tr class="shift"><td colspan="4">${esc(T.SHIFTS[k].label)} · ${T.fmtTime(T.SHIFTS[k].start)}–${T.fmtTime(T.SHIFTS[k].end)}</td></tr>`;
+      h += `<tr class="shift"><td colspan="4">${esc(T.SHIFTS[k].label)}</td></tr>`;
       for (const x of l) {
         const pl = T.courseRoomPlace(x);
         h += `<tr><td class="num">${T.fmtTime(x.time)}–${T.fmtTime(T.sessionEnd(x))}</td><td><b>${esc(T.title(x.course))}</b>${x.label ? ` <span class="muted">· ${esc(x.label)}</span>` : ''}<span class="aud">${esc(x.course.audience)}</span></td><td class="sala">${pl ? chip(pl) : '<span class="room none">—</span>'}${x.room ? `<span class="prog">${esc(x.room)}</span>` : ''}</td><td class="num">${x.course.seats}</td></tr>`;
@@ -86,7 +84,7 @@
       });
     }
     const loose = D.services.map((s) => ({ s, its: s.items.filter((it) => !placed.has(it) && (!T.itemOnly(it) || T.itemOnly(it) === date)) })).filter((r) => r.its.length);
-    loose.forEach((r, i) => rows.push(`<tr class="loose" style="--c:${r.s.color}">${i === 0 ? `<td rowspan="${loose.length}"><span class="room none">sem sala definida</span><span class="prog">ver pendências</span></td>` : ''}<td class="svcname"><b>${dot(r.s)}${esc(r.s.short)}</b></td><td>${r.its.map((it) => esc(T.itemText(it)) + onlyBadge(it)).join('; ')}</td></tr>`));
+    loose.forEach((r, i) => rows.push(`<tr class="loose" style="--c:${r.s.color}">${i === 0 ? `<td rowspan="${loose.length}"><span class="room none">sem sala definida</span></td>` : ''}<td class="svcname"><b>${dot(r.s)}${esc(r.s.short)}</b></td><td>${r.its.map((it) => esc(T.itemText(it)) + onlyBadge(it)).join('; ')}</td></tr>`));
     return `<table class="t3"><thead><tr><th>Sala</th><th>Bloco</th><th>Atendimentos</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
   function daySections() {
@@ -98,11 +96,11 @@
       const n = all.filter((x) => x.date === d).length;
       const blocks = venues.map((v) => {
         const list = all.filter((x) => x.date === d && x.venue === v); const isSvc = sd && sd.venue === v; const ven = D.venues[v];
-        return `<section class="venue"><h3>${I('pin')}<span>${esc(ven.name)}<small>${esc(ven.city)}${list.length ? ` · ${plural(list.length, 'aula')}` : ''}</small></span>${isSvc ? `<span class="svcday">serviços gratuitos</span>` : ''}</h3>
+        return `<section class="venue"><h3>${esc(ven.name)}<small>${esc(ven.city)}${list.length ? ` · ${plural(list.length, 'aula')}` : ''}</small>${isSvc ? `<span class="svcday">serviços gratuitos</span>` : ''}</h3>
           ${list.length ? sessionsTable(list) : ''}
           ${isSvc ? `<h4>Serviços gratuitos · sala a sala <span class="muted">(números da planta, seção 3)</span></h4>${servicesTable(v, d)}` : ''}</section>`;
       }).join('');
-      return `<section class="day" id="d${d.slice(8)}">${i === 0 ? intro : ''}<div class="dayband"><span class="n">2.${i + 1}</span><div><h2>${esc(cap(T.fmtDate(d)))}</h2><p>${plural(n, 'aula')} em ${plural(venues.filter((v) => all.some((x) => x.date === d && x.venue === v)).length, 'local', 'locais')}${sd ? ` · serviços gratuitos no ${esc(sd.placeLong || sd.place)}` : ''}</p></div><span class="dd">${d.slice(8)}<small>nov</small></span></div>${blocks}</section>`;
+      return `<section class="day" id="d${d.slice(8)}">${i === 0 ? intro : ''}<div class="dayhead"><h2><span class="n">2.${i + 1}</span> ${esc(cap(T.fmtDate(d)))}</h2><p>${plural(n, 'aula')} em ${plural(venues.filter((v) => all.some((x) => x.date === d && x.venue === v)).length, 'local', 'locais')}${sd ? ` · serviços gratuitos ${esc(at(sd, true))}` : ''}</p></div>${blocks}</section>`;
     }).join('');
   }
 
@@ -121,7 +119,7 @@
       }).join('');
       const used = D.services.filter((s) => roomsOf(m.venue).some((p) => servicesAt(p).includes(s)));
       const dePara = Object.entries(ROOMS[m.venue] || {}).map(([k, id]) => { const p = T.placeInfo(id); return `<span>${esc(k)} → <b>${p ? esc(M.placeLabel(p)) : esc(id)}</b></span>`; }).join('');
-      return `<section class="plan" data-venue="${m.venue}">${i === 0 ? intro : ''}<h3>${I('map')}<span>${esc(m.title)}<small>serviços em ${esc(T.fmtDate(sd.date, 'wdlong'))} · acessos: ${m.entrances.map((e) => esc(e.label)).join(', ')}</small></span></h3>
+      return `<section class="plan" data-venue="${m.venue}">${i === 0 ? intro : ''}<h3>${esc(m.title)}<small>serviços em ${esc(T.fmtDate(sd.date, 'wdlong'))} · acessos: ${m.entrances.map((e) => esc(e.label)).join(', ')}</small></h3>
         <div class="plan-grid"><div class="plan-map"><div id="plan-${m.venue}" class="tcemap"></div>
           <div class="map-legend">${used.map((s) => `<span>${dot(s)}${esc(s.short)}</span>`).join('')}<span><i class="dot" style="--c:#0b1b3d"></i>só cursos / sem serviço</span></div>
           ${dePara ? `<p class="tiny muted depara"><b>Salas dos cursos (programação → planta):</b> ${dePara}</p>` : ''}
