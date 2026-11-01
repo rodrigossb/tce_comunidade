@@ -166,7 +166,7 @@
   }
 
   root.innerHTML = `
-    <div class="rs-tools"><button onclick="window.print()">${I('download')}Imprimir / PDF</button><a href="index.html">${I('phone')}App</a><a href="totem.html?local=jn&descanso=0">${I('map')}Totem</a></div>
+    <div class="rs-tools"><button onclick="window.print()">${I('download')}Imprimir / PDF</button><a href="index.html">${I('phone')}App</a><a href="totem.html?local=jn&descanso=0">${I('map')}Totem</a><a href="placas.html">${I('door')}Placas de porta</a></div>
     ${cover()}${overview()}${daySections()}${plans()}${indexAZ()}${pendencias()}`;
   paintPlans();
 })();

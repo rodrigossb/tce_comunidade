@@ -63,6 +63,13 @@ bloqueados e a inscrição é feita pelo QR Code grande de cada curso; depois do
 início e mostra a programação do dia (a mesma da TV, em retrato) com "Toque na tela para explorar".
 Recarrega sozinho às 4h.
 
+## Placas de porta (`placas.html`)
+Uma folha A4 paisagem por sala, tenda ou ambiente da planta (57 no total): painel escuro com o número grande,
+nome do local e QR para o caminho no mapa do app; à direita, logo do Tribunal, cursos por dia e horário (com
+público) e os serviços gratuitos do dia de atendimentos. O tamanho da letra se adapta à quantidade de linhas.
+Filtros: `?local=jn|manga`, `?sala=jn-r08,jn-r09`, `?todas=1` (inclui locais sem uso). Imprimir em cores, sem
+margens (a página define `@page` A4 paisagem com margem zero). Também linkada no rodapé de ferramentas do resumo.
+
 ## Atendimento · controle de senhas (`atendimento.html` + `server/`)
 Uso interno da equipe, com PIN (4 dígitos = equipe; 6 dígitos = gestão, que também exporta CSV).
 As **filas de senhas são por sala/instituição** (Politec, Superfácil, Detran, Vacina e farmácia, Castra

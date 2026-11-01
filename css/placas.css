@@ -1,0 +1,70 @@
+/* ===== Placas de porta (A4 paisagem). Medidas em mm para a impressão sair em tamanho real. ===== */
+.pl{--navy:#0b1b3d;--ink:#0b1220;--mut:#5f6b7d;--line:#e3e7ee;--gold:#f5c542;--z:1;max-width:1180px;margin:0 auto;padding:1rem 1rem 4rem;color:var(--ink);background:#eef1f6;min-height:100vh}
+.pl-loading{color:var(--mut)}
+.pl-tools{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin:0 0 1rem}
+.pl-tools-l b{display:block;font-family:var(--font-display);font-size:1.2rem;color:var(--navy)}
+.pl-tools-l span{color:var(--mut);font-size:.88rem}
+.pl-tools-r{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+.pl-tools-r a,.pl-tools-r button{font:inherit;font-size:.9rem;font-weight:600;border:1px solid var(--line);background:#fff;border-radius:8px;padding:.4rem .8rem;color:var(--ink);text-decoration:none;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem}
+.pl-tools-r a.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.pl-tools-r button{background:var(--gold);border-color:var(--gold);color:var(--navy)}
+.pl-tools-r .ico{width:1em;height:1em}
+/* a folha */
+.pl-sheets{display:grid;gap:1.2rem}
+.placa{width:297mm;height:210mm;background:#fff;display:grid;grid-template-columns:92mm 1fr;grid-template-rows:210mm;overflow:hidden;box-shadow:0 10px 30px -14px rgba(11,18,32,.35);border-radius:3mm;transform:scale(var(--z));transform-origin:top left;margin-bottom:calc(210mm * (var(--z) - 1))}
+.pl-side{background:var(--navy);color:#fff;padding:14mm 10mm 12mm;display:flex;flex-direction:column;gap:4mm;height:210mm;box-sizing:border-box;min-height:0;overflow:hidden}
+.placa.tenda .pl-side{background:#4c1d95}.placa.area .pl-side{background:#115e59}
+.pl-kind{font-size:7mm;letter-spacing:.3em;text-transform:uppercase;font-weight:700;opacity:.85}
+.pl-num{font-family:var(--font-display);font-weight:800;font-size:62mm;line-height:.9;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.pl-num.long{font-size:40mm}
+.pl-num.text{font-size:12mm;line-height:1.1;margin:4mm 0;overflow-wrap:anywhere;letter-spacing:0}
+.pl-name{font-size:7mm;font-weight:700;line-height:1.2}
+.pl-name small{display:block;font-size:4.2mm;font-weight:500;opacity:.8;margin-top:2mm;line-height:1.3}
+.pl-qr{margin-top:auto;flex:none;display:grid;grid-template-columns:30mm 1fr;gap:4mm;align-items:center}
+.pl-qr-box{background:#fff;border-radius:2mm;padding:1.5mm;width:30mm;height:30mm}
+.pl-qr-box svg{display:block;width:100%;height:100%}
+.pl-qr span{font-size:3.8mm;line-height:1.35;opacity:.9}
+.pl-main{display:flex;flex-direction:column;padding:10mm 12mm 8mm 12mm;min-width:0;height:210mm;box-sizing:border-box;overflow:hidden}
+.pl-head{flex:none;display:flex;justify-content:space-between;align-items:center;gap:6mm;padding-bottom:4mm;border-bottom:.5mm solid var(--navy)}
+.pl-head img{height:13mm;width:auto}
+.pl-head div{text-align:right;line-height:1.25}
+.pl-head b{display:block;font-family:var(--font-display);font-size:6mm;color:var(--navy)}
+.pl-head span{display:block;font-size:4mm;color:var(--mut)}
+.pl-body{flex:1;min-height:0;overflow:hidden;padding-top:4mm;display:flex;flex-direction:column;gap:3mm}
+.pl-day h3{font-family:var(--font-display);font-size:4.6mm;font-weight:800;color:var(--navy);margin:0 0 1.5mm;letter-spacing:.02em;text-transform:uppercase}
+.pl-svc h3{color:#7a5200}
+.pl-row{display:grid;grid-template-columns:24mm 1fr;gap:4mm;align-items:start;padding:1.8mm 0;border-top:.25mm solid var(--line)}
+.pl-row:first-of-type{border-top:0}
+.pl-time{font-size:5.2mm;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;padding-top:.3mm}
+.pl-what b{display:block;font-size:5.6mm;line-height:1.15;font-weight:700}
+.pl-what small{display:block;font-size:3.8mm;color:var(--mut);margin-top:.8mm;line-height:1.3}
+.pl-ico{width:11mm;height:11mm;border-radius:2.5mm;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 22%,#fff);color:color-mix(in srgb,var(--c) 65%,var(--ink));justify-self:start}
+.pl-ico .ico{width:6.5mm;height:6.5mm}
+.pl-empty{color:var(--mut);font-size:5mm}
+.pl-foot{flex:none;display:grid;grid-template-columns:1fr auto;gap:1mm 6mm;padding-top:3mm;border-top:.25mm solid var(--line);font-size:3.6mm;color:var(--mut)}
+.pl-foot .note{grid-column:1/-1;font-size:3.2mm}
+/* poucas linhas (classe few): letra maior e conteúdo centralizado, para ler de longe; muitas (many/dense): compacta */
+.pl-body.few{justify-content:center;padding-bottom:10mm}
+.pl-body.few .pl-what b{font-size:8mm;line-height:1.1}
+.pl-body.few .pl-what small{font-size:5mm;margin-top:1.5mm}
+.pl-body.few .pl-time{font-size:6.5mm}
+.pl-body.few .pl-row{grid-template-columns:30mm 1fr;padding:3mm 0}
+.pl-body.few .pl-ico{width:15mm;height:15mm}.pl-body.few .pl-ico .ico{width:9mm;height:9mm}
+.pl-body.few .pl-day h3{font-size:5.4mm;margin-bottom:3mm}
+.pl-body.many .pl-what b{font-size:4.8mm}
+.pl-body.many .pl-what small{font-size:3.4mm}
+.pl-body.many .pl-row{padding:1.1mm 0}
+.pl-body.many .pl-day h3{font-size:4mm;margin-bottom:.8mm}
+.pl-body.many{gap:2mm}
+.pl-body.dense .pl-what small{display:none}
+.pl-body.dense .pl-ico{width:8mm;height:8mm}.pl-body.dense .pl-ico .ico{width:5mm;height:5mm}
+.pl-body.dense .pl-what b{font-size:4.4mm}
+@media print{
+  @page{size:A4 landscape;margin:0}
+  html,body{background:#fff}
+  .pl{max-width:none;padding:0;background:#fff;min-height:0}
+  .pl-tools{display:none}
+  .pl-sheets{display:block}
+  .placa{transform:none;margin:0;box-shadow:none;border-radius:0;break-after:page;page-break-after:always}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
