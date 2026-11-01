@@ -16,27 +16,29 @@
 .placa{position:relative;width:297mm;height:210mm;background:#fff;display:grid;grid-template-columns:92mm 1fr;grid-template-rows:210mm;overflow:hidden;box-shadow:0 10px 30px -14px rgba(11,18,32,.35);border-radius:3mm;transform:scale(var(--z));transform-origin:top left;margin-bottom:calc(210mm * (var(--z) - 1))}
 /* faixa nas cores do anel do cartaz */
 .pl-band{position:absolute;left:92mm;right:0;top:0;height:3.5mm;background:linear-gradient(90deg,#2f8f3a 0 20%,#1d4ed8 20% 40%,#e3b505 40% 60%,#6d28d9 60% 80%,#c62828 80% 100%)}
-.pl-side{background:var(--navy);color:#fff;padding:13mm 9mm 10mm;display:flex;flex-direction:column;gap:3mm;height:210mm;box-sizing:border-box;min-height:0;overflow:hidden}
-.placa.tenda .pl-side{background:#4c1d95}.placa.area .pl-side{background:#115e59}
-.pl-kind{font-size:7mm;letter-spacing:.3em;text-transform:uppercase;font-weight:700;opacity:.85}
-.pl-num{font-family:var(--font-display);font-weight:800;font-size:64mm;line-height:.9;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
-.pl-num.long{font-size:40mm}
+.pl-side{--bg:11,27,61;background:rgb(var(--bg));color:#fff;padding:0 9mm 9mm;display:flex;flex-direction:column;gap:2.5mm;height:210mm;box-sizing:border-box;min-height:0;overflow:hidden}
+.placa.tenda .pl-side{--bg:76,29,149}.placa.area .pl-side{--bg:17,94,89}
+/* topo do painel: anel e emblema do cartaz, fundindo com a cor do painel */
+.pl-art{position:relative;height:58mm;margin:0 -9mm 4mm;overflow:hidden;flex:none}
+.pl-art img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block}
+.pl-art::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(var(--bg),.12) 0,rgba(var(--bg),.12) 55%,rgba(var(--bg),.75) 82%,rgb(var(--bg)) 100%)}
+.pl-kind{font-size:6.5mm;letter-spacing:.3em;text-transform:uppercase;font-weight:700;opacity:.85}
+.pl-num{font-family:var(--font-display);font-weight:800;font-size:54mm;line-height:.9;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.pl-num.long{font-size:36mm}
 .pl-num.text{font-size:12mm;line-height:1.1;margin:4mm 0;overflow-wrap:anywhere;letter-spacing:0}
-.pl-name{font-size:7mm;font-weight:700;line-height:1.2}
+.pl-name{font-size:6.5mm;font-weight:700;line-height:1.2}
 .pl-name small{display:block;font-size:4mm;font-weight:500;opacity:.8;margin-top:1.5mm;line-height:1.3}
-.pl-bottom{margin-top:auto;flex:none;display:grid;grid-template-columns:30mm 1fr;gap:5mm;align-items:end}
-.pl-cartaz{width:30mm;height:45mm;object-fit:cover;border-radius:1.5mm;display:block;box-shadow:0 1mm 3mm rgba(0,0,0,.35)}
-.pl-qr{display:grid;gap:2mm;justify-items:start}
-.pl-qr-box{background:#fff;border-radius:2mm;padding:1.5mm;width:27mm;height:27mm}
+.pl-qr{margin-top:auto;flex:none;display:grid;grid-template-columns:27mm 1fr;gap:4mm;align-items:center}
+.pl-qr-box{background:#fff;border-radius:2mm;padding:1.5mm;width:27mm;height:27mm;box-sizing:border-box}
 .pl-qr-box svg{display:block;width:100%;height:100%}
-.pl-qr span{font-size:3.5mm;line-height:1.3;opacity:.9}
+.pl-qr span{font-size:3.6mm;line-height:1.3;opacity:.92}
 .pl-main{display:flex;flex-direction:column;padding:9mm 11mm 7mm 11mm;min-width:0;height:210mm;box-sizing:border-box;overflow:hidden}
 .pl-head{flex:none;display:flex;align-items:center;gap:5mm;padding-bottom:3.5mm;border-bottom:.5mm solid var(--navy)}
-.pl-marca{height:19mm;width:auto;border-radius:1.5mm;border:.3mm solid #e8dcc8}
+.pl-marca{height:24mm;width:auto}
 .pl-head-t{flex:1;min-width:0;line-height:1.25}
-.pl-head-t b{display:block;font-family:var(--font-display);font-size:4.6mm;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-head-t b{display:block;font-family:var(--font-display);font-size:4.4mm;color:var(--primary);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pl-head-t span{display:block;font-size:3.9mm;color:var(--mut)}
-.pl-logo{height:12mm;width:auto}
+.pl-logo{height:13mm;width:auto}
 /* painel principal: tudo em em, base --k mm (ajustada por JS) */
 .pl-body{flex:1;min-height:0;overflow:hidden;padding-top:.8em;display:flex;flex-direction:column;gap:.6em;font-size:calc(1mm * var(--k,4.2));line-height:1.2}
 .pl-body.few{justify-content:center;padding-bottom:2em}

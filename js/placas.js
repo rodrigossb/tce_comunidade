@@ -31,13 +31,14 @@
     const kind = p.kind === 'area' && !p.num ? '' : KIND[p.kind];
     const qr = T.qrSvg(T.appUrl(`#mapa?local=${p.venue}&p=${p.id}`), { margin: 1 });
     return `<aside class="pl-side">
+        <div class="pl-art"><img src="img/arte-topo.jpg" alt=""></div>
         <div class="pl-kind">${kind}</div>
         ${bigNum ? `<div class="pl-num ${bigNum.length > 2 ? 'long' : ''}">${bigNum}</div>` : `<div class="pl-num text">${esc(p.name)}</div>`}
         <div class="pl-name">${bigNum ? esc(p.name) : ''}${progNames.length ? `<small>${progNames.map(esc).join(' · ')} na programação dos cursos</small>` : ''}</div>
-        <div class="pl-bottom"><img class="pl-cartaz" src="img/arte-cartaz.jpg" alt="Cartaz do TCE na Comunidade"><div class="pl-qr"><div class="pl-qr-box">${qr}</div><span>Aponte a câmera: caminho até aqui no mapa</span></div></div>
+        <div class="pl-qr"><div class="pl-qr-box">${qr}</div><span>Aponte a câmera do celular: caminho até aqui no mapa da escola</span></div>
       </aside>`;
   }
-  const head = (p) => `<header class="pl-head"><img class="pl-marca" src="img/arte-marca.jpg" alt="TCE na Comunidade"><div class="pl-head-t"><b>${esc(D.event.edition)} · ${esc(D.event.place)}</b><span>${esc(D.maps[p.venue].title)}</span></div><img class="pl-logo" src="img/tce-logo.png" alt="Tribunal de Contas do Estado do Amapá"></header>`;
+  const head = (p) => `<header class="pl-head"><img class="pl-marca" src="img/arte-marca.png" alt="TCE na Comunidade"><div class="pl-head-t"><b>${esc(D.event.edition)}</b><span>${esc(D.maps[p.venue].title)}</span></div><img class="pl-logo" src="img/tce-logo.png" alt="Tribunal de Contas do Estado do Amapá"></header>`;
   const foot = () => `<footer class="pl-foot"><span>${esc(D.event.datesLabel)} · www.tce.ap.gov.br/tce-na-comunidade</span><span>Cursos: inscrição pelo site da ESCON · Serviços gratuitos: por ordem de chegada</span></footer>`;
   const sheet = (p, uses, cls, body) => `<article class="placa ${p.kind} ${cls}" data-place="${p.id}"><div class="pl-band"></div>${side(p, uses)}<section class="pl-main">${head(p)}<div class="pl-body ${cls}">${body}</div>${foot()}</section></article>`;
 

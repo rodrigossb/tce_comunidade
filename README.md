@@ -70,9 +70,10 @@ Folhas A4 paisagem para colar nas portas, em duas versões (botões no topo da p
 - **Por curso / serviço** (`?modo=destaque`): uma folha para cada curso e para cada serviço da sala (88), com o
   nome bem grande, dia e horário, público e inscrição; nos serviços, os atendimentos em lista.
 
-Painel escuro à esquerda com o número da planta, nome do local, nome na programação dos cursos, miniatura do
-cartaz do evento (`img/arte-cartaz.jpg`) e QR para o caminho no mapa do app. À direita, a marca do evento
-recortada do cartaz (`img/arte-marca.jpg`), a logo do Tribunal e uma faixa nas cores do anel do cartaz.
+Painel escuro à esquerda: no topo, o anel e o emblema do cartaz do evento (`img/arte-topo.jpg`) fundindo com
+a cor do painel; abaixo, o número da planta, o nome do local, o nome na programação dos cursos e o QR para o
+caminho no mapa do app. À direita, a marca do evento com fundo transparente (`img/arte-marca.png`, extraída do
+cartaz), a logo do Tribunal e uma faixa nas cores do anel.
 O texto do painel principal cresce automaticamente até o maior tamanho que cabe na folha (`fit()` em
 `js/placas.js`; unidade `--k` em mm). Filtros: `?local=jn|manga`, `?sala=jn-r08,jn-r09`, `?todas=1`.
 Imprimir em cores, sem margens (a página define `@page` A4 paisagem com margem zero).
