@@ -78,15 +78,20 @@ Fila offline: gravações sem rede ficam no aparelho e são reenviadas.
 
 Servidor: `server/senhas.js` (Node 22 + SQLite embutido, sem dependências; porta 3015; dados em
 `server/data/senhas.db`, fora do git). PINs em `server/.env` (`PIN_OPERADOR`, `PIN_GESTOR`; nunca commitar).
-Roda no pm2 como `tce-senhas`; o nginx expõe em `https://dev.gerenciahub.com.br/tce-senhas/`
-(bloco em `server/nginx-tce-senhas.conf`; `sudo server/install-nginx.sh` instala). O endereço da API fica
-em `event.apiUrl` (`js/data.js`); `?api=http://127.0.0.1:3015` sobrescreve para testes. CORS libera só os
-domínios do site. Testes das agregações: `tests/stats.test.mjs`.
+**Front e API rodam juntos neste servidor**: o próprio Node serve `atendimento.html` e os `css/js/img/vendor`
+da raiz do repo (só leitura, sem `..`), injetando `<meta name="tce-api" content="./">` para a página usar a
+API na mesma origem (sem CORS). Endereço da equipe: **`https://dev.gerenciahub.com.br/tce-senhas/`**.
+Roda no pm2 como `tce-senhas` (reiniciar após `git pull`: `pm2 restart tce-senhas`); o nginx faz o proxy
+de `/tce-senhas/` para a porta 3015 (bloco em `server/nginx-tce-senhas.conf`; `sudo server/install-nginx.sh`).
+A cópia de `atendimento.html` publicada no GitHub Pages continua funcionando, apontando para `event.apiUrl`
+(`js/data.js`); `?api=http://127.0.0.1:3015` sobrescreve para testes. O site público (app, TV, totem,
+resumo) segue só no GitHub Pages. Testes das agregações: `tests/stats.test.mjs`.
 
 Backup (mesmo padrão do Painel Escolar): `node server/backup.js [rótulo]` gera um zip com cópia consistente
 do banco (`VACUUM INTO`, seguro com a API no ar), o `.env` e um LEIA-ME com totais, em `server/backups/`
 (fora do git; mantém os últimos 60). `server/backup-cron.sh` roda isso e copia para `~/backups/tce-senhas/`
-(90 dias). Cron instalado: diário às 03:40 e de hora em hora (7h–20h) de 03 a 07/11. Restaurar: `pm2 stop
+(90 dias). Cron sugerido (instalar com `crontab -e`): diário às 03:40 e de hora em hora (7h–20h) de 03 a 07/11,
+ver `server/backup-cron.sh`. Restaurar: `pm2 stop
 tce-senhas`, copiar `senhas.db` para `server/data/` e `.env` para `server/`, `pm2 start tce-senhas`.
 
 ## Dados

@@ -5,7 +5,9 @@
   'use strict';
   const T = window.TCE; const D = T.D; const I = T.icon; const esc = T.esc; const M = window.TCEMap;
   const root = document.getElementById('app');
-  const API = (T.params.get('api') || D.event.apiUrl || '').replace(/\/$/, '');
+  // Servido pelo próprio backend (server/senhas.js injeta <meta name="tce-api">): API na mesma origem. Fora dele, event.apiUrl.
+  const metaApi = document.querySelector('meta[name="tce-api"]');
+  const API = (T.params.get('api') || (metaApi ? new URL(metaApi.content, location.href).href : D.event.apiUrl) || '').replace(/\/$/, '');
   const LS = 'tce_at';
   const VER = (document.querySelector('script[src*="atendimento.js"]') || { src: '' }).src.split('?v=')[1] || '0';
   const st = (() => { try { return JSON.parse(localStorage.getItem(LS)) || {}; } catch { return {}; } })();

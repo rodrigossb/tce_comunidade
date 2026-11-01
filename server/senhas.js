@@ -2,6 +2,8 @@
 // Sem dependências. Configuração em server/.env (PIN_OPERADOR, PIN_GESTOR, PORT, ORIGINS, DB_PATH).
 // Rotas (prefixo /api): health, state, stats, issued (POST), call (POST), call/:id/status (POST),
 // call/:id/end (POST), export.csv. Autenticação por PIN no cabeçalho X-Pin.
+// Também serve o front do atendimento (atendimento.html + css/js/img/vendor da raiz do repo), de modo que
+// front e API rodam juntos no mesmo servidor/origem: https://<host>/tce-senhas/ → atendimento.html.
 'use strict';
 const http = require('node:http');
 const fs = require('node:fs');
@@ -18,6 +20,24 @@ const PIN_GE = String(process.env.PIN_GESTOR || '');
 const ORIGINS = String(process.env.ORIGINS || 'https://www.tce.ap.gov.br,https://tce.ap.gov.br,https://rodrigossb.github.io').split(',').map((s) => s.trim()).filter(Boolean);
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'senhas.db');
 if (!PIN_OP || !PIN_GE) { console.error('Defina PIN_OPERADOR e PIN_GESTOR em server/.env'); process.exit(1); }
+
+// ---- front estático (mesma origem da API) ----
+const STATIC_DIR = process.env.STATIC_DIR || path.join(__dirname, '..');
+const MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.json': 'application/json; charset=utf-8', '.woff2': 'font/woff2' };
+const STATIC_OK = /^\/(css|js|img|vendor)\/[\w.\-]+(\/[\w.\-]+)*$/;
+function serveStatic(req, res, p) {
+  if (p === '' || p === '/' || p === '/index.html' || p === '/atendimento' || p === '/atendimento.html') {
+    const html = fs.readFileSync(path.join(STATIC_DIR, 'atendimento.html'), 'utf8').replace('</head>', '  <meta name="tce-api" content="./">\n</head>');
+    res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-cache' }); return res.end(html);
+  }
+  if (!STATIC_OK.test(p)) return false;
+  const file = path.normalize(path.join(STATIC_DIR, p));
+  if (!file.startsWith(STATIC_DIR + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) return false;
+  const ext = path.extname(file).toLowerCase(); const type = MIME[ext]; if (!type) return false;
+  const img = /^image\/|^font\//.test(type);
+  res.writeHead(200, { 'Content-Type': type, 'Cache-Control': img ? 'public, max-age=604800' : 'no-cache', 'Content-Length': fs.statSync(file).size });
+  fs.createReadStream(file).pipe(res); return true;
+}
 
 // ---- banco ----
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
@@ -105,6 +125,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
     const u = new URL(req.url, 'http://x'); let p = u.pathname.replace(/\/+$/, '');
     if (p.startsWith('/tce-senhas')) p = p.slice('/tce-senhas'.length); // caso o proxy não remova o prefixo
+    if (req.method === 'GET' && !p.startsWith('/api')) { if (serveStatic(req, res, p) !== false) return; throw err(404, 'arquivo não encontrado'); }
     const m = p.match(/^\/api\/call\/(\d+)\/(status|end)$/);
     const keyR = m ? `${req.method} /api/call/:id/${m[2]}` : `${req.method} ${p}`;
     const h = routes[keyR]; if (!h) throw err(404, 'rota não encontrada');
