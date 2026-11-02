@@ -142,7 +142,7 @@ atualizados a cada 30 s; cálculos puros em `apps/senhas/lib/dash-stats.js`.
 **TV das senhas** (`/tce-senhas/tv`, pública, 16:9, sem login): cabeçalho "TCE NA COMUNIDADE" + relógio, quadro
 de salas × senhas (um cartão por sala com a senha atual em destaque, serviço, "chamando"/"em atendimento" e quantas
 aguardam), coluna "Últimas chamadas", QR do app e rodapé; nova chamada abre uma sobreposição grande por 9 s
-(`?voz=1` também anuncia por voz); no canto inferior direito, o painel "Senha atual" (a última chamada, enorme) e acima
+(`?voz=1` também anuncia por voz: como o Chrome, sobretudo em TV/Android, só fala depois de um toque ou tecla na página, aparece o botão amarelo **Ativar som** até a primeira interação, que confirma falando "Som ativado"; o rodapé mostra o estado da voz: ativa com o nome da voz, bloqueada, sem voz pt-BR instalada no aparelho, ou o erro; `apps/senhas/lib/voz.js`); no canto inferior direito, o painel "Senha atual" (a última chamada, enorme) e acima
 as chamadas anteriores. **Tempo real**: cada gravação de senha (emitir, chamar, entrou, não compareceu) avisa
 `lib/bus.js`, e a TV recebe o quadro na hora por SSE (`GET /api/tv/stream?local=&dia=`); o polling de 4 s em
 `GET /api/tv?local=&dia=` fica como rede de segurança. O **dia mostrado é o mesmo do app de atendimento**: o dia de

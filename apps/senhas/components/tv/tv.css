@@ -136,3 +136,13 @@
 @keyframes flashin{from{opacity:0}to{opacity:1}}
 @keyframes pop{from{transform:scale(.9);opacity:0}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.tv *{animation:none !important}}
+/* voz: botão "Ativar som" (o Chrome só fala depois de um gesto na página) e estado no rodapé */
+.tv-sound{position:fixed;left:50%;bottom:9%;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:.7em;font:inherit;font-size:1.1em;color:#0b1b3d;background:#fbbf24;border:0;border-radius:999px;padding:.7em 1.4em .7em 1.1em;box-shadow:0 .6em 2em rgba(0,0,0,.45);cursor:pointer;animation:tv-sound-pulse 1.6s ease-in-out infinite;text-align:left}
+.tv-sound:focus-visible{outline:.25em solid #fff;outline-offset:.2em}
+.tv-sound .ico{width:1.8em;height:1.8em;flex:none}
+.tv-sound b{display:block;font-size:1.25em;line-height:1.05}
+.tv-sound small{display:block;font-size:.7em;font-weight:600;opacity:.85;margin-top:.15em}
+@keyframes tv-sound-pulse{0%,100%{box-shadow:0 .6em 2em rgba(0,0,0,.45),0 0 0 0 rgba(251,191,36,.6)}50%{box-shadow:0 .6em 2em rgba(0,0,0,.45),0 0 0 .9em rgba(251,191,36,0)}}
+.tv-voice{display:inline-flex;align-items:center;gap:.35em;white-space:nowrap;font-weight:600;color:var(--mut)}
+.tv-voice .ico{width:1.1em;height:1.1em}
+.tv-voice.ok{color:#34d399}.tv-voice.warn{color:#fbbf24}

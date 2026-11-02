@@ -3,15 +3,17 @@
    (cabeçalho com marca + relógio, quadro fixo em tela cheia no visual do "horários full", QR e rodapé),
    mas o quadro é de SALAS × SENHAS: um cartão por sala com a senha atual em destaque máximo, o serviço,
    o estado (chamando / em atendimento) e quantas pessoas aguardam; à direita, as últimas chamadas.
-   Nova chamada: sobreposição grande por alguns segundos (+ voz com ?voz=1).
+   Nova chamada: sobreposição grande por alguns segundos (+ voz com ?voz=1; o Chrome só fala depois de um toque/tecla na
+   página, por isso aparece o botão "Ativar som" até a primeira interação; estado da voz no rodapé).
    Parâmetros: ?local=jn ?dia=AAAA-MM-DD ?grupo=entrada|fundos ?salas=03,04 ?servicos=pilar-1 ?voz=1 ?zoom=1.1 ?pagina=10 ?t=&d=
    Dia mostrado = o do app de atendimento (dia de serviços de hoje, senão o próximo). Atualização em tempo real por SSE.
-   Teclas: F tela cheia · +/-/0 escala. Recarrega às 4h e se ficar sem resposta por muito tempo. */
+   Teclas: F tela cheia · +/-/0 escala. Recarrega às 4h (só sem voz) e se ficar sem resposta por muito tempo. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TCE as T } from '@tce/core';
 import { TCEMap as M } from '@tce/core/map';
 import Icon from '@/components/Icon';
 import { selectQueues } from '@/lib/tv-grupos';
+import { pickVoice, voiceState, voiceLabel } from '@/lib/voz';
 
 const D = T.D;
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -44,6 +46,34 @@ function Board() {
   const sel = useMemo(() => selectQueues(sp, day), [sp, day]);
   const venue = sel.venue; const venueName = D.venues[venue] ? D.venues[venue].name : venue;
   const voice = sp.get('voz') === '1';
+  // ---- voz: o Chrome (sobretudo em TV/Android) só deixa falar depois de um gesto do usuário na página ----
+  const [voices, setVoices] = useState(null); // null = ainda não lidas
+  const [unlocked, setUnlocked] = useState(false);
+  const [voiceErr, setVoiceErr] = useState('');
+  const supported = typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+  const speak = useCallback((text) => {
+    if (!supported) return;
+    try {
+      const u = new SpeechSynthesisUtterance(text); u.lang = 'pt-BR'; u.rate = 0.95;
+      const v = pickVoice(window.speechSynthesis.getVoices()); if (v) u.voice = v;
+      u.onerror = (e) => { const code = (e && e.error) || 'desconhecido'; if (code === 'interrupted' || code === 'canceled') return; console.warn('[tv] voz falhou:', code); setVoiceErr(code); if (code === 'not-allowed') setUnlocked(false); };
+      u.onstart = () => setVoiceErr('');
+      window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+    } catch (e) { console.warn('[tv] voz indisponível:', e); setVoiceErr('exception'); }
+  }, [supported]);
+  const unlock = useCallback(() => { if (!voice || !supported) return; setUnlocked((was) => { if (!was) speak('Som ativado. As senhas serão anunciadas.'); return true; }); setVoiceErr(''); }, [voice, supported, speak]);
+  useEffect(() => {
+    if (!voice || !supported) return;
+    const load = () => setVoices(window.speechSynthesis.getVoices());
+    load(); window.speechSynthesis.addEventListener('voiceschanged', load);
+    // Já houve interação nesta página (ex.: tecla F para tela cheia)? Então o som já está liberado.
+    if (navigator.userActivation && navigator.userActivation.hasBeenActive) setUnlocked(true);
+    const gesture = () => unlock();
+    window.addEventListener('pointerdown', gesture); window.addEventListener('keydown', gesture);
+    return () => { window.speechSynthesis.removeEventListener('voiceschanged', load); window.removeEventListener('pointerdown', gesture); window.removeEventListener('keydown', gesture); };
+  }, [voice, supported, unlock]);
+  const vState = voiceState({ wanted: voice, supported, voices, unlocked, lastError: voiceErr });
+  const vLabel = voiceLabel(vState, voices ? pickVoice(voices) : null);
   const [zoom, setZoom] = useState(() => Math.min(1.6, Math.max(0.6, asScale(sp.get('zoom')) || 1)));
   const pageSecs = Math.min(60, Math.max(4, Number(sp.get('pagina')) || PAGE_SECS_DEFAULT));
   const [portrait, setPortrait] = useState(false);
@@ -75,7 +105,8 @@ function Board() {
 
   // ---- vigília: recarga de madrugada, travamento, teclas ----
   useEffect(() => {
-    const wd = setInterval(() => { const d = new Date(); if (d.getHours() === 4 && d.getMinutes() < 2) location.reload(); if (Date.now() - lastOk.current > 15 * 60 * 1000) location.reload(); }, 60000);
+    // Recarga de madrugada só sem voz: recarregar perde a liberação de som dada pelo controle (o dia muda sozinho pelo relógio; o SSE mantém os dados).
+    const wd = setInterval(() => { const d = new Date(); if (d.getHours() === 4 && d.getMinutes() < 2 && !voice) location.reload(); if (Date.now() - lastOk.current > 15 * 60 * 1000) location.reload(); }, 60000);
     const fs = () => { const el = document.documentElement; if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(() => {}); };
     const onKey = (e) => {
       if (e.key.toLowerCase() === 'f') fs();
@@ -85,7 +116,7 @@ function Board() {
     };
     window.addEventListener('keydown', onKey); window.addEventListener('pointerdown', fs);
     return () => { clearInterval(wd); window.removeEventListener('keydown', onKey); window.removeEventListener('pointerdown', fs); };
-  }, []);
+  }, [voice]);
 
   // ---- linhas do quadro: cada fila selecionada com a situação vinda do banco ----
   const rows = useMemo(() => {
@@ -114,10 +145,8 @@ function Board() {
     if (top.ticket == null || Date.now() - top.called_at > 60000) return; // chamada antiga (ex.: recarga) não pisca
     const p = T.placeInfo(top.place_id); const s = D.services.find((x) => x.id === top.service_id);
     setFlash({ id: top.id, ticket: top.ticket, place: p, service: s, until: Date.now() + FLASH_MS });
-    if (voice && window.speechSynthesis && p) {
-      try { const u = new SpeechSynthesisUtterance(`Senha ${top.ticket}. ${p.num ? `${svcName(p)}, ${speakable(p)}` : svcName(p)}.`); u.lang = 'pt-BR'; u.rate = 0.95; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } catch { /* sem voz */ }
-    }
-  }, [recent, voice]);
+    if (voice && p) speak(`Senha ${top.ticket}. ${p.num ? `${svcName(p)}, ${speakable(p)}` : svcName(p)}.`);
+  }, [recent, voice, speak]);
   useEffect(() => { if (!flash) return; const id = setTimeout(() => setFlash(null), Math.max(0, flash.until - Date.now())); return () => clearTimeout(id); }, [flash]);
 
   // ---- páginas (quando há mais salas do que cabe) ----
@@ -201,8 +230,13 @@ function Board() {
         </aside>
       </div>
 
-      <footer className="tv-foot"><span>{D.event.organizer} · {D.event.datesLabel}</span><span className="tv-foot-msg">Fique atento ao número da sua senha e à sala · atendimento por ordem de chegada</span><span className="tv-qr mini"><span className="tv-qr-svg" dangerouslySetInnerHTML={{ __html: qr }} /><p><Icon name="phone" />Serviços, salas e mapa<br />no celular</p></span></footer>
+      <footer className="tv-foot"><span>{D.event.organizer} · {D.event.datesLabel}</span><span className="tv-foot-msg">Fique atento ao número da sua senha e à sala · atendimento por ordem de chegada</span>{vLabel ? <span className={`tv-voice ${vState === 'ready' ? 'ok' : vState === 'locked' || vState.startsWith('error') || vState === 'novoice' ? 'warn' : ''}`} title={vLabel}><Icon name="megaphone" />{vLabel}</span> : null}<span className="tv-qr mini"><span className="tv-qr-svg" dangerouslySetInnerHTML={{ __html: qr }} /><p><Icon name="phone" />Serviços, salas e mapa<br />no celular</p></span></footer>
 
+      {voice && supported && !unlocked ? (
+        <button type="button" className="tv-sound" autoFocus onClick={unlock}>
+          <Icon name="megaphone" /><span><b>Ativar som</b><small>pressione OK ou qualquer seta no controle da TV (ou toque na tela) para liberar os anúncios por voz</small></span>
+        </button>
+      ) : null}
       {flash ? (
         <div className="sq-flash" role="alert" key={flash.id} style={{ '--c': flash.service ? flash.service.color : '#fbbf24' }}>
           <div className="sq-flash-box">
