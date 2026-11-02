@@ -2,9 +2,14 @@
 // Controle de senhas: roda como servidor Node (pm2 → next start) atrás do nginx em /tce-senhas/.
 // BASE_PATH muda o prefixo (ex.: "" para servir na raiz de um servidor local).
 const basePath = process.env.BASE_PATH ?? '/tce-senhas';
+// Identificação do build (rodapé da TV): commit curto + data, para saber na tela qual versão está rodando.
+import { execSync } from 'node:child_process';
+let build = '';
+try { build = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { build = ''; }
+const BUILD = `${build || 'dev'} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`;
 const nextConfig = {
   basePath,
-  env: { NEXT_PUBLIC_BASE_PATH: basePath },
+  env: { NEXT_PUBLIC_BASE_PATH: basePath, NEXT_PUBLIC_BUILD: BUILD },
   transpilePackages: ['@tce/core'],
   reactStrictMode: true,
   agentRules: false,

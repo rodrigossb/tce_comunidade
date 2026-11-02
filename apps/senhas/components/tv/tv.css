@@ -148,3 +148,4 @@
 .tv-voice.ok{color:#34d399}.tv-voice.warn{color:#fbbf24}
 .tv-banner{position:fixed;left:50%;top:14%;transform:translateX(-50%);z-index:70;display:flex;align-items:center;gap:.6em;font-size:1.15em;font-weight:700;color:#0b1b3d;background:#fff;border-radius:999px;padding:.6em 1.3em;box-shadow:0 .6em 2em rgba(0,0,0,.5);max-width:90vw}
 .tv-banner .ico{width:1.4em;height:1.4em;flex:none;color:#b45309}
+.tv-build{opacity:.55;font-size:.85em}

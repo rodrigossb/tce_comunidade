@@ -28,7 +28,7 @@ export function voiceState({ wanted, supported, voices, unlocked, lastError }) {
 /** Texto curto para o rodapé da TV. */
 export function voiceLabel(state, voice) {
   if (state === 'off') return '';
-  if (state === 'unsupported') return 'voz indisponível neste navegador';
+  if (state === 'unsupported') return 'sem síntese de voz neste navegador: só a campainha';
   if (state === 'locked') return 'voz: aperte OK no controle (ou toque na tela) para ativar o som';
   if (state === 'novoice') return 'voz: nenhuma voz instalada no aparelho (instale o pacote de voz pt-BR)';
   if (state === 'fallback') return 'voz: sem voz em português, usando a padrão';

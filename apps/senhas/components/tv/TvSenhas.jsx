@@ -17,6 +17,7 @@ import { pickVoice, voiceState, voiceLabel } from '@/lib/voz';
 
 const D = T.D;
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const BUILD = process.env.NEXT_PUBLIC_BUILD || 'dev';
 const POLL_MS = 4000;
 const FLASH_MS = 7000; // cada chamada fica em destaque por 7 s; chamadas simultâneas entram numa fila e saem uma por vez
 const PAGE_SECS_DEFAULT = 10;
@@ -80,21 +81,22 @@ function Board() {
   }, [supported, showBanner]);
   // Libera o som: precisa rodar de forma síncrona dentro do gesto (toque/tecla), por isso usa ref e não o estado.
   const unlock = useCallback(() => {
-    if (!voice || !supported || unlockedRef.current) return;
+    if (!voice || unlockedRef.current) return;
     unlockedRef.current = true; setUnlocked(true); setVoiceErr('');
-    chime(); speak('Som ativado. As senhas serão anunciadas.');
-    setTimeout(() => { const vs = window.speechSynthesis.getVoices(); showBanner(`Som ativado · ${voiceLabel(voiceState({ wanted: true, supported: true, voices: vs, unlocked: true, lastError: '' }), pickVoice(vs))}`); }, 1500);
+    chime(); if (supported) speak('Som ativado. As senhas serão anunciadas.');
+    setTimeout(() => { const vs = supported ? window.speechSynthesis.getVoices() : []; showBanner(`Som ativado (campainha) · ${voiceLabel(voiceState({ wanted: true, supported, voices: vs, unlocked: true, lastError: '' }), pickVoice(vs))}`); }, 1500);
   }, [voice, supported, chime, speak, showBanner]);
   useEffect(() => {
-    if (!voice || !supported) return;
-    const load = () => setVoices(window.speechSynthesis.getVoices());
-    load(); window.speechSynthesis.addEventListener('voiceschanged', load);
+    if (!voice) return;
+    const load = () => setVoices(supported ? window.speechSynthesis.getVoices() : []);
+    load(); if (supported) window.speechSynthesis.addEventListener('voiceschanged', load);
     // Já houve interação nesta página (ex.: tecla F para tela cheia)? Então o som já está liberado.
     if (navigator.userActivation && navigator.userActivation.hasBeenActive) { unlockedRef.current = true; setUnlocked(true); }
+    else showBanner(supported ? 'Som: aperte OK no controle (ou toque na tela) para ativar os anúncios' : 'Este navegador não tem síntese de voz: só a campainha vai tocar. Aperte OK no controle para ativar o som', 12000);
     const gesture = () => unlock();
     window.addEventListener('pointerdown', gesture); window.addEventListener('keydown', gesture);
-    return () => { window.speechSynthesis.removeEventListener('voiceschanged', load); window.removeEventListener('pointerdown', gesture); window.removeEventListener('keydown', gesture); };
-  }, [voice, supported, unlock]);
+    return () => { if (supported) window.speechSynthesis.removeEventListener('voiceschanged', load); window.removeEventListener('pointerdown', gesture); window.removeEventListener('keydown', gesture); };
+  }, [voice, supported, unlock, showBanner]);
   const vState = voiceState({ wanted: voice, supported, voices, unlocked, lastError: voiceErr });
   const vLabel = voiceLabel(vState, voices ? pickVoice(voices) : null);
   const [zoom, setZoom] = useState(() => Math.min(1.6, Math.max(0.6, asScale(sp.get('zoom')) || 1)));
@@ -269,9 +271,9 @@ function Board() {
         </aside>
       </div>
 
-      <footer className="tv-foot"><span>{D.event.organizer} · {D.event.datesLabel}</span><span className="tv-foot-msg">Fique atento ao número da sua senha e à sala · atendimento por ordem de chegada</span>{vLabel ? <span className={`tv-voice ${vState === 'ready' ? 'ok' : vState === 'locked' || vState.startsWith('error') || vState === 'novoice' ? 'warn' : ''}`} title={vLabel}><Icon name="megaphone" />{vLabel}</span> : null}</footer>
+      <footer className="tv-foot"><span>{D.event.organizer} · {D.event.datesLabel} <span className="tv-build">· v{BUILD}{voice ? ' · voz=1' : ''}</span></span><span className="tv-foot-msg">Fique atento ao número da sua senha e à sala · atendimento por ordem de chegada</span>{vLabel ? <span className={`tv-voice ${vState === 'ready' ? 'ok' : vState === 'locked' || vState.startsWith('error') || vState === 'novoice' ? 'warn' : ''}`} title={vLabel}><Icon name="megaphone" />{vLabel}</span> : null}</footer>
 
-      {voice && supported && !unlocked ? (
+      {voice && !unlocked ? (
         <button type="button" className="tv-sound" autoFocus onClick={unlock}>
           <Icon name="megaphone" /><span><b>Ativar som</b><small>pressione OK ou qualquer seta no controle da TV (ou toque na tela) para liberar os anúncios por voz</small></span>
         </button>
