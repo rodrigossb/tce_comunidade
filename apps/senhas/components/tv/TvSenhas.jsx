@@ -18,7 +18,7 @@ const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const POLL_MS = 4000;
 const FLASH_MS = 9000;
 const PAGE_SECS_DEFAULT = 10;
-const MAX_PER_PAGE = { landscape: 16, portrait: 8 };
+const MAX_PER_PAGE = { landscape: 30, portrait: 12 };
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const fmtT = (ms) => (ms ? T.partsOf(new Date(ms)).time : '');
 const asScale = (v) => { const n = Number(v); return n > 0 ? (n > 5 ? n / 100 : n) : 0; };
@@ -89,7 +89,11 @@ function Board() {
   const rows = useMemo(() => {
     const byPlace = new Map();
     for (const p of (data && data.places) || []) { const cur = byPlace.get(p.place_id); if (!cur || ((p.current && p.current.called_at) || 0) > ((cur.current && cur.current.called_at) || 0)) byPlace.set(p.place_id, Object.assign({}, p, { waiting: (cur ? cur.waiting : 0) + p.waiting })); }
-    return sel.queues.map((q) => ({ key: q.place.id, place: q.place, service: q.service, stat: byPlace.get(q.place.id) || null }));
+    const svcIdx = (s) => D.services.findIndex((x) => x.id === s.id);
+    const numOf = (p) => (p.num ? Number(p.num) || 0 : 999);
+    // Ordem: serviço (é o que está na senha impressa) e, dentro dele, sala/tenda por número.
+    return sel.queues.map((q) => ({ key: q.place.id, place: q.place, service: q.service, stat: byPlace.get(q.place.id) || null }))
+      .sort((a, b) => svcIdx(a.service) - svcIdx(b.service) || numOf(a.place) - numOf(b.place) || String(a.place.name).localeCompare(String(b.place.name), 'pt-BR'));
   }, [sel, data]);
   const selected = useMemo(() => new Set(rows.map((r) => r.key)), [rows]);
   const recent = useMemo(() => ((data && data.recent) || []).filter((c) => selected.has(c.place_id)), [data, selected]);
@@ -122,10 +126,10 @@ function Board() {
   const page = pages > 1 ? cycle % pages : 0;
   const shown = rows.slice(page * per, page * per + per);
   const n = shown.length;
-  const cols = portrait ? (n <= 1 ? 1 : 2) : n <= 1 ? 1 : n <= 2 ? 2 : n <= 4 ? 2 : n <= 9 ? 3 : 4;
+  const cols = portrait ? (n <= 1 ? 1 : n <= 6 ? 2 : 3) : n <= 1 ? 1 : n <= 2 ? 2 : n <= 4 ? 2 : n <= 9 ? 3 : n <= 16 ? 4 : n <= 25 ? 5 : 6;
   const rowsN = Math.max(1, Math.ceil(n / cols));
   // Escala do texto dos cartões pelo número de linhas (o número da senha cresce com a altura do cartão, via cqh no CSS).
-  const fs = Math.round(Math.min(1.5, Math.max(0.9, 2.8 / rowsN)) * 100) / 100;
+  const fs = Math.round(Math.min(1.5, Math.max(0.72, 2.8 / rowsN)) * 100) / 100;
 
   const sd = T.serviceDayOf(clock.date);
   const subtitle = [D.event.edition, venueName, sd ? 'Serviços gratuitos · hoje' : day !== clock.date ? `Serviços gratuitos · ${T.fmtDate(day, 'wd')}` : 'Serviços gratuitos'].join(' · ');
@@ -161,9 +165,9 @@ function Board() {
               {shown.map((r) => { const st = stateOf(r); const c = r.stat && r.stat.current; const isLatest = c && latestId != null && c.id === latestId && Date.now() - c.called_at < 60000;
                 return (
                   <div key={r.key} className={`sq-card ${st.k} ${isLatest ? 'latest' : ''}`} style={{ '--c': r.service.color }}>
-                    <div className="sq-top"><b className="sq-roomname">{roomBig(r.place)}</b><span className="sq-svc" title={r.service.short}><Icon name={r.service.icon} /><span>{r.service.short}</span></span></div>
+                    <div className="sq-top"><span className="sq-svc" title={r.service.title}><Icon name={r.service.icon} /><span>{r.service.short}</span></span></div>
                     <div className="sq-mid"><b className="sq-num">{c && c.ticket != null ? c.ticket : '—'}</b></div>
-                    <div className="sq-bot"><div className="sq-line"><small className="sq-place">{r.place.num ? r.place.name : roomWord(r.place)}</small>{r.stat && r.stat.issued ? <span className="sq-wait">{r.stat.waiting} aguardando</span> : null}</div><span className={`sq-state ${st.k}`}>{st.k === 'calling' ? <Icon name="megaphone" /> : st.k === 'serving' ? <Icon name="check" /> : null}{st.label}{c && st.k !== 'idle' ? <em> · {fmtT(c.status_at || c.called_at)}</em> : null}</span></div>
+                    <div className="sq-bot"><div className="sq-line"><b className="sq-roomname">{roomBig(r.place)}</b><small className="sq-place">{r.place.num ? r.place.name : roomWord(r.place)}</small>{r.stat && r.stat.issued ? <span className="sq-wait">{r.stat.waiting} aguardando</span> : null}</div><span className={`sq-state ${st.k}`}>{st.k === 'calling' ? <Icon name="megaphone" /> : st.k === 'serving' ? <Icon name="check" /> : null}{st.label}{c && st.k !== 'idle' ? <em> · {fmtT(c.status_at || c.called_at)}</em> : null}</span></div>
                   </div>
                 ); })}
             </div>
@@ -175,7 +179,7 @@ function Board() {
           <div className="sq-recent">
             <span className="mb-title"><Icon name="list" />Chamadas anteriores</span>
             {recent.length > 1 ? <ol>{recent.slice(1, portrait ? 4 : 6).map((c) => { const p = T.placeInfo(c.place_id); const s = D.services.find((x) => x.id === c.service_id); return (
-              <li key={c.id} className={c.status} style={{ '--c': s ? s.color : '#94a3b8' }}><b>{c.ticket ?? '—'}</b><span><strong>{p ? roomBig(p) : c.place_id}</strong><small>{s ? s.short : ''}</small></span><em>{fmtT(c.called_at)}</em></li>
+              <li key={c.id} className={c.status} style={{ '--c': s ? s.color : '#94a3b8' }}><b>{c.ticket ?? '—'}</b><span><strong>{s ? s.short : ''}</strong><small>{p ? roomBig(p) : c.place_id}{p && p.num ? ` · ${p.name}` : ''}</small></span><em>{fmtT(c.called_at)}</em></li>
             ); })}</ol> : <p className="sq-none">{recent.length ? 'Só uma chamada até agora.' : 'Nenhuma chamada ainda hoje.'}</p>}
           </div>
           {(() => {
@@ -185,10 +189,10 @@ function Board() {
             const label = k === 'calling' ? 'chamando' : k === 'serving' ? 'em atendimento' : k === 'absent' ? 'não compareceu' : 'atendida';
             return (
               <div className={`sq-now ${k}`} style={{ '--c': s ? s.color : '#fbbf24' }}>
-                <small className="sq-now-k"><Icon name={k === 'calling' ? 'megaphone' : 'ticket'} />Senha atual · <em>{label}</em></small>
+                <small className="sq-now-k"><Icon name={k === 'calling' ? 'megaphone' : 'ticket'} />Senha atual · <em>{label}</em> · {fmtT(c.called_at)}</small>
+                <div className="sq-now-svc">{s ? <><Icon name={s.icon} />{s.short}</> : null}</div>
                 <b className="sq-now-num">{c.ticket ?? '—'}</b>
                 <div className="sq-now-room"><b>{p ? roomBig(p) : c.place_id}</b><span>{p && p.num ? p.name : ''}</span></div>
-                <div className="sq-now-svc">{s ? <><Icon name={s.icon} />{s.short}</> : null}<em>{fmtT(c.called_at)}</em></div>
               </div>
             );
           })()}
@@ -200,8 +204,8 @@ function Board() {
       {flash ? (
         <div className="sq-flash" role="alert" key={flash.id} style={{ '--c': flash.service ? flash.service.color : '#fbbf24' }}>
           <div className="sq-flash-box">
-            <small><Icon name="megaphone" />Chamando agora{flash.service ? ` · ${flash.service.short}` : ''}</small>
-            <div className="sq-flash-row"><span className="sq-flash-num"><em>senha</em><b>{flash.ticket}</b></span><Icon name="right" className="sq-flash-arrow" /><span className="sq-flash-room"><b>{flash.place ? roomBig(flash.place) : flash.place_id}</b><small>{flash.place && flash.place.num ? flash.place.name : ''}</small></span></div>
+            <small><Icon name="megaphone" />Chamando agora</small>
+            <div className="sq-flash-row"><span className="sq-flash-num"><em>senha</em><b>{flash.ticket}</b></span><Icon name="right" className="sq-flash-arrow" /><span className="sq-flash-room"><b>{flash.service ? flash.service.short : ''}</b><small>{flash.place ? roomBig(flash.place) : flash.place_id}{flash.place && flash.place.num ? ` · ${flash.place.name}` : ''}</small></span></div>
           </div>
         </div>
       ) : null}
