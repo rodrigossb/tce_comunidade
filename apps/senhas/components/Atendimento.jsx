@@ -248,8 +248,9 @@ export default function Atendimento() {
     // Quem está em atendimento agora (entrou e não saiu), mesmo que a última chamada seja outra senha na porta.
     const serving = calls.find((x) => x.status === 'served' && !x.ended_at) || null;
     const atDoor = cur && cur.status === 'called' ? cur : null;
-    // Depois de entrou/não veio, chama a próxima só se ainda houver senha entregue para chamar (ou se não se sabe quantas foram entregues).
-    const canAuto = issued == null || next <= issued;
+    // Depois de entrou/não veio, a próxima senha é chamada SEMPRE (a contagem da triagem pode estar atrasada; se a senha
+    // não existir, basta marcar "Não veio" ou "Desfazer").
+    const canAuto = true;
     const svcStat = data && data.stats.services.find((x) => x.service_id === s.id);
     const plStat = svcStat ? svcStat.places.find((p) => p.place_id === st.place) : null;
     const called = plStat ? plStat.called : calls.length;
@@ -268,7 +269,7 @@ export default function Atendimento() {
             <>
               <div className="door-now idle"><small>{cur ? 'Nenhuma senha aguardando na porta' : 'Nenhuma senha chamada ainda'}</small><b>—</b></div>
               <button className="door-next" data-act="call" disabled={busy} onClick={() => act.call(next)}>{I('megaphone')}Chamar a senha {next}</button>
-              <p className="door-hint">A chamada aparece na TV e a pessoa vem aguardar na porta.{issued != null && next > issued ? ' Todas as senhas entregues já foram chamadas.' : ''}</p>
+              <p className="door-hint">A chamada aparece na TV e a pessoa vem aguardar na porta. Depois, cada "Entrou" já chama a seguinte.{issued != null && next > issued ? ' (A triagem registrou menos senhas entregues do que isso.)' : ''}</p>
             </>
           )}
           {serving ? (
