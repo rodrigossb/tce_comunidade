@@ -148,10 +148,9 @@ function Board() {
               {shown.map((r) => { const st = stateOf(r); const c = r.stat && r.stat.current; const isLatest = c && latestId != null && c.id === latestId && Date.now() - c.called_at < 60000;
                 return (
                   <div key={r.key} className={`sq-card ${st.k} ${isLatest ? 'latest' : ''}`} style={{ '--c': r.service.color }}>
-                    <div className="sq-top"><span className="sq-svc"><Icon name={r.service.icon} />{r.service.short}</span>{r.stat && r.stat.issued ? <span className="sq-wait">{r.stat.waiting} aguardando</span> : null}</div>
-                    <div className="sq-mid"><small>{c && c.ticket != null ? 'senha' : ''}</small><b className="sq-num">{c && c.ticket != null ? c.ticket : '—'}</b></div>
-                    <div className="sq-room"><b>{roomBig(r.place)}</b><small>{r.place.num ? r.place.name : roomWord(r.place)}</small></div>
-                    <div className={`sq-state ${st.k}`}>{st.k === 'calling' ? <Icon name="megaphone" /> : st.k === 'serving' ? <Icon name="check" /> : null}{st.label}{c && st.k !== 'idle' ? <em> · {fmtT(c.status_at || c.called_at)}</em> : null}</div>
+                    <div className="sq-top"><b className="sq-roomname">{roomBig(r.place)}</b><span className="sq-svc" title={r.service.short}><Icon name={r.service.icon} /><span>{r.service.short}</span></span></div>
+                    <div className="sq-mid"><b className="sq-num">{c && c.ticket != null ? c.ticket : '—'}</b></div>
+                    <div className="sq-bot"><div className="sq-line"><small className="sq-place">{r.place.num ? r.place.name : roomWord(r.place)}</small>{r.stat && r.stat.issued ? <span className="sq-wait">{r.stat.waiting} aguardando</span> : null}</div><span className={`sq-state ${st.k}`}>{st.k === 'calling' ? <Icon name="megaphone" /> : st.k === 'serving' ? <Icon name="check" /> : null}{st.label}{c && st.k !== 'idle' ? <em> · {fmtT(c.status_at || c.called_at)}</em> : null}</span></div>
                   </div>
                 ); })}
             </div>
@@ -161,16 +160,29 @@ function Board() {
 
         <aside className="sq-side">
           <div className="sq-recent">
-            <span className="mb-title"><Icon name="megaphone" />Últimas chamadas</span>
-            {recent.length ? <ol>{recent.slice(0, portrait ? 5 : 7).map((c, k) => { const p = T.placeInfo(c.place_id); const s = D.services.find((x) => x.id === c.service_id); return (
-              <li key={c.id} className={`${k === 0 ? 'first' : ''} ${c.status}`} style={{ '--c': s ? s.color : '#94a3b8' }}><b>{c.ticket ?? '—'}</b><span><strong>{p ? roomBig(p) : c.place_id}</strong><small>{p && p.num ? p.name : s ? s.short : ''}</small></span><em>{fmtT(c.called_at)}</em></li>
-            ); })}</ol> : <p className="sq-none">Nenhuma chamada ainda hoje.</p>}
+            <span className="mb-title"><Icon name="list" />Chamadas anteriores</span>
+            {recent.length > 1 ? <ol>{recent.slice(1, portrait ? 4 : 6).map((c) => { const p = T.placeInfo(c.place_id); const s = D.services.find((x) => x.id === c.service_id); return (
+              <li key={c.id} className={c.status} style={{ '--c': s ? s.color : '#94a3b8' }}><b>{c.ticket ?? '—'}</b><span><strong>{p ? roomBig(p) : c.place_id}</strong><small>{s ? s.short : ''}</small></span><em>{fmtT(c.called_at)}</em></li>
+            ); })}</ol> : <p className="sq-none">{recent.length ? 'Só uma chamada até agora.' : 'Nenhuma chamada ainda hoje.'}</p>}
           </div>
-          <div className="tv-qr row"><div className="tv-qr-svg" dangerouslySetInnerHTML={{ __html: qr }} /><p><Icon name="phone" />Serviços, salas e mapa no celular</p></div>
+          {(() => {
+            const c = recent[0]; if (!c) return <div className="sq-now idle"><small className="sq-now-k"><Icon name="ticket" />Senha atual</small><b className="sq-now-num">—</b><div className="sq-now-room"><b>Aguardando</b><span>a primeira chamada do dia</span></div></div>;
+            const p = T.placeInfo(c.place_id); const s = D.services.find((x) => x.id === c.service_id);
+            const k = c.status === 'called' ? 'calling' : c.status === 'served' ? 'serving' : c.status === 'absent' ? 'absent' : 'done';
+            const label = k === 'calling' ? 'chamando' : k === 'serving' ? 'em atendimento' : k === 'absent' ? 'não compareceu' : 'atendida';
+            return (
+              <div className={`sq-now ${k}`} style={{ '--c': s ? s.color : '#fbbf24' }}>
+                <small className="sq-now-k"><Icon name={k === 'calling' ? 'megaphone' : 'ticket'} />Senha atual · <em>{label}</em></small>
+                <b className="sq-now-num">{c.ticket ?? '—'}</b>
+                <div className="sq-now-room"><b>{p ? roomBig(p) : c.place_id}</b><span>{p && p.num ? p.name : ''}</span></div>
+                <div className="sq-now-svc">{s ? <><Icon name={s.icon} />{s.short}</> : null}<em>{fmtT(c.called_at)}</em></div>
+              </div>
+            );
+          })()}
         </aside>
       </div>
 
-      <footer className="tv-foot"><span>{D.event.organizer} · {D.event.datesLabel}</span><span>Fique atento ao número da sua senha e à sala · atendimento por ordem de chegada</span></footer>
+      <footer className="tv-foot"><span>{D.event.organizer} · {D.event.datesLabel}</span><span className="tv-foot-msg">Fique atento ao número da sua senha e à sala · atendimento por ordem de chegada</span><span className="tv-qr mini"><span className="tv-qr-svg" dangerouslySetInnerHTML={{ __html: qr }} /><p><Icon name="phone" />Serviços, salas e mapa<br />no celular</p></span></footer>
 
       {flash ? (
         <div className="sq-flash" role="alert" key={flash.id} style={{ '--c': flash.service ? flash.service.color : '#fbbf24' }}>
