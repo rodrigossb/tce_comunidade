@@ -53,12 +53,22 @@ Documento imprimível (A4) para a coordenação: visão geral dias × locais, ca
 serviços com sala), plantas com o uso de cada sala, cursos A–Z e pendências. Fora da navegação pública.
 
 ## Resumo de cursos e inscrições (`resumo-cursos.html`)
-Cursos por dia e local e de A a Z com vagas, inscritos e vagas restantes, mais alertas (lotados, quase lotados, baixa
-procura). Os inscritos vêm do painel administrativo da ESCON, que só é acessível de dentro da rede do TCE. Três formas
-de alimentar, em ordem de preferência: (1) `apps/site/public/inscritos.json` publicado com o site, gerado por
-`node apps/site/scripts/inscritos.mjs <painel salvo .html|.txt|.json>` (reconhece cursos por código ou nome e as colunas
-pelo cabeçalho; mantém o último valor de quem não vier) e enviado com `git push`; (2) `?k=chave` na URL, para o navegador
-ler o painel direto (se o painel permitir); (3) colar o conteúdo do painel no campo da capa (fica só no aparelho).
+Cursos por dia e local e de A a Z com vagas, inscritos e vagas restantes por turma, mais alertas (lotados, quase lotados,
+baixa procura). Os inscritos vêm do painel administrativo da ESCON ("Próximas ações em Oiapoque": um cartão por curso da
+ESCON, sem código nem vagas), que **só é acessível de dentro da rede do TCE** (este servidor, buscadores externos e os
+servidores do GitHub não o alcançam). O leitor (`packages/core/src/inscritos.js`) casa cada cartão com uma turma pelo nome,
+pelo prefixo de local ("Manga -", "(Oiapoque)") e pelos dias; a chave é `curso@local@idESCON` (Cuidador, Tecnologia e
+Direito das Mulheres, Videomaker e Cidadania Conectada têm mais de uma turma).
+
+Fontes da página, em ordem: (1) **API ao vivo** `GET /tce-senhas/api/inscritos` (CORS liberado), alimentada por um coletor
+que roda do lado de quem tem acesso ao painel e faz `POST` com `X-Token: INSCRITOS_TOKEN` (do `apps/senhas/.env`); envios
+parciais fundem com o último retrato; (2) `apps/site/public/inscritos.json` publicado com o site, gerado por
+`node apps/site/scripts/inscritos.mjs <painel salvo .html>`; (3) chave `?k=` ou conteúdo colado na capa (só no aparelho).
+Coletores: **favorito "Enviar inscritos"** (bookmarklet na própria página; pede o token uma vez), **userscript**
+`public/coletor-inscritos.user.js` (Tampermonkey; envia ao abrir e a cada 30 min enquanto a aba do painel ficar aberta) e
+**Node** `apps/senhas/scripts/inscritos-coletor.mjs` (servidor/PC dentro do TCE; `PANEL_URL`, `INSCRITOS_TOKEN`, `INTERVAL_MIN`;
+`pm2 start … --name inscritos-coletor`). O workflow `inscritos.yml` fica só sob demanda (segredo `ESCON_PANEL_URL`), para
+o caso de o painel um dia ficar acessível de fora.
 
 ## Placas de porta (`placas.html`)
 Folhas A4 paisagem, duas versões: **consolidada** (uma folha por sala/tenda/ambiente, 57) e **por curso /

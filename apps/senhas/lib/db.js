@@ -16,7 +16,8 @@ const DDL = `PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS issued_log (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, count INTEGER NOT NULL, device TEXT, ts INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS issued_day ON issued_log(day, venue, service_id, ts);
 CREATE TABLE IF NOT EXISTS calls (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, ticket INTEGER, called_at INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'called', status_at INTEGER, ended_at INTEGER, device TEXT, note TEXT);
-CREATE INDEX IF NOT EXISTS calls_day ON calls(day, venue, service_id, place_id, called_at);`;
+CREATE INDEX IF NOT EXISTS calls_day ON calls(day, venue, service_id, place_id, called_at);
+CREATE TABLE IF NOT EXISTS inscritos_snap (id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, painel_info TEXT, source TEXT, data TEXT NOT NULL);`;
 
 function open(file) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -37,6 +38,9 @@ function open(file) {
     openServed: db.prepare(`SELECT id FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=? AND status='served' AND ended_at IS NULL`),
     lastTicket: db.prepare(`SELECT MAX(ticket) t FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=?`),
     exportDay: db.prepare(`SELECT * FROM calls WHERE day=? ORDER BY venue, service_id, place_id, called_at`),
+    snapInsert: db.prepare(`INSERT INTO inscritos_snap (ts, painel_info, source, data) VALUES (?,?,?,?)`),
+    snapLatest: db.prepare(`SELECT ts, painel_info, source, data FROM inscritos_snap ORDER BY ts DESC, id DESC LIMIT 1`),
+    snapPrune: db.prepare(`DELETE FROM inscritos_snap WHERE id NOT IN (SELECT id FROM inscritos_snap ORDER BY ts DESC, id DESC LIMIT 500)`),
   };
   return { db, q, file };
 }
@@ -111,4 +115,21 @@ export function exportCsv(day) {
   const list = rows(conn().q.exportDay.all(day)); const iso = (t) => (t ? new Date(t).toISOString() : '');
   const csv = ['id;dia;local;servico;sala;senha;chamada_em;status;status_em;fim_em;aparelho'].concat(list.map((r) => [r.id, r.day, r.venue, r.service_id, r.place_id, r.ticket ?? '', iso(r.called_at), r.status, iso(r.status_at), iso(r.ended_at), r.device || ''].join(';'))).join('\n');
   return { csv: '﻿' + csv, name: `atendimentos-${day}.csv` };
+}
+
+// ---- inscritos (painel da ESCON): último retrato recebido do coletor ----
+/** Grava um retrato { byId, painelInfo, source }; mantém os últimos 500. */
+export function saveInscritos({ byId, painelInfo, source }) {
+  if (!byId || typeof byId !== 'object' || !Object.keys(byId).length) throw err(400, 'sem cursos');
+  const { q } = conn(); const ts = Date.now();
+  // Envio parcial (ex.: um cartão) não apaga os demais: funde com o último retrato.
+  const prev = latestInscritos(); const merged = Object.assign({}, prev ? prev.byId : {}, byId);
+  const info = String(painelInfo || '').slice(0, 40).replace(/[^\w/: \-]/g, '');
+  q.snapInsert.run(ts, info, clean(source, 24), JSON.stringify(merged)); q.snapPrune.run();
+  return { ok: true, updatedAt: ts, cursos: Object.keys(byId).length, total: Object.keys(merged).length };
+}
+/** Último retrato ou null. */
+export function latestInscritos() {
+  const { q } = conn(); const r = q.snapLatest.get(); if (!r) return null;
+  return { updatedAt: num(r.ts), painelInfo: r.painel_info || '', source: r.source || 'coletor', byId: JSON.parse(r.data) };
 }

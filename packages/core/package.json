@@ -12,6 +12,7 @@
     "./map": "./src/map.js",
     "./salas-cursos": "./src/salas-cursos.js",
     "./stats": "./src/stats.js",
-    "./css/*": "./css/*"
+    "./css/*": "./css/*",
+    "./inscritos": "./src/inscritos.js"
   }
 }

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { TCE as T } from '@tce/core';
 import { TCEMap as M } from '@tce/core/map';
 import Icon from '@/components/Icon';
@@ -10,6 +10,10 @@ const D = T.D;
 const PANEL = 'https://servicos.tce.ap.gov.br/escon/admin/painel/oiapoque';
 const LS_DATA = 'tce_inscritos';
 const LS_KEY = 'tce_painel_k';
+const API = () => (T.params.get('api') || D.event.apiUrl || '').replace(/\/$/, '');
+const USERSCRIPT = 'coletor-inscritos.user.js';
+// Bookmarklet: na página do painel, lê os cartões e envia para a API (pede o token na primeira vez e guarda no navegador).
+const BOOKMARKLET = `javascript:(()=>{const A='${'https://dev.gerenciahub.com.br/tce-senhas/api/inscritos'}';let t=localStorage.getItem('tce_inscritos_token')||prompt('Token do coletor de inscritos:');if(!t)return;localStorage.setItem('tce_inscritos_token',t);const c=[...document.querySelectorAll('li.po-cartao')].map(l=>({title:(l.querySelector('h3')||{}).textContent||'',date:(l.querySelector('.po-data')||{}).textContent||'',inscritos:Number(((l.querySelector('.po-inscritos strong')||{}).textContent||'').replace(/\\D/g,''))})).filter(x=>x.title);if(!c.length){alert('Nenhum cartão encontrado nesta página. Abra o painel da ESCON.');return;}const m=document.body.innerText.match(/N[úu]meros de (\\d{1,2}) de (\\w+),? [àa]s (\\d{1,2}:\\d{2})/i);const pi=m?m[1].padStart(2,'0')+'/'+({novembro:'11',dezembro:'12',outubro:'10'}[m[2].toLowerCase()]||m[2])+' '+m[3]:'';const go=()=>fetch(A,{method:'POST',headers:{'Content-Type':'application/json','X-Token':t},body:JSON.stringify({cards:c,painelInfo:pi,source:'bookmarklet'})}).then(r=>r.json().then(j=>{if(!r.ok){if(/token/.test(j.error||''))localStorage.removeItem('tce_inscritos_token');throw new Error(j.error||r.status);}alert('Inscritos enviados: '+j.cursos+' turmas (painel '+(j.painelInfo||'?')+').');})).catch(e=>alert('Falha: '+e.message));go();})();`;
 const VENUE_ORDER = ['jn', 'manga', 'sebrae', 'auditorio', 'iaparra'];
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const load = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch { return fb; } };
@@ -27,6 +31,9 @@ function Doc() {
   const [paste, setPaste] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  // O React recusa href="javascript:" no render; o favorito recebe o endereço depois de montar.
+  const bmRef = useRef(null);
+  useEffect(() => { if (bmRef.current) bmRef.current.setAttribute('href', BOOKMARKLET); }, []);
   const all = useMemo(() => T.allSessions(), []);
   const days = useMemo(() => [...new Set(all.map((x) => x.date))].sort(), [all]);
   const today = T.fmtDate(T.now().date, 'wdlong') + ' ' + T.now().time;
@@ -54,11 +61,10 @@ function Doc() {
   }
   useEffect(() => {
     // 1º: inscritos.json publicado com o site (gerado no servidor a partir do painel); 2º: chave para ler o painel direto.
-    fetch('inscritos.json?t=' + Date.now(), { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((pub) => {
-      if (pub && pub.byId && Object.keys(pub.byId).length) {
-        setEnr((cur) => { if (cur && cur.updatedAt > pub.updatedAt) return cur; const data = { byId: pub.byId, updatedAt: pub.updatedAt, source: 'publicado', painelInfo: pub.painelInfo || '' }; save(LS_DATA, data); return data; });
-      }
-    }).catch(() => {});
+    const take = (pub, source) => { if (pub && pub.byId && Object.keys(pub.byId).length) setEnr((cur) => { if (cur && cur.updatedAt >= pub.updatedAt) return cur; const data = { byId: pub.byId, updatedAt: pub.updatedAt, source, painelInfo: pub.painelInfo || '' }; save(LS_DATA, data); return data; }); };
+    // a) API do tce-senhas (alimentada pelo coletor dentro da rede do TCE, ao vivo); b) inscritos.json publicado com o site.
+    if (API()) fetch(`${API()}/api/inscritos`, { cache: 'no-store', signal: AbortSignal.timeout(8000) }).then((r) => (r.ok ? r.json() : null)).then((pub) => take(pub, 'coletor')).catch(() => {});
+    fetch('inscritos.json?t=' + Date.now(), { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((pub) => take(pub, 'publicado')).catch(() => {});
     if (key) fetchPanel(key);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -102,7 +108,7 @@ function Doc() {
           <div className="kpi"><small>Inscritos</small><b>{tot.com ? tot.inscritos : '—'}</b><em>{tot.com ? `${tot.com} de ${D.courses.length} cursos com dado` : 'sem dados do painel'}</em></div>
           <div className="kpi"><small>Vagas restantes</small><b>{tot.com ? tot.restantes : '—'}</b><em>{tot.com ? `${D.courses.filter((c) => info(c).restantes === 0).length} lotado(s)` : ''}</em></div>
           <div className="kpi"><small>Ocupação</small><b>{tot.com && tot.vagas ? `${Math.round((100 * tot.inscritos) / D.courses.filter((c) => info(c).has).reduce((n, c) => n + info(c).vagas, 0))}%` : '—'}</b><em>inscritos ÷ vagas (cursos com dado)</em></div>
-          <div className="kpi"><small>Painel ESCON</small><b style={{ fontSize: '1rem' }}>{enr ? `${T.fmtDate(T.partsOf(new Date(enr.updatedAt)).date, 'wd')} ${T.partsOf(new Date(enr.updatedAt)).time}` : 'não lido'}</b><em>{enr ? (enr.painelInfo ? `números do painel de ${enr.painelInfo}` : enr.source === 'painel' ? 'lido do painel' : enr.source === 'publicado' ? 'publicado com o site' : 'colado') : 'informe a chave abaixo'}</em></div>
+          <div className="kpi"><small>Painel ESCON</small><b style={{ fontSize: '1rem' }}>{enr ? `${T.fmtDate(T.partsOf(new Date(enr.updatedAt)).date, 'wd')} ${T.partsOf(new Date(enr.updatedAt)).time}` : 'não lido'}</b><em>{enr ? `${enr.painelInfo ? `painel de ${enr.painelInfo} · ` : ''}${enr.source === 'coletor' ? 'via coletor (ao vivo)' : enr.source === 'publicado' ? 'publicado com o site' : enr.source === 'painel' ? 'lido do painel' : 'colado'}` : 'sem leitura'}</em></div>
         </div>
         <div className={`src ${enr ? 'ok' : 'warn'}`}>
           <Icon name={enr ? 'check' : 'info'} />
@@ -110,6 +116,14 @@ function Doc() {
           <button disabled={busy} onClick={() => fetchPanel(key)}>{busy ? 'Lendo…' : 'Atualizar do painel'}</button>
           <a className="ghost" href={`${PANEL}${key ? `?k=${encodeURIComponent(key)}` : ''}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '.85rem' }}>Abrir o painel <Icon name="external" /></a>
           {msg ? <p className="msg">{msg}</p> : <p className="msg">Os inscritos são lidos pelo seu navegador no painel administrativo da ESCON; a chave fica só neste aparelho. Se o navegador bloquear a leitura, copie o conteúdo do painel e cole abaixo.</p>}
+          <details><summary>Atualização automática (coletor)</summary>
+            <p className="msg">O painel da ESCON só abre de dentro da rede do TCE, então a coleta roda do lado de quem tem acesso e envia para a API do controle de senhas; esta página lê de lá ao vivo. Duas opções:</p>
+            <ol className="msg" style={{ paddingLeft: '1.2rem', display: 'grid', gap: '.3rem' }}>
+              <li><b>Favorito “Enviar inscritos”</b>: arraste este botão para a barra de favoritos → <a ref={bmRef} href="#enviar-inscritos" onClick={(e) => e.preventDefault()} style={{ fontWeight: 700, border: '1px solid var(--navy)', borderRadius: 8, padding: '.15rem .5rem', textDecoration: 'none', color: 'var(--navy)' }}>Enviar inscritos</a>. Com o painel aberto, clique no favorito: ele pede o token uma vez e envia os números na hora.</li>
+              <li><b>Automático a cada 30 min</b>: instale a extensão Tampermonkey e abra <a href={USERSCRIPT}>{USERSCRIPT}</a> para instalar o script; deixe uma aba do painel aberta (ex.: no computador da TV) e ele envia sozinho ao abrir e a cada 30 minutos.</li>
+              <li><b>Servidor dentro do TCE</b>: <code>node apps/senhas/scripts/inscritos-coletor.mjs</code> (ver README).</li>
+            </ol>
+          </details>
           <details open={!enr}><summary>Colar o conteúdo do painel</summary>
             <textarea value={paste} onChange={(e) => setPaste(e.target.value)} placeholder="Abra o painel, Ctrl+A, Ctrl+C e cole aqui (tabela, texto ou HTML)." />
             <div style={{ marginTop: '.4rem', display: 'flex', gap: '.5rem' }}><button onClick={() => { if (apply(parseAny(paste), 'colado')) setPaste(''); }}>Usar dados colados</button>{enr ? <button className="ghost" onClick={() => { localStorage.removeItem(LS_DATA); setEnr(null); setMsg('Dados de inscrição apagados deste aparelho.'); }}>Limpar</button> : null}</div>
