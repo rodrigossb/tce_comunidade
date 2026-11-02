@@ -1,117 +1,92 @@
 # TCE na Comunidade · 9ª Edição · Oiapoque e Distrito do Manga (03 a 07/11/2026)
 
-Duas páginas públicas, sem login e sem servidor, com a programação de cursos, salas e serviços do
-evento. Site estático: HTML + CSS + JS puros, dados em `js/data.js`.
+Superfícies digitais do evento, em um monorepo **Next.js** (JavaScript, sem TypeScript, sem Python):
 
-| Página | Para quem | Uso |
+| Pasta | O que é | Como roda |
 | --- | --- | --- |
-| `tv.html` | TV/monitor no saguão da escola | Programação do dia inteira em uma tela (sala → curso → para quem), 2 destaques do momento, QR Code para o app |
-| `totem.html` | Totem vertical por toque (ex.: 42", 1080×1920) | Interface própria de quiosque: blocos grandes de escolha, abas no alto, teclado na tela, detalhe em painel com "Voltar", QR Code fixo no rodapé e tela de descanso com a programação do dia |
-| `index.html` | Público, no celular (ou desktop) | Abre na programação do dia e do local usados por último; busca única (cursos, serviços, locais); detalhe, inscrição, lembrete, favoritos |
+| `packages/core` (`@tce/core`) | Dados (`src/data.js`), regras (`src/shared.js`), ícones, plantas e rotas (`src/map.js`), DE→PARA das salas (`src/salas-cursos.js`), agregações de senhas (`src/stats.js`) e o CSS compartilhado (`css/`). Sem dependências. | Importado pelos dois apps; testes em `tests/` |
+| `apps/site` | Site público: **app** (`index.html`), **TV** (`tv.html`), **totem** (`totem.html`), **resumo da organização** (`resumo.html`) e **placas de porta** (`placas.html`) | `next build` exporta HTML estático em `apps/site/out/`, publicado no GitHub Pages |
+| `apps/senhas` | **Controle de senhas** da equipe (triagem, porta da sala, painel): Next com **server actions** e SQLite embutido (`node:sqlite`) | Servidor Node no pm2 (`tce-senhas`, porta 3015) atrás do nginx em `/tce-senhas/` |
 
-## Publicar
-Endereço oficial: **https://www.tce.ap.gov.br/tce-na-comunidade** (domínio institucional apontado
-para o GitHub Pages deste repositório; cada push na `main` republica). Todos os QR Codes e links de
-compartilhamento (TV, app e totem) usam esse endereço, definido em `event.appUrl` no `js/data.js`.
-Para testar com outro endereço sem mexer nos dados: `tv.html?app=https://exemplo.gov.br/comunidade/`.
-A pasta também pode ser copiada para qualquer servidor estático (nginx, Apache, S3…).
+Requisito único: **Node 22.5+** (o `node:sqlite` é embutido; não há addon nativo nem Python).
 
-Abrir direto do arquivo (`file://`) também funciona para conferir, mas o QR gerado só serve quando
-publicado em `https://`.
+## Publicar o site público
+Endereço oficial: **https://www.tce.ap.gov.br/tce-na-comunidade** (domínio institucional apontado para o
+GitHub Pages deste repositório; só com `www`). Todos os QR Codes e links (TV, app, totem, placas) usam esse
+endereço, definido em `event.appUrl` (`packages/core/src/data.js`); `?app=https://…/` sobrescreve para testes.
+
+Cada push na `main` dispara `.github/workflows/pages.yml`: `npm ci` → `npm test` → `npm run build` →
+deploy de `apps/site/out/`. Em *Settings → Pages* a origem é **GitHub Actions**. Como a pasta de publicação
+muda entre os endereços (`/tce-na-comunidade/` no TCE, `/tce_comunidade/` no github.io), o Next exporta com
+assets em caminho relativo (`assetPrefix: './'`); por isso todas as páginas ficam na raiz (`tv.html`, não
+`/tv/`). A pasta `out/` também pode ser copiada para qualquer servidor estático.
 
 ## Modo TV (`tv.html`)
-Parâmetros na URL:
-
 | Parâmetro | Efeito |
 | --- | --- |
 | `?local=jn` (padrão) · `manga` · `sebrae` · `auditorio` · `iaparra` · `todos` | Local onde a TV está: filtra o quadro do dia e os destaques; o QR já abre o app nesse local |
 | `?t=09:15&d=2026-11-05` | Simula data/hora (demonstração; mostra o selo "demonstração") |
 | `?zoom=0.9` · `?theme=light` · `?orientation=portrait` | Escala do texto, tema claro, orientação forçada |
 
-Teclas (teclado ou controle com setas): `F` tela cheia · `+` `−` `0` escala · `L` claro/escuro ·
-`→` `←` troca os destaques · `Esc` limpa ajustes salvos. A página recarrega sozinha às 4h e se ficar travada.
-
-Layout fixo, sem rodízio: área principal com a programação do dia em colunas por turno (o turno em
-andamento ganha destaque e barra de progresso; os encerrados ficam esmaecidos), faixa com os 9 blocos
-de serviços, lateral com 2 destaques ("agora" e "a seguir", trocando a cada 14 s) e o QR Code embaixo.
-O texto se ajusta sozinho para caber sem rolagem. Se o dia já acabou neste local, mostra o próximo dia.
-Funciona em paisagem e em retrato.
+Teclas: `F` tela cheia · `+` `−` `0` escala · `L` claro/escuro · `→` `←` troca os destaques · `Esc` limpa
+ajustes salvos. Recarrega sozinha às 4h e se ficar travada. Programação do dia em colunas por turno (o turno
+em andamento ganha destaque), faixa com os 9 blocos de serviços, 2 destaques ("agora" e "a seguir") e QR Code.
 
 ## App (`index.html`)
-Rotas por hash, compartilháveis: `#programacao?d=2026-11-05&local=jn` (tela inicial), `#busca?q=vacina`,
-`#cursos?q=ia&tema=tecnologia&dia=…&turno=manha&local=jn&fav=1&ord=az`, `#curso/116`,
-`#servicos`, `#servico/pilar-2`, `#locais`, `#local/jn`. Também aceita `?t=HH:MM&d=AAAA-MM-DD`.
-Instalável (manifesto + service worker com cache para uso sem sinal).
-
-Memória discreta no aparelho (`localStorage`, sem cadastro): o último local escolhido é reaplicado
-sempre; o último dia só no mesmo dia (no dia seguinte volta para "hoje"). Quem chega pelo QR da TV já
-entra com o local da TV selecionado. A busca aceita palavras do dia a dia ("rg", "remédio", "dentista",
-"cachorro"…) e procura ao mesmo tempo em cursos, serviços e locais, sem diferenciar acentos.
+Rotas por hash, compartilháveis: `#programacao?d=2026-11-05&local=jn`, `#busca?q=vacina`,
+`#cursos?q=ia&tema=tecnologia&dia=…&turno=manha&local=jn&fav=1&ord=az`, `#curso/116`, `#servicos`,
+`#servico/pilar-2`, `#mapa?local=jn&p=jn-r11&s=pilar-1&entrada=a1`, `#local/jn`. Também aceita
+`?t=HH:MM&d=AAAA-MM-DD`. Instalável (manifesto + service worker `public/sw.js`: páginas network-first,
+`_next/static` e imagens cache-first). Memória discreta no aparelho (`localStorage`): último local, último dia
+(só no mesmo dia), favoritos. Busca única (cursos, serviços, locais) com sinônimos do dia a dia e sem acentos.
+Mapa: planta com marcadores (`components/PlanMap.jsx`), rota a pé do acesso até a sala, "Ampliar o mapa",
+"Ouvir o caminho" (síntese de voz), botões "Ver no mapa" em cursos, serviços e locais.
 
 ## Totem (`totem.html`)
-Aparelho compartilhado, em pé, por toque. Parâmetros: `?local=jn` (local do totem; o QR Code e a tela
-de descanso usam o mesmo), `?ocioso=90` (segundos sem toque até voltar à tela de descanso),
-`?descanso=0` (sem tela de descanso: abre direto em "explorar") e os mesmos `?t=`/`?d=` de demonstração.
-Em tela deitada (totem horizontal ou pré-visualização no computador) as abas e o QR vão para a esquerda. Tecla `F` para tela cheia (ou use o modo quiosque do navegador).
+Aparelho compartilhado, em pé, por toque (1080×1920). Parâmetros: `?local=jn`, `?ocioso=90`, `?descanso=0`,
+`?entrada=a1|a2|a3` (origem das rotas), `?t=`/`?d=`, `?app=`. Tecla `F` tela cheia. Início com busca + mapa
+vivo, abas grandes, teclado na tela, painéis com "Voltar", QR fixo no rodapé, tela de descanso com a
+programação do dia; sem memória entre pessoas; recarrega às 4h.
 
-Interface própria (`js/totem.js` + `css/totem.css`, sobre os mesmos dados e busca do app): início com
-blocos grandes (Programação de hoje, Cursos, Saúde, Documentos, Todos os serviços, Onde fica), abas no
-alto (na altura dos olhos e da mão), listas com letras grandes, detalhe em painel de tela cheia com
-"Voltar", teclado na tela para a busca e QR Code fixo no rodapé para levar o app no celular.
-Não guarda nada entre pessoas (sem memória, favoritos ou compartilhar); links externos ficam
-bloqueados e a inscrição é feita pelo QR Code grande de cada curso; depois do tempo ocioso volta ao
-início e mostra a programação do dia (a mesma da TV, em retrato) com "Toque na tela para explorar".
-Recarrega sozinho às 4h.
+## Resumo da organização (`resumo.html`)
+Documento imprimível (A4) para a coordenação: visão geral dias × locais, cada dia por local (cursos e
+serviços com sala), plantas com o uso de cada sala, cursos A–Z e pendências. Fora da navegação pública.
 
 ## Placas de porta (`placas.html`)
-Folhas A4 paisagem para colar nas portas, em duas versões (botões no topo da página):
-- **Consolidada** (padrão): uma folha por sala, tenda ou ambiente da planta (57), com todos os cursos por dia e
-  horário e os serviços gratuitos do dia de atendimentos daquele local.
-- **Por curso / serviço** (`?modo=destaque`): uma folha para cada curso e para cada serviço da sala (88), com o
-  nome bem grande, dia e horário, público e inscrição; nos serviços, os atendimentos em lista.
+Folhas A4 paisagem, duas versões: **consolidada** (uma folha por sala/tenda/ambiente, 57) e **por curso /
+serviço** (`?modo=destaque`, 88). Filtros `?local=jn|manga`, `?sala=jn-r08,jn-r09`, `?todas=1`. Painel escuro
+com a arte do evento (`public/img/arte-topo.jpg`, `arte-marca.png`), número da planta, nome, QR para o caminho
+no mapa; o texto cresce até o maior tamanho que cabe (`--k` em mm). Imprimir em cores, sem margens.
 
-Painel escuro à esquerda: no topo, o anel e o emblema do cartaz do evento (`img/arte-topo.jpg`) fundindo com
-a cor do painel; abaixo, o número da planta, o nome do local, o nome na programação dos cursos e o QR para o
-caminho no mapa do app. À direita, a marca do evento com fundo transparente (`img/arte-marca.png`, extraída do
-cartaz), a logo do Tribunal e uma faixa nas cores do anel.
-O texto do painel principal cresce automaticamente até o maior tamanho que cabe na folha (`fit()` em
-`js/placas.js`; unidade `--k` em mm). Filtros: `?local=jn|manga`, `?sala=jn-r08,jn-r09`, `?todas=1`.
-Imprimir em cores, sem margens (a página define `@page` A4 paisagem com margem zero).
-
-## Atendimento · controle de senhas (`atendimento.html` + `server/`)
+## Controle de senhas (`apps/senhas`)
 Uso interno da equipe, com PIN (4 dígitos = equipe; 6 dígitos = gestão, que também exporta CSV).
-As **filas de senhas são por sala/instituição** (Politec, Superfácil, Detran, Vacina e farmácia, Castra
-Móvel…): `T.queuesOf(venue)` deriva as filas das salas da planta usadas por cada serviço (30 na Joaquim
-Nabuco, 27 no Manga), agrupadas pelo pilar só para exibição (`svc` em um ambiente força o grupo).
-Três funções, cada aparelho escolhe a sua: **Triagem** (lista por sala; +1 a cada senha entregue, ou toque
-no número para digitar o total), **Porta da sala** (escolhe a sala uma vez; depois um toque em "Entrou ·
-senha N" ou "Não veio · senha N" registra chamada e resultado; "Outro número", "Finalizar atendimento" e
-"Desfazer" para os casos fora da ordem) e **Painel** (por sala: entregues, chamadas, atendidas, faltas,
-aguardando com espera estimada, tempo médio e senha atual; totais por pilar e gerais; chamadas por hora).
-Tempo de atendimento = de "Entrou" até "Finalizar" ou até a próxima pessoa entrar na mesma sala.
-Fila offline: gravações sem rede ficam no aparelho e são reenviadas.
+Filas por sala/instituição (`queuesOf(venue)` do core), três funções por aparelho: **Triagem** (+1 por senha
+entregue ou digitar o total), **Porta da sala** ("Entrou · senha N" / "Não veio · senha N", outro número,
+finalizar, desfazer, histórico) e **Painel** (entregues, chamadas, atendidas, faltas, espera estimada, tempo
+médio, senha atual, chamadas por hora). Fila offline no aparelho, reenviada quando a rede volta.
 
-Servidor: `server/senhas.js` (Node 22 + SQLite embutido, sem dependências; porta 3015; dados em
-`server/data/senhas.db`, fora do git). PINs em `server/.env` (`PIN_OPERADOR`, `PIN_GESTOR`; nunca commitar).
-**Front e API rodam juntos neste servidor**: o próprio Node serve `atendimento.html` e os `css/js/img/vendor`
-da raiz do repo (só leitura, sem `..`), injetando `<meta name="tce-api" content="./">` para a página usar a
-API na mesma origem. O servidor aceita qualquer origem (não há lista `ORIGINS`; a proteção é o PIN), então
-funciona igual em `https://…`, `http://IP:porta` ou `localhost` quando for levado para um servidor local. Endereço da equipe: **`https://dev.gerenciahub.com.br/tce-senhas/`**.
-Roda no pm2 como `tce-senhas` (reiniciar após `git pull`: `pm2 restart tce-senhas`); o nginx faz o proxy
-de `/tce-senhas/` para a porta 3015 (bloco em `server/nginx-tce-senhas.conf`; `sudo server/install-nginx.sh`).
-A cópia de `atendimento.html` publicada no GitHub Pages continua funcionando, apontando para `event.apiUrl`
-(`js/data.js`); `?api=http://127.0.0.1:3015` sobrescreve para testes. O site público (app, TV, totem,
-resumo) segue só no GitHub Pages. Testes das agregações: `tests/stats.test.mjs`.
+Arquitetura: `app/actions.js` (server actions: login por PIN em cookie httpOnly, estado, fila, estatísticas,
+lançamentos), `lib/db.js` (SQLite em `data/senhas.db`, mesmo esquema de antes: `issued_log` e `calls`),
+`app/api/export.csv` (download, gestão) e `app/api/health`. Configuração em `apps/senhas/.env` (copie de
+`.env.example`; **nunca commitar**): `PIN_OPERADOR`, `PIN_GESTOR`, `PORT`, `HOST`, `BASE_PATH`,
+`ALLOWED_ORIGINS`, `DB_PATH`, `BACKUP_DIR`.
 
-Backup (mesmo padrão do Painel Escolar): `node server/backup.js [rótulo]` gera um zip com cópia consistente
-do banco (`VACUUM INTO`, seguro com a API no ar), o `.env` e um LEIA-ME com totais, em `server/backups/`
-(fora do git; mantém os últimos 60). `server/backup-cron.sh` roda isso e copia para `~/backups/tce-senhas/`
-(90 dias). Cron sugerido (instalar com `crontab -e`): diário às 03:40 e de hora em hora (7h–20h) de 03 a 07/11,
-ver `server/backup-cron.sh`. Restaurar: `pm2 stop
-tce-senhas`, copiar `senhas.db` para `server/data/` e `.env` para `server/`, `pm2 start tce-senhas`.
+Produção neste servidor: **https://dev.gerenciahub.com.br/tce-senhas/** — pm2 `tce-senhas`
+(`deploy/ecosystem.config.cjs`, `next start -p 3015`), nginx `location /tce-senhas/` → `127.0.0.1:3015`
+(bloco em `deploy/nginx-tce-senhas.conf`; `sudo apps/senhas/deploy/install-nginx.sh`).
+Atualizar: `git pull && npm ci && npm run build:senhas && pm2 restart tce-senhas`.
+
+Servidor local (sem internet): `git pull` do repositório, `npm ci`, `.env` com `HOST=0.0.0.0` (acesso
+direto por `http://IP:3015/tce-senhas/`, ou `BASE_PATH=` vazio para servir na raiz) e, se o acesso for por
+IP/nome, `ALLOWED_ORIGINS=192.168.0.10:3015`; `npm run build:senhas && npm run start:senhas` (ou pm2).
+
+Backup: `npm run backup [rótulo]` gera zip com cópia consistente do banco (`VACUUM INTO`), o `.env` e um
+LEIA-ME em `apps/senhas/backups/` (mantém 60); `apps/senhas/scripts/backup-cron.sh` copia para
+`~/backups/tce-senhas/` (90 dias). Cron sugerido (`crontab -e`): diário às 03:40 e de hora em hora (7h–20h)
+de 03 a 07/11. Restaurar: `pm2 stop tce-senhas`, copiar `senhas.db` para `apps/senhas/data/`, `pm2 start`.
 
 ## Dados
-`js/data.js` é a fonte única (evento, locais, cursos com sessões, serviços por pilar), transcrita de
+`packages/core/src/data.js` é a fonte única (evento, locais, cursos com sessões, serviços por pilar), transcrita de
 `Tabela com links COM AJUSTES FINAIS LEON.pdf` ("Programação por Curso", versão de 29/10/2026, que
 substituiu o `.docx` anterior) e `SERVIÇOS DO TCE NA COMUNIDADE 1.pdf`.
 Convenção da tabela oficial: célula em branco = igual à linha de cima (local, público, vagas, link).
@@ -132,10 +107,10 @@ Móvel do pilar 6, Feira do Agricultor e palco cultural do pilar 8) estão como 
 e aparecem com o selo "só sáb 07/11 · Escola Joaquim Nabuco" no app e no totem. Nesses dois dias a TV, o
 app e o totem destacam os serviços (quadro dos 9 blocos na TV; faixa azul e aba "serviços" no app/totem).
 
-Plantas e mapa digital: `img/planta-jn.jpg` e `img/planta-manga.jpg` são recortes da "Planta de
-ambientação" (arq. Niucéia Fêrnandes, PDF no Drive). Em `js/data.js` → `maps` ficam os ambientes
+Plantas e mapa digital: `apps/site/public/img/planta-jn.jpg` e `planta-manga.jpg` são recortes da "Planta de
+ambientação" (arq. Niucéia Fêrnandes, PDF no Drive). Em `packages/core/src/data.js` → `maps` ficam os ambientes
 (número, nome, posição em pixels da imagem), os acessos e os corredores por onde se anda; cada serviço
-tem `places: { jn, manga }` e itens podem ter `where` (sala específica). `js/map.js` desenha a planta com
+tem `places: { jn, manga }` e itens podem ter `where` (sala específica). `packages/core/src/map.js` + `apps/site/components/PlanMap.jsx` desenha a planta com
 marcadores, calcula a rota a pé do acesso até a sala (Dijkstra sobre os corredores, destino projetado no
 corredor mais próximo) e gera as instruções em texto ("vire à esquerda… Sala 11 fica à sua direita").
 Totem: aba "Mapa" (planta geral, filtro por serviço, toque na sala → rota) e "Onde fica" em cada serviço;
@@ -147,7 +122,7 @@ App: "Ampliar o mapa" abre a planta em tela cheia, arrastável, com 2,2× ou 3,2
 Início do totem = busca + mapa: resultados instantâneos (serviços com suas salas, salas por nome/número,
 cursos), toque em uma sala ou resultado traça o caminho ali mesmo (com "Voltar ao mapa geral"), legenda
 dos serviços ao lado do mapa (toque filtra), botão flutuante "Mapa e busca" nas demais telas.
-Salas dos cursos na planta: `js/salas-cursos.js` (DE → PARA **validado em 31/10**: Joaquim Nabuco
+Salas dos cursos na planta: `packages/core/src/salas-cursos.js` (DE → PARA **validado em 31/10**: Joaquim Nabuco
 Lab I = 01, Lab II = 02, Sala I = 08, Sala II = 09, Sala III = 11, Sala IV = 13, Sala V = 20, Sala VI = 24;
 Manga Lab I = 12, Sala I = 13). App e totem mostram a etiqueta "Sala 08" em cada aula e, no detalhe do
 curso, "Onde fica" com o caminho no mapa (o destino recebe o nome do curso, não o do serviço de 07/11).
@@ -169,8 +144,11 @@ Pontos a conferir com a organização:
 
 ## Desenvolver / testar
 ```bash
-npm test                    # consistência dos dados, estados por horário, .ics e QR
-npx -y serve -l 8080 .    # abre http://localhost:8080/tv.html?t=09:15&d=2026-11-05
+npm ci                       # instala tudo (workspaces)
+npm test                     # dados, estados por horário, rotas da planta, .ics/QR, estatísticas e banco de senhas
+npm run dev                  # site em http://localhost:3100 (tv.html?t=09:15&d=2026-11-05, totem.html, resumo.html, placas.html)
+npm run dev:senhas           # senhas em http://localhost:3115/tce-senhas/
+npm run build                # exporta o site em apps/site/out/ (igual ao GitHub Pages)
 ```
-Ao alterar arquivos publicados, suba `VERSION` em `sw.js` para renovar o cache dos celulares.
+Ao publicar mudanças no site, suba `VERSION` em `apps/site/public/sw.js` para renovar o cache dos celulares.
 Projeto de design em `docs/plans/2026-10-28-painel-tce-comunidade-design.md`.

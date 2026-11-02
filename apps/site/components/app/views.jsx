@@ -1,0 +1,193 @@
+'use client';
+/* Telas principais do app (porta de viewProgramacao/viewBusca/viewCursos/viewMapa/viewServicos/viewLocais). */
+import PlanMap from '@/components/PlanMap';
+import { T, D, M, I, useApp, useDomain, activeFilterCount, cap, shiftColor, sessionsOf, StateBadge, SessRow, CourseCard, SvcCard, OnlyNote, VenueCard, Chip, Empty, PlaceChip, SearchBox, ServicesStrip, Footer, SvcDayCard, WhenBox, hashOf } from './ui';
+
+export function ViewProgramacao() {
+  const { clock, route, favs, setParam, nav, go, openShifts, toggleShift } = useApp();
+  const { st, focusDate, nextOf, shiftState } = useDomain();
+  const days = T.eventDays(); const p = route.p;
+  const d = days.includes(p.get('d')) ? p.get('d') : focusDate(); const local = D.venues[p.get('local')] ? p.get('local') : '';
+  const list = sessionsOf((x) => x.date === d && (!local || x.venue === local));
+  const idx = days.indexOf(clock.date); const diff = Math.round((Date.parse(D.event.start) - Date.parse(clock.date)) / 864e5);
+  const tsd = T.serviceDayOf(clock.date);
+  const status = tsd ? <>Hoje: <b>serviços gratuitos</b> no {tsd.place}</> : idx >= 0 ? <>Hoje é o <b>{idx + 1}º dia</b> do evento</> : diff > 0 ? (diff === 1 ? <>O evento <b>começa amanhã</b></> : <>O evento <b>começa em {diff} dias</b></>) : 'Evento encerrado · obrigado, Oiapoque!';
+  const scrollTo = (id) => { const t = document.getElementById(id); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  let nowCard = null;
+  if (d === clock.date) {
+    const now = list.filter((x) => st(x) === 'now'); const up = list.filter((x) => st(x) === 'today');
+    if (now.length) { const k = now[0].shift; nowCard = <button className="now-card" style={{ '--c': shiftColor(k) }} onClick={() => scrollTo(`turno-${k}`)}><span className="nc-ico">{I('clock')}</span><span><b><i></i>Acontecendo agora · {T.SHIFTS[k].label} até {T.fmtTime(T.SHIFTS[k].end)}</b><small>{now.length} curso{now.length > 1 ? 's' : ''} em andamento{local ? ` · ${D.venues[local].short}` : ''}</small></span>{I('down')}</button>; }
+    else if (up.length) { const k = up[0].shift; const n = up.filter((x) => x.shift === k).length; nowCard = <button className="now-card next" style={{ '--c': shiftColor(k) }} onClick={() => scrollTo(`turno-${k}`)}><span className="nc-ico">{I('next')}</span><span><b>A seguir · {T.SHIFTS[k].label} às {T.fmtTime(T.SHIFTS[k].start)}</b><small>{n} curso{n > 1 ? 's' : ''}{local ? ` · ${D.venues[local].short}` : ''}</small></span>{I('down')}</button>; }
+    else if (list.length) nowCard = <div className="now-card done"><span className="nc-ico">{I('check')}</span><span><b>Cursos de hoje encerrados</b><small>Veja amanhã nas abas acima ou os serviços gratuitos abaixo</small></span></div>;
+  }
+  const shifts = T.SHIFT_ORDER.filter((k) => list.some((x) => x.shift === k));
+  const sections = shifts.map((k) => {
+    const sh = T.SHIFTS[k]; const l = list.filter((x) => x.shift === k); const s = shiftState(k, d);
+    const collapsed = s === 'past' && !openShifts.has(`${d}-${k}`);
+    return (
+      <section key={k} className={`sec shift-sec ${s} ${collapsed ? 'collapsed' : ''}`} id={`turno-${k}`}>
+        <button className="sec-head" onClick={() => toggleShift(`${d}-${k}`)} aria-expanded={!collapsed}><span className="sec-ico c" style={{ '--c': sh.color }}>{I(T.SHIFT_ICON[k])}</span><h2>{sh.label} <small>{T.fmtTime(sh.start)} às {T.fmtTime(sh.end)}</small></h2>{s === 'now' ? <span className="badge now" style={{ '--c': sh.color }}>agora</span> : s === 'past' ? <span className="badge past">encerrado</span> : null}<span className="muted tiny">{l.length} curso{l.length === 1 ? '' : 's'}</span>{collapsed ? I('down') : null}</button>
+        {collapsed ? null : <div className="stack cols">{l.map((x, i) => <SessRow key={`${x.course.id}-${i}`} x={x} />)}</div>}
+      </section>
+    );
+  });
+  const favList = D.courses.filter((c) => favs.has(c.id));
+  const sd = T.serviceDayOf(d); const nsd = T.nextServiceDay(clock.date);
+  const svcSection = sd ? (
+    <section className="sec svc-focus" style={{ '--c': D.event.shifts.manha.color }}>
+      <div className="svc-banner static"><span className="sb-ico">{I('handshake')}</span><span><small>{d === clock.date ? 'Hoje' : cap(T.fmtDate(d, 'wdlong'))} é dia de</small><b>Serviços gratuitos · {sd.placeLong || sd.place}</b><small>Sem inscrição, por ordem de chegada. Toque em um bloco para ver tudo o que é oferecido.</small>{M.mapOf(sd.venue) ? <button className="btn btn-ghost" style={{ marginTop: '.7em', justifySelf: 'start' }} onClick={() => nav(`mapa?local=${sd.venue}`)}>{I('map')}Ver o mapa da escola</button> : null}</span></div>
+      <div className="stack cols">{D.services.map((s) => <SvcCard key={s.id} s={s} note={<OnlyNote s={s} date={d} />} />)}</div>
+    </section>
+  ) : (nsd && d === clock.date ? <button className="svc-note" onClick={() => nav('servicos')}><span>{I('handshake')}</span><span>Serviços gratuitos (saúde, documentos, justiça…): <b>{T.serviceDaysLabel()}</b></span>{I('right')}</button> : null);
+  return (
+    <>
+      <SearchBox q="" id="q0" big placeholder="Buscar curso, serviço, sala ou assunto…" onInput={(q) => { const np = new URLSearchParams(); if (q) np.set('q', q); go(hashOf('busca', np)); }} onClear={() => {}} />
+      <p className="status-line">{I('sparkles')}<span>{status} · {D.event.placeShort}</span></p>
+      <div className="tabs" role="tablist" aria-label="Dia">{days.map((x) => { const n = sessionsOf((y) => y.date === x && (!local || y.venue === local)).length; const xs = T.serviceDayOf(x); return <button key={x} role="tab" aria-selected={x === d} className={`${x === d ? 'on' : ''} ${x === clock.date ? 'today' : ''} ${x < clock.date ? 'past' : ''} ${xs ? 'svc' : ''}`} onClick={() => setParam('d', x, true)}><small>{x === clock.date ? 'hoje' : T.fmtDate(x, 'wd').split(' ')[0]}</small><b>{x.slice(8)}</b><em>{xs ? <>{I('handshake')}serviços</> : n ? `${n} curso${n > 1 ? 's' : ''}` : '—'}</em></button>; })}</div>
+      <div className="chips scroll" aria-label="Local"><Chip on={!local} onClick={() => setParam('local', 'todos', true)}>{I('pin')}Todos os locais</Chip>{Object.values(D.venues).map((v) => <Chip key={v.id} label={v.short} on={local === v.id} onClick={() => setParam('local', v.id, true)} />)}</div>
+      <p className="page-lead">{cap(T.fmtDate(d))}{d === clock.date ? ' · hoje' : T.relDay(d, clock.date) === 'amanhã' ? ' · amanhã' : ''} · {sd ? <><b>serviços gratuitos</b> em {sd.place}{list.length ? <> e <b>{list.length} curso{list.length === 1 ? '' : 's'}</b>{local ? ` em ${D.venues[local].short}` : ''}</> : null}</> : <><b>{list.length} curso{list.length === 1 ? '' : 's'}</b>{local ? ` em ${D.venues[local].name}` : ' em todos os locais'}</>}</p>
+      {svcSection}
+      {nowCard}
+      {sd && shifts.length ? <div className="sec-head" style={{ marginTop: '1.4em' }}><span className="sec-ico">{I('graduation')}</span><h2>Cursos do dia <small>com inscrição</small></h2></div> : null}
+      {shifts.length ? sections : (sd ? null : <Empty icon="calendar">Nenhum curso {d === clock.date ? 'hoje' : 'neste dia'}{local ? ` em ${D.venues[local].short}` : ''}. Toque em outro dia ou local acima, ou veja os serviços gratuitos.</Empty>)}
+      {favList.length ? <section className="sec"><div className="sec-head"><span className="sec-ico">{I('bookmark')}</span><h2>Meus cursos <small>{favList.length}</small></h2><button className="link" onClick={() => nav('cursos?fav=1')}>Ver {I('right')}</button></div><div className="stack cols">{favList.slice(0, 4).map((c) => <SessRow key={c.id} x={nextOf(c)} showDate />)}</div></section> : null}
+      <ServicesStrip />
+      <Footer />
+    </>
+  );
+}
+
+export function ViewBusca() {
+  const { clock, route, setParam, nav } = useApp(); const { nextOf, courseSort } = useDomain();
+  const q = route.p.get('q') || ''; const R = T.search(q); const SUGGESTIONS = T.SUGGESTIONS;
+  let body;
+  if (!R.terms.length) {
+    body = (
+      <>
+        <section className="sec"><div className="sec-head"><span className="sec-ico">{I('sparkles')}</span><h2>O que você procura?</h2></div>
+          <div className="chips">{SUGGESTIONS.map((s) => <Chip key={s} label={s} onClick={() => setParam('q', s)} />)}</div></section>
+        <section className="sec"><div className="sec-head"><span className="sec-ico">{I('pin')}</span><h2>Por local</h2></div><div className="chips">{Object.values(D.venues).map((v) => <Chip key={v.id} label={v.short} onClick={() => nav(`programacao?local=${v.id}`)} />)}</div></section>
+        <section className="sec"><div className="sec-head"><span className="sec-ico">{I('calendar')}</span><h2>Por dia</h2></div><div className="chips">{T.eventDays().map((d) => <Chip key={d} label={d === clock.date ? 'Hoje' : cap(T.fmtDate(d, 'wd'))} onClick={() => nav(`programacao?d=${d}`)} />)}</div></section>
+        <section className="sec"><div className="sec-head"><span className="sec-ico">{I('tag')}</span><h2>Cursos por tema</h2></div><div className="chips">{Object.entries(D.tags).map(([k, v]) => <Chip key={k} label={v} onClick={() => nav(`cursos?tema=${k}`)} />)}</div></section>
+      </>
+    );
+  } else {
+    const courses = R.courses.sort(courseSort.proximas); const services = R.services; const venues = R.venues; const total = R.total;
+    body = total ? (
+      <>
+        <p className="result-line"><span><b>{total}</b> resultado{total > 1 ? 's' : ''} para “{q}”</span></p>
+        {services.length ? <section className="sec"><div className="sec-head"><span className="sec-ico">{I('handshake')}</span><h2>Serviços gratuitos <small>{services.length}</small></h2></div><div className="stack">{services.map((r) => <SvcCard key={r.s.id} s={r.s} hits={r.hits} />)}</div></section> : null}
+        {courses.length ? <section className="sec"><div className="sec-head"><span className="sec-ico">{I('graduation')}</span><h2>Cursos <small>{courses.length}</small></h2>{courses.length > 3 ? <button className="link" onClick={() => nav(`cursos?q=${encodeURIComponent(q)}`)}>Filtrar {I('right')}</button> : null}</div><div className="stack cols">{courses.map((c) => <SessRow key={c.id} x={nextOf(c)} showDate />)}</div></section> : null}
+        {venues.length ? <section className="sec"><div className="sec-head"><span className="sec-ico">{I('pin')}</span><h2>Locais <small>{venues.length}</small></h2></div><div className="stack">{venues.map((v) => <VenueCard key={v.id} v={v} />)}</div></section> : null}
+      </>
+    ) : (
+      <>
+        <Empty icon="search">Nada encontrado para “{q}”. Tente uma palavra mais simples, como “saúde”, “documento” ou “curso”.</Empty>
+        <div className="chips" style={{ justifyContent: 'center' }}>{SUGGESTIONS.slice(0, 6).map((s) => <Chip key={s} label={s} onClick={() => setParam('q', s)} />)}</div>
+      </>
+    );
+  }
+  return (
+    <>
+      <div className="page-head"><span className="page-ico">{I('search')}</span><h1>Buscar</h1></div>
+      <SearchBox q={q} id="q" big autoFocus placeholder="Ex.: vacina, identidade, panificação…" debounce={150} onInput={(v) => setParam('q', v)} onClear={() => setParam('q', '')} />
+      {body}
+    </>
+  );
+}
+
+export function ViewCursos() {
+  const { clock, route, prefs, favs, setParam, go, filtersOpen, setFiltersOpen } = useApp(); const { courseSort, filterCourses } = useDomain();
+  const p = route.p; const q = p.get('q') || ''; const sort = p.get('ord') || 'proximas';
+  const list = filterCourses(p).sort(courseSort[sort] || courseSort.proximas);
+  const n = activeFilterCount(p); const days = T.eventDays();
+  const P = (k, v) => () => setParam(k, v);
+  return (
+    <>
+      <div className="page-head"><span className="page-ico">{I('graduation')}</span><h1>Cursos <span className="count">{D.courses.length}</span></h1></div>
+      <p className="page-lead">Gratuitos, com inscrição pelo site da Escola de Contas. Toque no curso para ver horários, sala e inscrição.</p>
+      <div className="filter-bar"><SearchBox q={q} placeholder="Buscar por nome, público, tema…" debounce={180} onInput={(v) => setParam('q', v)} onClear={() => setParam('q', '')} /><button className={`icon-btn ${filtersOpen || n ? 'on' : ''}`} onClick={() => setFiltersOpen((f) => !f)} aria-label="Filtros" aria-expanded={filtersOpen}>{I('sliders')}{n ? <em>{n}</em> : null}</button></div>
+      <div className="chips scroll"><Chip on={p.get('dia') === clock.date} onClick={P('dia', p.get('dia') === clock.date ? '' : clock.date)}>{I('clock')}Hoje</Chip>{prefs.local && D.venues[prefs.local] ? <Chip on={p.get('local') === prefs.local} onClick={P('local', p.get('local') === prefs.local ? '' : prefs.local)}>{I('pin')}{D.venues[prefs.local].short}</Chip> : null}<Chip on={!!p.get('fav')} onClick={P('fav', p.get('fav') ? '' : '1')}>{I('bookmark')}Meus cursos{favs.size ? ` (${favs.size})` : ''}</Chip></div>
+      {filtersOpen || n ? (
+        <div className="filters">
+          <div className="f-group"><small>Tema</small><div className="chips"><Chip label="Todos" on={!p.get('tema')} onClick={P('tema', '')} />{Object.entries(D.tags).map(([k, v]) => <Chip key={k} label={v} on={p.get('tema') === k} onClick={P('tema', k)} />)}</div></div>
+          <div className="f-group"><small>Dia</small><div className="chips"><Chip label="Todos" on={!p.get('dia')} onClick={P('dia', '')} />{days.map((d) => <Chip key={d} label={T.fmtDate(d, 'wd')} on={p.get('dia') === d} onClick={P('dia', d)} />)}</div></div>
+          <div className="f-group"><small>Turno</small><div className="chips"><Chip label="Todos" on={!p.get('turno')} onClick={P('turno', '')} />{T.SHIFT_ORDER.map((k) => <Chip key={k} label={`${T.SHIFTS[k].label} ${T.fmtTime(T.SHIFTS[k].start)}`} on={p.get('turno') === k} onClick={P('turno', k)} color={T.SHIFTS[k].color} />)}</div></div>
+          <div className="f-group"><small>Local</small><div className="chips"><Chip label="Todos" on={!p.get('local')} onClick={P('local', '')} />{Object.values(D.venues).map((v) => <Chip key={v.id} label={v.short} on={p.get('local') === v.id} onClick={P('local', v.id)} />)}</div></div>
+          {n ? <div className="f-group"><div className="chips"><Chip className="clear" onClick={() => { const np = new URLSearchParams(); if (p.get('q')) np.set('q', p.get('q')); setFiltersOpen(false); go(hashOf('cursos', np), true); }}>{I('x')}Limpar filtros</Chip></div></div> : null}
+        </div>
+      ) : null}
+      <div className="result-line"><span>{list.length} de {D.courses.length} cursos</span><label>Ordenar <select value={sort} onChange={(e) => setParam('ord', e.target.value)}><option value="proximas">Próximas datas</option><option value="az">A–Z</option><option value="ch">Carga horária</option></select></label></div>
+      {list.length ? <div className="stack cols">{list.map((c) => <CourseCard key={c.id} c={c} />)}</div> : <Empty icon="search">Nenhum curso encontrado. Tente outra palavra ou limpe os filtros.</Empty>}
+    </>
+  );
+}
+
+/** Lê os parâmetros do mapa da rota (local, sala, serviço, acesso, curso). Compartilhado pela tela e pelo mapa ampliado. */
+export function useMapParams() {
+  const { route } = useApp(); const { defaultMapVenue } = useDomain();
+  const p = route.p; const venue = M.mapOf(p.get('local')) ? p.get('local') : defaultMapVenue(); const map = M.mapOf(venue);
+  const placeId = p.get('p') && map.places.some((x) => x.id === p.get('p')) ? p.get('p') : ''; const sid = p.get('s') || ''; const ent = M.entranceOf(map, p.get('entrada')).id;
+  const svc = sid ? T.serviceById(sid) : null;
+  const course = p.get('curso') ? T.courseById(p.get('curso')) : null; const cx = course ? T.allSessions().find((x) => x.course === course && T.courseRoomPlace(x) && T.courseRoomPlace(x).id === placeId) : null;
+  const alias = cx ? `${cx.room} · ${T.title(course, true)}` : '';
+  return { p, venue, map, placeId, sid, ent, svc, course, cx, alias, hl: svc ? T.placesOf(svc, venue) : [] };
+}
+
+export function ViewMapa() {
+  const { nav, go, openSheet, setParam, toast, setFullMap } = useApp();
+  const { p, venue, map, placeId, sid, ent, svc, course, cx, alias, hl } = useMapParams();
+  const day = T.serviceDays().find((d) => d.venue === venue);
+  const place = placeId ? T.placeInfo(placeId) : null;
+  const servicesHere = place ? D.services.filter((s) => T.placesOf(s, venue).includes(placeId)) : [];
+  const speak = () => { if (!M.speak(M.route(venue, placeId, ent))) toast('Este navegador não tem leitura em voz alta', 'info'); };
+  return (
+    <>
+      <div className="page-head"><span className="page-ico">{I('map')}</span><h1>Mapa</h1></div>
+      <div className="map-bar"><div className="seg">{Object.values(D.maps).map((m) => <button key={m.venue} className={m.venue === venue ? 'on' : ''} onClick={() => nav(`mapa?local=${m.venue}`)}>{m.short}</button>)}</div>
+        <label className="here">{I('pin')}<span>Você está</span><select value={ent} onChange={(e) => setParam('entrada', e.target.value)} aria-label="Onde você está">{map.entrances.map((e) => <option key={e.id} value={e.id}>{e.short}</option>)}</select></label></div>
+      <div className="chips types"><Chip label="Todos" on={!sid && !placeId} onClick={() => nav(`mapa?local=${venue}&entrada=${ent}`)} />{D.services.map((s) => <Chip key={s.id} on={sid === s.id} color={s.color} onClick={() => nav(`mapa?local=${venue}&entrada=${ent}${sid === s.id ? '' : `&s=${s.id}`}`)}>{I(s.icon)}{s.short}</Chip>)}</div>
+      <PlanMap venue={venue} entrance={ent} scale={1.15} place={p.get('p') || null} alias={alias} highlight={hl} showAll={!svc && !p.get('p')}
+        onPick={(id) => go(`#mapa?local=${venue}&p=${id}&entrada=${ent}${sid ? `&s=${sid}` : ''}`)}
+        onEntrance={(eid) => go(`#mapa?local=${venue}&entrada=${eid}${p.get('p') ? `&p=${p.get('p')}` : ''}${sid ? `&s=${sid}` : ''}${p.get('curso') ? `&curso=${p.get('curso')}` : ''}`, true)} />
+      <div className="map-foot"><div className="map-legend"><span><i style={{ background: '#e11d48' }}></i>Você</span><span><i style={{ background: '#0b1b3d' }}></i>Sala</span><span><i style={{ background: '#7e22ce' }}></i>Tenda</span><span><i style={{ background: '#0f766e' }}></i>Área</span><span><i style={{ background: '#fbbf24' }}></i>Destino</span></div><button className="btn btn-ghost sm" onClick={() => setFullMap(venue)}>{I('zoomin')}Ampliar</button></div>
+      {place ? (
+        <section className="sec dest"><div className="sec-head"><span className="sec-ico" style={{ background: '#fbbf24', color: '#0b1b3d' }}>{I('flag')}</span><h2>{M.placeLabel(place)} {alias || M.placeLabel(place) !== place.name ? <small>{alias || place.name}</small> : null}</h2>{typeof window !== 'undefined' && window.speechSynthesis ? <button className="icon-btn" onClick={speak} aria-label="Ouvir o caminho" title="Ouvir o caminho">{I('megaphone')}</button> : null}</div>
+          {cx ? <p className="page-lead" style={{ margin: '0 0 .5em' }}>{T.title(course)} · {T.fmtDate(cx.date, 'wdlong')} às {T.fmtTime(cx.time)}</p> : null}
+          {!course && servicesHere.length ? <div className="chips">{servicesHere.map((s) => <button key={s.id} className="chip c" style={{ '--c': s.color }} onClick={() => openSheet('servico', s.id)}><i></i>{I(s.icon)}{s.short}</button>)}</div> : null}
+          <div className="actions"><button className="btn btn-ghost" onClick={() => nav(`mapa?local=${venue}&entrada=${ent}${sid ? `&s=${sid}` : ''}`)}>{I('map')}Mapa geral</button>{course ? <button className="btn btn-primary" onClick={() => openSheet('curso', course.id)}>{I('graduation')}Voltar ao curso</button> : svc ? <button className="btn btn-primary" onClick={() => openSheet('servico', svc.id)}>{I(svc.icon)}{svc.short}</button> : null}</div></section>
+      ) : null}
+      {!place && svc ? <section className="sec"><div className="sec-head"><span className="sec-ico c" style={{ '--c': svc.color }}>{I(svc.icon)}</span><h2>{svc.title} <small>{hl.length} local{hl.length === 1 ? '' : 'is'}</small></h2><button className="icon-btn" onClick={() => openSheet('servico', svc.id)} aria-label="Detalhes do serviço">{I('info')}</button></div><p className="page-lead" style={{ margin: '0 0 .5em' }}>{day ? `${T.fmtDate(day.date, 'wdlong')} · ` : ''}toque em uma sala para ver o caminho.</p><div className="place-chips">{hl.map((id) => <PlaceChip key={id} id={id} s={sid} />)}</div></section> : null}
+      {!place && !svc ? <section className="sec"><div className="sec-head"><span className="sec-ico">{I('door')}</span><h2>Salas e tendas <small>{map.places.filter((x) => !x.hide).length}</small></h2></div><p className="page-lead" style={{ margin: '0 0 .5em' }}>{day ? <>Serviços gratuitos em <b>{T.fmtDate(day.date, 'wdlong')}</b>. </> : null}Toque em uma sala, no mapa ou na lista, para ver o caminho.</p><div className="place-chips">{map.places.filter((x) => !x.hide).map((x) => <PlaceChip key={x.id} id={x.id} />)}</div>
+        <div className="sec-head" style={{ marginTop: '1.2em' }}><span className="sec-ico">{I('pin')}</span><h2>Programação por local</h2></div><div className="chips">{Object.values(D.venues).map((v) => <Chip key={v.id} label={v.short} onClick={() => nav(`programacao?local=${v.id}`)} />)}</div></section> : null}
+    </>
+  );
+}
+
+export function ViewServicos() {
+  const { route, setParam } = useApp();
+  const sel = T.serviceDayOf(route.p.get('dia')) ? route.p.get('dia') : '';
+  const selDay = sel ? T.serviceDayOf(sel) : null;
+  return (
+    <>
+      <div className="page-head"><span className="page-ico">{I('handshake')}</span><h1>Serviços gratuitos</h1></div>
+      <p className="page-lead">Atendimentos para toda a população, <b>sem inscrição</b>, em dois dias: {T.serviceDaysLabel()}. Toque em um bloco para ver tudo o que é oferecido e quem atende.</p>
+      <WhenBox sel={sel} />
+      {selDay ? <p className="result-line"><span>Mostrando o que há em <b>{T.fmtDate(sel, 'wdlong')} · {selDay.place}</b></span><button className="link" onClick={() => setParam('dia', '')}>Ver tudo {I('x')}</button></p> : null}
+      <div className="stack cols">{D.services.map((s) => <SvcCard key={s.id} s={s} note={<OnlyNote s={s} date={sel} />} />)}</div>
+    </>
+  );
+}
+
+export function ViewLocais() {
+  const { nav } = useApp();
+  return (
+    <>
+      <div className="page-head"><span className="page-ico">{I('pin')}</span><h1>Locais</h1></div>
+      <div className="quick" style={{ marginTop: 0 }}>{Object.values(D.maps).map((m) => <button key={m.venue} onClick={() => nav(`mapa?local=${m.venue}`)}><span className="q-ico">{I('map')}</span><span><b>Mapa · {m.short}</b><small>salas dos serviços e caminho</small></span></button>)}</div>
+      <p className="page-lead">Onde acontecem os cursos. Toque para ver a programação de cada local.</p>
+      <div className="stack cols">{Object.values(D.venues).map((v) => <VenueCard key={v.id} v={v} />)}</div>
+    </>
+  );
+}
+export { StateBadge, SvcDayCard };

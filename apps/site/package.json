@@ -1,0 +1,18 @@
+{
+  "name": "@tce/site",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Site público do TCE na Comunidade: app (index), TV, totem, resumo da organização e placas. Next.js exportado estático (GitHub Pages).",
+  "scripts": {
+    "dev": "next dev -p ${PORT:-3100}",
+    "build": "next build",
+    "serve": "npx -y serve -l 8080 out"
+  },
+  "dependencies": {
+    "@tce/core": "*",
+    "next": "^16.4.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  }
+}
