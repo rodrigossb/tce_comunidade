@@ -180,7 +180,7 @@ function IndexAZ({ all }) {
 // ---- 5. Pendências e fontes ----
 const PEND = [
   ['Cursos', 'Curso 109 (Brinquedistas): a tabela oficial traz link administrativo; o site usa escon/cursos/109.'],
-  ['Salas', 'Laboratório I – Joaquim Nabuco (Sala 01), 05/11 às 14h: dois cursos no mesmo horário e sala (125 Tecnologia e Direito das Mulheres × 145 Videomaker).'],
+  ['Salas', 'Laboratório II – Joaquim Nabuco (Sala 02), 05/11 às 14h: em 02/11 o Videomaker (145) saiu do Laboratório I e foi para o Laboratório II, onde no mesmo horário está o Rios do Saber (156, até 100 participantes). Confirmar a divisão do laboratório.'],
   ['Salas', 'Formação de Cuidador, 03/11 de manhã: a tabela diz só "Manga", sem sala.'],
   ['Cursos', 'Cidadania Conectada: duas turmas com links diferentes (154 em 05/11 e 158 em 07/11).'],
   ['Cursos', 'Extensão de Cílios (127): cabeçalho diz 05 e 06/11, tabela lista 04, 05 e 06/11 (mantidos os três).'],
@@ -202,7 +202,7 @@ export default function Resumo() {
   const today = useMemo(() => new Date().toLocaleDateString('pt-BR'), []);
   return (
     <>
-      <div className="rs-tools"><button onClick={() => window.print()}><Icon name="download" />Imprimir / PDF</button><a href="index.html"><Icon name="phone" />App</a><a href="totem.html?local=jn&descanso=0"><Icon name="map" />Totem</a><a href="placas.html"><Icon name="door" />Placas de porta</a></div>
+      <div className="rs-tools"><button onClick={() => window.print()}><Icon name="download" />Imprimir / PDF</button><a href="resumo-cursos.html"><Icon name="graduation" />Cursos e inscritos</a><a href="index.html"><Icon name="phone" />App</a><a href="totem.html?local=jn&descanso=0"><Icon name="map" />Totem</a><a href="placas.html"><Icon name="door" />Placas de porta</a></div>
       <Cover all={all} days={days} today={today} />
       <Overview all={all} days={days} />
       <DaySections all={all} days={days} />

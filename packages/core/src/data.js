@@ -114,7 +114,8 @@ const courses = [
   { id: 145, title: 'Videomaker', hours: 8,
     audience: 'Artesãos, empreendedores e sociedade civil', seats: 20,
     link: ESCON + '145/mnga-videomaker', tags: ['tecnologia', 'empreendedorismo'],
-    sessions: [s('04', '14:00', 'manga', 'Laboratório I'), s('05', '14:00', 'jn', 'Laboratório I')] },
+    // 05/11 na Joaquim Nabuco passou para o Laboratório II (sala 02 na planta), por orientação da organização em 02/11.
+    sessions: [s('04', '14:00', 'manga', 'Laboratório I'), s('05', '14:00', 'jn', 'Laboratório II')] },
   { id: 146, title: 'Panificação: Pães Recheados e Salgados Assados', short: 'Panificação', hours: 12,
     audience: 'Profissionais da área de alimentos, autônomos, sociedade civil', seats: 20,
     link: ESCON + '146/oiapoque-panificacao-paes-recheados-e-salgados-assados', tags: ['empreendedorismo'],

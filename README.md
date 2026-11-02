@@ -133,7 +133,7 @@ uso de cada sala (serviços em 04/07 e cursos nos outros dias), DE → PARA e pe
 
 Pontos a conferir com a organização:
 - Curso 109 (Brinquedistas): a tabela traz um link administrativo; usamos `escon/cursos/109`.
-- Laboratório I – Joaquim Nabuco, 05/11 às 14h: dois cursos no mesmo horário e sala (125 e 145).
+- Laboratório I – Joaquim Nabuco, 05/11 às 14h: a tabela trazia dois cursos (125 e 145); em 02/11 a organização moveu o Videomaker (145) para o Laboratório II (sala 02), onde no mesmo horário está o Rios do Saber (156).
 - Formação de Cuidador, 03/11 de manhã: a tabela diz só "Manga", sem sala.
 - Cidadania Conectada: duas turmas com links diferentes (154 em 05/11 e 158 em 07/11).
 - Extensão de Cílios (127): o cabeçalho diz "2 ocorrências, 05 e 06/11", mas a tabela lista 04, 05 e 06/11; mantivemos os três dias.

@@ -1,0 +1,35 @@
+/* Complementos do resumo de cursos (sobre resumo.css). */
+.rs .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:.6rem;margin:1rem 0}
+.rs .kpi{border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem;background:var(--soft)}
+.rs .kpi small{display:block;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
+.rs .kpi b{display:block;font-family:var(--font-display);font-size:1.6rem;line-height:1.1;margin-top:.1rem}
+.rs .kpi em{display:block;font-style:normal;font-size:.78rem;color:var(--mut)}
+.rs .src{display:flex;flex-wrap:wrap;gap:.6rem 1rem;align-items:center;border:1px solid var(--line);border-radius:10px;padding:.7rem .9rem;margin:.6rem 0 1.2rem;font-size:.9rem}
+.rs .src.ok{border-color:#86efac;background:#f0fdf4}.rs .src.warn{border-color:#fcd34d;background:#fffbeb}
+.rs .src input,.rs .src textarea{font:inherit;font-size:.85rem;border:1px solid var(--line);border-radius:8px;padding:.4rem .6rem;background:#fff;color:var(--ink)}
+.rs .src input{min-width:20rem;flex:1}
+.rs .src textarea{width:100%;min-height:7rem;resize:vertical}
+.rs .src button{font:inherit;font-size:.85rem;font-weight:700;border:1px solid var(--navy);background:var(--navy);color:#fff;border-radius:8px;padding:.45rem .9rem;cursor:pointer}
+.rs .src button.ghost{background:#fff;color:var(--navy)}
+.rs .src .msg{flex-basis:100%;font-size:.82rem;color:var(--mut)}
+.rs .src details{flex-basis:100%}.rs .src summary{cursor:pointer;font-weight:600;font-size:.85rem}
+.rs td.n,.rs th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rs .bar{display:inline-block;width:5.5rem;height:.5rem;border-radius:999px;background:#e5e9f0;vertical-align:middle;overflow:hidden;margin-left:.4rem}
+.rs .bar i{display:block;height:100%;background:#16a34a}
+.rs .bar.full i{background:#dc2626}.rs .bar.low i{background:#f59e0b}
+.rs .nd{color:#b45309;font-size:.78rem}
+.rs .full-tag{display:inline-block;font-size:.68rem;font-weight:800;background:#fee2e2;color:#991b1b;border-radius:999px;padding:.05rem .45rem;margin-left:.3rem;vertical-align:middle}
+.rs tr.tot td{font-weight:700;border-top:2px solid var(--navy);background:var(--soft)}
+.rs .t6{table-layout:fixed}
+.rs .t6 .c-hora{width:4.2rem}.rs .t6 .c-id{width:3rem}.rs .t6 .c-num{width:4.2rem}.rs .t6 .c-bar{width:9.5rem}.rs .t6 .c-local{width:12rem}
+@media print{
+  @page{size:A4 landscape;margin:11mm 10mm 13mm}
+  .rs .src{display:none}
+  .rs .kpis{grid-template-columns:repeat(6,1fr);gap:.4rem;margin:.5rem 0}
+  .rs .kpi{padding:.35rem .5rem}.rs .kpi b{font-size:1.15rem}.rs .kpi small{font-size:.6rem}.rs .kpi em{font-size:.68rem}
+  .rs .cover{min-height:0;break-after:auto;padding-top:4mm}
+  .rs .cover img{margin-bottom:6mm;height:13mm}
+  .rs .day{break-before:page}
+  .rs .bar{width:4rem;height:.4rem}
+  .rs #az{break-before:page}.rs #alerta{break-before:page}
+}

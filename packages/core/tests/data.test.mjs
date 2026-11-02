@@ -56,6 +56,6 @@ test('ics e QR geram saída válida', () => {
 test('conflitos de sala são conhecidos (mesma sala, dia e horário)', () => {
   const seen = new Map(); const conflicts = [];
   for (const x of T.allSessions()) { if (!x.room) continue; const k = `${x.date} ${x.time} ${x.venue} ${x.room}`; if (seen.has(k)) conflicts.push(`${k}: ${seen.get(k)} × ${x.course.id}`); else seen.set(k, x.course.id); }
-  // Conflito presente na tabela oficial: Laboratório I – Joaquim Nabuco, 05/11 às 14h (cursos 125 e 145).
-  assert.deepEqual(conflicts, ['2026-11-05 14:00 jn Laboratório I: 125 × 145']);
+  // 02/11: a organização moveu o Videomaker (145) do Lab I para o Lab II em 05/11 14h; lá já está o Rios do Saber (156). Conflito conhecido, informado no resumo.
+  assert.deepEqual(conflicts, ['2026-11-05 14:00 jn Laboratório II: 145 × 156']);
 });
