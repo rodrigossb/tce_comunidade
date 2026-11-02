@@ -5,7 +5,7 @@ Superfícies digitais do evento, em um monorepo **Next.js** (JavaScript, sem Typ
 | Pasta | O que é | Como roda |
 | --- | --- | --- |
 | `packages/core` (`@tce/core`) | Dados (`src/data.js`), regras (`src/shared.js`), ícones, plantas e rotas (`src/map.js`), DE→PARA das salas (`src/salas-cursos.js`), agregações de senhas (`src/stats.js`) e o CSS compartilhado (`css/`). Sem dependências. | Importado pelos dois apps; testes em `tests/` |
-| `apps/site` | Site público: **app** (`index.html`), **TV** (`tv.html`), **totem** (`totem.html`), **resumos da organização** (`resumo.html`, `resumo-cursos.html`, `resumo-total.html`) e **placas de porta** (`placas.html`) | `next build` exporta HTML estático em `apps/site/out/`, publicado no GitHub Pages |
+| `apps/site` | Site público: **app** (`index.html`), **TV** (`tv.html`), **totem** (`totem.html`), **resumos da organização** (`resumo.html`, `resumo-cursos.html`, `resumo-total.html`, `lanches.html`) e **placas de porta** (`placas.html`) | `next build` exporta HTML estático em `apps/site/out/`, publicado no GitHub Pages |
 | `apps/senhas` | **Controle de senhas** da equipe (triagem, porta da sala, painel) e **TV das senhas** (`/tce-senhas/tv`): Next com **server actions** e SQLite embutido (`node:sqlite`) | Servidor Node no pm2 (`tce-senhas`, porta 3015) atrás do nginx em `/tce-senhas/` |
 
 Requisito único: **Node 22.5+** (o `node:sqlite` é embutido; não há addon nativo nem Python).
@@ -61,6 +61,16 @@ caminhos do mapa fixa na posição do totem ("Você está aqui"). Parâmetros na
 Ex.: `totem.html?local=jn&entrada=jn-r11&zoom=1.3`. Tecla `F` = tela cheia; recarrega sozinho às 4h. O app do
 cidadão (`index.html`) não muda. O layout anterior do totem (telas próprias, mapa vivo) continua em
 `totem-classico.html` com os mesmos parâmetros.
+
+## Lanches (`lanches.html`)
+Painel para a fornecedora de alimentação: **alunos inscritos por local, dia e turno** (um lanche por aluno em cada turno
+em que tem aula; cursos de vários dias contam em cada dia). Quadro de entregas local × dia × turno com totais por local,
+dia e turno; produção por dia (todos os locais); detalhe das turmas (turno, horário, curso, sala, inscritos, vagas,
+lanches) e critérios. Inscritos vêm do painel da ESCON (API do tce-senhas, `inscritos.json` ou o que já foi lido neste
+aparelho em `resumo-cursos.html`); turma sem dado entra com as vagas (teto) e aparece com `*`. Filtros `?local=`
+(como nos resumos), `?dia=04` (ou `04/11`, `2026-11-04`) e `?margem=10` (folga de 10%, arredondada para cima).
+Botão **Copiar texto** gera a versão em texto puro para WhatsApp/e-mail; impressão em A4 retrato. Regra e agregação
+em `packages/core/src/lanches.js` (`lanchesBoard`), testada em `packages/core/tests/lanches.test.mjs`.
 
 ## Resumo da organização (`resumo.html`)
 Documento imprimível (A4) para a coordenação: visão geral dias × locais, cada dia por local (cursos e

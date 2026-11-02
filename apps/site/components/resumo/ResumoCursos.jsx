@@ -4,35 +4,18 @@ import { TCE as T } from '@tce/core';
 import { TCEMap as M } from '@tce/core/map';
 import Icon from '@/components/Icon';
 import { useMounted } from '@/lib/hooks';
-import { parseAny, groupsOf, groupKey } from '@/lib/inscritos';
+import { parseAny, groupsOf, groupKey, numbersOf } from '@/lib/inscritos';
+import { VENUE_ORDER, cap, sameSet, venueFilter } from '@/lib/resumo-util';
+import { LS_DATA, loadLS as load, saveLS as save } from '@/lib/useInscritos';
 
 const D = T.D;
 const PANEL = 'https://servicos.tce.ap.gov.br/escon/admin/painel/oiapoque';
 const PANEL_API = 'https://servicos.tce.ap.gov.br/escon/admin/api/public/painel/oiapoque'; // JSON (mesma chave ?k=)
-const LS_DATA = 'tce_inscritos';
 const LS_KEY = 'tce_painel_k';
 const API = () => (T.params.get('api') || D.event.apiUrl || '').replace(/\/$/, '');
 const USERSCRIPT = 'coletor-inscritos.user.js';
 // Bookmarklet: na página do painel, lê os cartões e envia para a API (pede o token na primeira vez e guarda no navegador).
 const BOOKMARKLET = `javascript:(()=>{const A='${'https://dev.gerenciahub.com.br/tce-senhas/api/inscritos'}';let t=localStorage.getItem('tce_inscritos_token')||prompt('Token do coletor de inscritos:');if(!t)return;localStorage.setItem('tce_inscritos_token',t);const post=(b)=>fetch(A,{method:'POST',headers:{'Content-Type':'application/json','X-Token':t},body:JSON.stringify(b)}).then(r=>r.json().then(j=>{if(!r.ok){if(/token/.test(j.error||''))localStorage.removeItem('tce_inscritos_token');throw new Error(j.error||r.status);}alert('Inscritos enviados: '+j.cursos+' turmas (painel '+(j.painelInfo||'?')+').'+(j.semCorrespondencia&&j.semCorrespondencia.length?' Sem correspondência: '+j.semCorrespondencia.join(' | '):''));}));const viaApi=()=>fetch('/escon/admin/api/public/painel/oiapoque'+location.search,{credentials:'include',headers:{Accept:'application/json'}}).then(r=>{if(!r.ok)throw new Error('api '+r.status);return r.text();}).then(x=>{JSON.parse(x);return post({json:x,source:'bookmarklet-api'});});if(/\\/api\\/public\\/painel\\//.test(location.pathname)){post({json:document.body.innerText,source:'bookmarklet-api'}).catch(e=>alert('Falha: '+e.message));return;}const c=[...document.querySelectorAll('li.po-cartao')].map(l=>({title:(l.querySelector('h3')||{}).textContent||'',date:(l.querySelector('.po-data')||{}).textContent||'',inscritos:Number(((l.querySelector('.po-inscritos strong')||{}).textContent||'').replace(/\\D/g,''))})).filter(x=>x.title);const m=document.body.innerText.match(/N[úu]meros de (\\d{1,2}) de (\\w+),? [àa]s (\\d{1,2}:\\d{2})/i);const pi=m?m[1].padStart(2,'0')+'/'+({novembro:'11',dezembro:'12',outubro:'10'}[m[2].toLowerCase()]||m[2])+' '+m[3]:'';viaApi().catch(()=>post({cards:c,painelInfo:pi,source:'bookmarklet'})).catch(e=>alert('Falha: '+e.message));})();`;
-const VENUE_ORDER = ['jn', 'manga', 'sebrae', 'auditorio', 'iaparra'];
-const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-const sameSet = (a, b) => !!a && !!b && a.size === b.size && [...a].every((x) => b.has(x));
-/** ?local= → Set de locais (ou null = todos). Aceita ids (jn, manga, sebrae, auditorio, iaparra), vários com vírgula,
-    e as cidades: "oiapoque" (Joaquim Nabuco, SEBRAE e auditório) e "manga" (Distrito do Manga e Escola Jorge Iaparrá). */
-function venueFilter(q) {
-  const out = new Set();
-  for (const raw of String(q || '').toLowerCase().split(/[,+ ]+/).filter(Boolean)) {
-    const k = raw.normalize('NFD').replace(/[̀-ͯ]/g, '');
-    if (D.venues[k]) out.add(k);
-    if (k === 'nabuco' || k === 'joaquim') out.add('jn');
-    if (k === 'oiapoque') for (const v of Object.values(D.venues)) if (v.city === 'Oiapoque') out.add(v.id);
-    if (k === 'manga') for (const v of Object.values(D.venues)) if (/manga/i.test(v.city)) out.add(v.id);
-  }
-  return out.size ? out : null;
-}
-const load = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch { return fb; } };
-const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem storage */ } };
 
 // ---------- página ----------
 /** variant: undefined = resumo de cursos (por dia, A–Z, totais, atenção); 'total' = resumo total (totais e turmas por local). */
@@ -101,22 +84,8 @@ function Doc({ variant }) {
     const groups = groupsOf(c); const gs = sess ? groups.filter((g) => g.key === groupKey(c, sess)) : sel ? groups.filter((g) => sel.has(g.venue)) : groups;
     return calc(c, gs);
   };
-  /** Números de um conjunto de turmas (gs) do curso c. */
-  const calc = (c, gs) => {
-    const entries = gs.map((g) => byId[g.key] || null); const generic = byId[c.id];
-    const out = { has: false, vagas: 0, inscritos: 0, restantes: 0, over: 0, pct: null };
-    if (!entries.some(Boolean) && generic && (generic.inscritos != null || generic.restantes != null)) {
-      const v = generic.vagas ?? c.seats * gs.length; const i = generic.inscritos ?? Math.max(0, v - generic.restantes);
-      return { has: true, vagas: v, inscritos: i, restantes: generic.restantes ?? Math.max(0, v - i), over: Math.max(0, i - v), pct: v ? Math.round((100 * i) / v) : null };
-    }
-    gs.forEach((g, k) => {
-      const e = entries[k]; const v = (e && e.vagas) || c.seats; out.vagas += v;
-      if (e && (e.inscritos != null || e.restantes != null)) { out.has = true; const i = e.inscritos ?? Math.max(0, v - e.restantes); out.inscritos += i; out.restantes += e.restantes ?? Math.max(0, v - i); out.over += Math.max(0, i - v); }
-      else out.restantes += v;
-    });
-    if (!out.has) return { has: false, vagas: out.vagas, inscritos: null, restantes: null, over: 0, pct: null };
-    out.pct = out.vagas ? Math.round((100 * out.inscritos) / out.vagas) : null; return out;
-  };
+  /** Números de um conjunto de turmas (gs) do curso c (regra em @tce/core/inscritos). */
+  const calc = (c, gs) => numbersOf(byId, c, gs);
   /** Soma as turmas de cada curso que passam em `pick(g)` (todas, se não houver pick): cursos, turmas, vagas, inscritos, restantes. */
   const sumBy = (list, pick) => {
     const a = { cursos: 0, turmas: 0, vagas: 0, inscritos: 0, restantes: 0, com: 0, vagasCom: 0, lotados: 0, pct: null };
@@ -241,7 +210,7 @@ function Doc({ variant }) {
 
   return (
     <>
-      <div className="rs-tools"><button onClick={() => window.print()}><Icon name="download" />Imprimir / PDF</button><a href="resumo.html"><Icon name="list" />Resumo geral</a>{total ? <a href="resumo-cursos.html"><Icon name="graduation" />Resumo de cursos</a> : <a href="resumo-total.html"><Icon name="layers" />Resumo total</a>}<a href="index.html"><Icon name="phone" />App</a></div>
+      <div className="rs-tools"><button onClick={() => window.print()}><Icon name="download" />Imprimir / PDF</button><a href="resumo.html"><Icon name="list" />Resumo geral</a>{total ? <a href="resumo-cursos.html"><Icon name="graduation" />Resumo de cursos</a> : <a href="resumo-total.html"><Icon name="layers" />Resumo total</a>}<a href="lanches.html"><Icon name="store" />Lanches</a><a href="index.html"><Icon name="phone" />App</a></div>
       <div className="rs-tools rs-locais"><span className="muted tiny">Local:</span><a href={page} className={sel ? '' : 'on'}>Todos</a>{VENUE_ORDER.filter((v) => T.allSessions().some((x) => x.venue === v)).map((v) => <a key={v} href={`${page}?local=${v}`} className={sameSet(sel, venueFilter(v)) ? 'on' : ''}>{D.venues[v].short}</a>)}</div>
       <section className="cover">
         <img src="img/tce-logo.png" alt="Tribunal de Contas do Estado do Amapá" />

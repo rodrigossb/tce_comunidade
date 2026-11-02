@@ -13,6 +13,7 @@
     "./salas-cursos": "./src/salas-cursos.js",
     "./stats": "./src/stats.js",
     "./css/*": "./css/*",
-    "./inscritos": "./src/inscritos.js"
+    "./inscritos": "./src/inscritos.js",
+    "./lanches": "./src/lanches.js"
   }
 }

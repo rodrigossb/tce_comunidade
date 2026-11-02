@@ -99,6 +99,24 @@ function groupsOf(c) {
   for (const s of c.sessions) { const k = groupKey(c, s); if (!map.has(k)) map.set(k, { key: k, course: c, venue: s.venue, linkId: linkIdOf(c, s), days: new Set() }); map.get(k).days.add(Number(s.date.slice(8))); }
   return [...map.values()];
 }
+/** Números de um conjunto de turmas `gs` do curso `c` a partir dos dados do painel (`byId`, chave curso@local@idESCON,
+    ou só o código do curso quando a tabela foi colada): vagas, inscritos, restantes, excedente (over), % e se há dado.
+    Sem dado de uma turma, as vagas dela contam como restantes; inscritos acima das vagas viram `over` (restantes nunca negativas). */
+function numbersOf(byId, c, gs) {
+  const entries = gs.map((g) => (byId && byId[g.key]) || null); const generic = byId && byId[c.id];
+  const out = { has: false, vagas: 0, inscritos: 0, restantes: 0, over: 0, pct: null };
+  if (!entries.some(Boolean) && generic && (generic.inscritos != null || generic.restantes != null)) {
+    const v = generic.vagas ?? c.seats * gs.length; const i = generic.inscritos ?? Math.max(0, v - generic.restantes);
+    return { has: true, vagas: v, inscritos: i, restantes: generic.restantes ?? Math.max(0, v - i), over: Math.max(0, i - v), pct: v ? Math.round((100 * i) / v) : null };
+  }
+  gs.forEach((g, k) => {
+    const e = entries[k]; const v = (e && e.vagas) || c.seats; out.vagas += v;
+    if (e && (e.inscritos != null || e.restantes != null)) { out.has = true; const i = e.inscritos ?? Math.max(0, v - e.restantes); out.inscritos += i; out.restantes += e.restantes ?? Math.max(0, v - i); out.over += Math.max(0, i - v); }
+    else out.restantes += v;
+  });
+  if (!out.has) return { has: false, vagas: out.vagas, inscritos: null, restantes: null, over: 0, pct: null };
+  out.pct = out.vagas ? Math.round((100 * out.inscritos) / out.vagas) : null; return out;
+}
 const ALL_GROUPS = () => D.courses.flatMap(groupsOf);
 /** Cartões a partir do HTML do painel ou do texto copiado dele. */
 function panelCards(text) {
@@ -200,4 +218,4 @@ function htmlToText(html) {
   return String(html).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<\/(td|th)>/gi, '\t').replace(/<\/(tr|li|p|div|h\d)>|<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#(\d+);/g, (m, n) => String.fromCharCode(n)).replace(/[ \u00a0]+/g, ' ').replace(/ *\t */g, '\t').replace(/\n\s*\n+/g, '\n');
 }
-export { parseAny, courseOf, fromRows, fromText, fromHtml, fromJson, htmlToText, panelCards, apiCards, panelInfoOf, fromPanelCards, groupsOf, groupKey, linkIdOf };
+export { numbersOf, parseAny, courseOf, fromRows, fromText, fromHtml, fromJson, htmlToText, panelCards, apiCards, panelInfoOf, fromPanelCards, groupsOf, groupKey, linkIdOf };
