@@ -19,11 +19,14 @@ function Side({ p, uses }) {
   const progNames = [...new Set(uses.map((x) => x.room).filter(Boolean))];
   const bigNum = p.num || '';
   const kind = p.kind === 'area' && !p.num ? '' : KIND[p.kind];
+  // Nome no lugar do número: nunca quebra no meio da palavra; palavras longas ("Escovódromo") entram menores.
+  const longest = Math.max(...String(p.name).split(/\s+/).map((w) => w.length));
+  const textCls = longest >= 11 ? 'xl' : longest >= 9 ? 'lg' : '';
   return (
     <aside className="pl-side">
       <div className="pl-art"><img src="img/arte-topo.jpg" alt="" /></div>
       <div className="pl-kind">{kind}</div>
-      {bigNum ? <div className={`pl-num ${bigNum.length > 2 ? 'long' : ''}`}>{bigNum}</div> : <div className="pl-num text">{p.name}</div>}
+      {bigNum ? <div className={`pl-num ${bigNum.length > 2 ? 'long' : ''}`}>{bigNum}</div> : <div className={`pl-num text ${textCls}`}>{p.name}</div>}
       <div className="pl-name">{bigNum ? p.name : ''}{progNames.length ? <small>{progNames.join(' · ')} na programação dos cursos</small> : null}</div>
       <div className="pl-qr"><div className="pl-qr-box"><Qr text={T.appUrl(`#mapa?local=${p.venue}&p=${p.id}`)} cell={4} margin={1} dark="#0b1b3a" light="#ffffff" /></div><span>Aponte a câmera do celular: caminho até aqui no mapa da escola</span></div>
     </aside>
