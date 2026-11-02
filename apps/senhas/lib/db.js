@@ -126,6 +126,8 @@ export function tvBoard(day, venue) {
     .map((x) => ({ id: x.id, ticket: x.ticket, service_id: x.service_id, place_id: x.place_id, status: x.status, called_at: x.called_at, status_at: x.status_at, ended_at: x.ended_at }));
   return { day: c.day, venue: c.venue, now, places, recent, total: { issued: st.total.issued, called: st.total.called, waiting: st.total.not_called, in_service: st.total.in_service } };
 }
+/** Chamadas do dia no local (para o dashboard: séries por hora e linha do tempo). */
+export function callsOfDay(day, venue) { const c = ctx(day, venue); return rows(conn().q.callsDay.all(c.day, c.venue)); }
 export function exportCsv(day) {
   if (!isDay(day)) throw err(400, 'day');
   const list = rows(conn().q.exportDay.all(day)); const iso = (t) => (t ? new Date(t).toISOString() : '');

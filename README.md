@@ -103,9 +103,23 @@ no mapa; o texto cresce até o maior tamanho que cabe (`--k` em mm). Imprimir em
 Uso interno da equipe, com PIN (4 dígitos = equipe; 6 dígitos = gestão, que também exporta CSV). Depois do PIN, o
 **primeiro passo é escolher o local** (Distrito do Manga 04/11 ou Escola Joaquim Nabuco 07/11); tudo o que o aparelho
 lança vale para esse local/dia, lembrado até "Trocar local" ou sair.
-Filas por sala/instituição (`queuesOf(venue)` do core), três funções por aparelho: **Triagem** (+1 por senha
+Filas por sala/instituição: só os atendimentos que **distribuem senha** (`senhas.services` em `packages/core/src/data.js`:
+Saúde, Documentos, Proteção à Mulher, Justiça e Direitos e Saúde Animal; áreas abertas e `excludePlaces` ficam fora;
+`T.ticketQueuesOf(venue)`), três funções por aparelho: **Triagem** (+1 por senha
 entregue ou digitar o total), **Porta da sala** ("Chamar a senha N" → a chamada aparece na TV e a pessoa aguarda na porta; "Entrou"/"Não veio" registra o resultado **e já chama a próxima** automaticamente, enquanto a senha anterior continua "em atendimento" até a próxima entrar ou "finalizar"; outro número, desfazer) e **Painel** (entregues, chamadas, atendidas, faltas, espera estimada, tempo
 médio, senha atual, chamadas por hora). Fila offline no aparelho, reenviada quando a rede volta.
+
+**Dashboard de resultados** (`https://dev.gerenciahub.com.br/tce-senhas/dashboard`, público, 16:9, mesmo formato da TV):
+números do dia de serviços para projetar no encerramento da ação ou acompanhar ao vivo. Quatro telas que alternam a cada
+15 s (ou `?tela=geral|servicos|salas|horas` fixa; `?auto=0` para não alternar; setas ←/→ trocam): **Resultados do dia**
+(senhas entregues, chamadas, atendidas, não compareceram, tempo médio, ainda na fila, com números animados; donut do
+resultado das chamadas; movimento por hora; destaques: pico, sala mais movimentada, atendimento mais rápido, duração da
+ação), **Por serviço** (cartão por serviço com entregues, chamadas, atendidas, faltas, tempo médio, taxa de falta, fila e
+curva por hora), **Salas e especialidades** (ranking por atendimentos, mais rápidas, mais faltas) e **Movimento por hora**
+(barras empilhadas por serviço e linha do tempo com primeira chamada, pico e última). `?local=jn|manga`, `?dia=AAAA-MM-DD`
+(padrão: dia de serviços de hoje, senão o último já ocorrido, senão o próximo), `?zoom=`, tecla F (tela cheia). Dados de
+`GET /api/stats?local=&dia=` (público, só leitura; totais, por serviço/sala, histórico de entregas e as chamadas do dia),
+atualizados a cada 30 s; cálculos puros em `apps/senhas/lib/dash-stats.js`.
 
 **TV das senhas** (`/tce-senhas/tv`, pública, 16:9, sem login): cabeçalho "TCE NA COMUNIDADE" + relógio, quadro
 de salas × senhas (um cartão por sala com a senha atual em destaque, serviço, "chamando"/"em atendimento" e quantas
