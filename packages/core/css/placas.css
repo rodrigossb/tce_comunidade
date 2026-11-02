@@ -1,0 +1,83 @@
+/* ===== Placas de porta (A4 paisagem). Medidas em mm; o painel principal usa --k (mm) como unidade, ajustada por JS. ===== */
+.pl{--navy:#0b1b3d;--ink:#0b1220;--mut:#5f6b7d;--line:#e3e7ee;--gold:#f5c542;--z:1;max-width:1180px;margin:0 auto;padding:1rem 1rem 4rem;color:var(--ink);background:#eef1f6;min-height:100vh}
+.pl-loading{color:var(--mut)}
+.pl-tools{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin:0 0 1rem}
+.pl-tools-l b{display:block;font-family:var(--font-display);font-size:1.2rem;color:var(--navy)}
+.pl-tools-l span{color:var(--mut);font-size:.88rem}
+.pl-tools-r{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+.pl-group{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+.pl-group a{font:inherit;font-size:.9rem;font-weight:600;padding:.4rem .8rem;color:var(--ink);text-decoration:none;border-left:1px solid var(--line)}
+.pl-group a:first-child{border-left:0}
+.pl-group a.on{background:var(--navy);color:#fff}
+.pl-tools-r button{font:inherit;font-size:.9rem;font-weight:700;border:1px solid var(--gold);background:var(--gold);color:var(--navy);border-radius:8px;padding:.4rem .8rem;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem}
+.pl-tools-r .ico{width:1em;height:1em}
+/* a folha */
+.pl-sheets{display:grid;gap:1.2rem}
+.placa{position:relative;width:297mm;height:210mm;background:#fff;display:grid;grid-template-columns:92mm 1fr;grid-template-rows:210mm;overflow:hidden;box-shadow:0 10px 30px -14px rgba(11,18,32,.35);border-radius:3mm;transform:scale(var(--z));transform-origin:top left;margin-bottom:calc(210mm * (var(--z) - 1))}
+/* faixa nas cores do anel do cartaz */
+.pl-band{position:absolute;left:92mm;right:0;top:0;height:3.5mm;background:linear-gradient(90deg,#2f8f3a 0 20%,#1d4ed8 20% 40%,#e3b505 40% 60%,#6d28d9 60% 80%,#c62828 80% 100%)}
+.pl-side{--bg:11,27,61;background:rgb(var(--bg));color:#fff;padding:0 9mm 9mm;display:flex;flex-direction:column;gap:2.5mm;height:210mm;box-sizing:border-box;min-height:0;overflow:hidden}
+.placa.tenda .pl-side{--bg:76,29,149}.placa.area .pl-side{--bg:17,94,89}
+/* topo do painel: anel e emblema do cartaz, fundindo com a cor do painel */
+.pl-art{position:relative;height:58mm;margin:0 -9mm 4mm;overflow:hidden;flex:none}
+.pl-art img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block}
+.pl-art::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(var(--bg),.12) 0,rgba(var(--bg),.12) 55%,rgba(var(--bg),.75) 82%,rgb(var(--bg)) 100%)}
+.pl-kind{font-size:6.5mm;letter-spacing:.3em;text-transform:uppercase;font-weight:700;opacity:.85}
+.pl-num{font-family:var(--font-display);font-weight:800;font-size:54mm;line-height:.9;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.pl-num.long{font-size:36mm}
+.pl-num.text{font-size:12mm;line-height:1.1;margin:4mm 0;overflow-wrap:anywhere;letter-spacing:0}
+.pl-name{font-size:6.5mm;font-weight:700;line-height:1.2}
+.pl-name small{display:block;font-size:4mm;font-weight:500;opacity:.8;margin-top:1.5mm;line-height:1.3}
+.pl-qr{margin-top:auto;flex:none;display:grid;grid-template-columns:27mm 1fr;gap:4mm;align-items:center}
+.pl-qr-box{background:#fff;border-radius:2mm;padding:1.5mm;width:27mm;height:27mm;box-sizing:border-box}
+.pl-qr-box svg{display:block;width:100%;height:100%}
+.pl-qr span{font-size:3.6mm;line-height:1.3;opacity:.92}
+.pl-main{display:flex;flex-direction:column;padding:9mm 11mm 7mm 11mm;min-width:0;height:210mm;box-sizing:border-box;overflow:hidden}
+.pl-head{flex:none;display:flex;align-items:center;gap:5mm;padding-bottom:3.5mm;border-bottom:.5mm solid var(--navy)}
+.pl-marca{height:24mm;width:auto}
+.pl-head-t{flex:1;min-width:0;line-height:1.25}
+.pl-head-t b{display:block;font-family:var(--font-display);font-size:4.4mm;color:var(--primary);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-head-t span{display:block;font-size:3.9mm;color:var(--mut)}
+.pl-logo{height:13mm;width:auto}
+/* painel principal: tudo em em, base --k mm (ajustada por JS) */
+.pl-body{flex:1;min-height:0;overflow:hidden;padding-top:.8em;display:flex;flex-direction:column;gap:.6em;font-size:calc(1mm * var(--k,4.2));line-height:1.2}
+.pl-body.few{justify-content:center;padding-bottom:2em}
+.pl-day h3{font-family:var(--font-display);font-size:1.05em;font-weight:800;color:var(--navy);margin:0 0 .25em;letter-spacing:.03em;text-transform:uppercase}
+.pl-svc h3{color:#7a5200}
+.pl-row{display:grid;grid-template-columns:5.6em 1fr;gap:.8em;align-items:start;padding:.4em 0;border-top:.25mm solid var(--line)}
+.pl-row:first-of-type{border-top:0}
+.pl-time{font-size:1.2em;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;padding-top:.1em}
+.pl-what b{display:block;font-size:1.32em;line-height:1.12;font-weight:700}
+.pl-what small{display:block;font-size:.88em;color:var(--mut);margin-top:.2em;line-height:1.25}
+.pl-what small.inl{display:inline;margin:0}
+.pl-body.dense .pl-what small:not(.inl){display:none}
+.pl-ico{width:2.6em;height:2.6em;border-radius:.6em;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 22%,#fff);color:color-mix(in srgb,var(--c) 65%,var(--ink));justify-self:start;flex:none}
+.pl-ico .ico{width:1.5em;height:1.5em}
+.pl-empty{color:var(--mut)}
+/* versão destaque (uma folha por curso/serviço) */
+.pl-body.solo{justify-content:center;gap:.7em;padding-bottom:1.5em}
+.pl-label{font-size:1em;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#7a5200}
+.pl-body.curso .pl-label{color:var(--primary)}
+.pl-big{font-family:var(--font-display);font-size:2.6em;line-height:1.05;font-weight:800;color:var(--navy);margin:0;letter-spacing:-.01em;display:flex;align-items:center;gap:.35em}
+.pl-big .pl-ico{width:1.4em;height:1.4em;border-radius:.3em}.pl-big .pl-ico .ico{width:.8em;height:.8em}
+.pl-sessions{display:grid;gap:.3em;margin-top:.3em}
+.pl-sess{display:flex;align-items:center;gap:.5em;font-size:1.45em;font-weight:700;line-height:1.2}
+.pl-sess .ico{width:1em;height:1em;color:var(--primary);flex:none}
+.pl-sess small{font-size:.7em;font-weight:500;color:var(--mut)}
+.pl-aud{margin:.2em 0 0;font-size:1.15em;line-height:1.3;color:var(--ink)}
+.pl-aud b{color:var(--mut);font-weight:700}
+.pl-items{margin:.3em 0 0;padding:0;list-style:none;display:grid;gap:.35em}
+.pl-items li{font-size:1.3em;line-height:1.2;font-weight:600;padding-left:1.1em;position:relative}
+.pl-items li::before{content:"";position:absolute;left:0;top:.42em;width:.45em;height:.45em;border-radius:50%;background:var(--gold)}
+.pl-meta{margin:.4em 0 0;font-size:.85em;color:var(--mut);line-height:1.3}
+.pl-foot{flex:none;display:flex;justify-content:space-between;gap:1mm 6mm;flex-wrap:wrap;padding-top:3mm;border-top:.25mm solid var(--line);font-size:3.3mm;color:var(--mut)}
+.pl-foot span{white-space:nowrap}
+@media print{
+  @page{size:A4 landscape;margin:0}
+  html,body{background:#fff}
+  .pl{max-width:none;padding:0;background:#fff;min-height:0}
+  .pl-tools{display:none}
+  .pl-sheets{display:block}
+  .placa{transform:none;margin:0;box-shadow:none;border-radius:0;break-after:page;page-break-after:always}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}

@@ -1,0 +1,17 @@
+{
+  "name": "TCE na Comunidade · 9ª Edição · Oiapoque",
+  "short_name": "TCE Comunidade",
+  "description": "Programação de cursos, salas e serviços gratuitos do TCE na Comunidade — Oiapoque e Distrito do Manga, 03 a 07/11/2026.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6fb",
+  "theme_color": "#1f3b9a",
+  "lang": "pt-BR",
+  "icons": [{ "src": "img/tce-mark.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }],
+  "shortcuts": [
+    { "name": "Programação de hoje", "url": "./index.html#programacao" },
+    { "name": "Cursos", "url": "./index.html#cursos" },
+    { "name": "Serviços", "url": "./index.html#servicos" }
+  ]
+}

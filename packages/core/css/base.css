@@ -1,0 +1,25 @@
+/* Tokens e reset comuns (TV e app). Paleta institucional TCE/AP: azul cobalto + dourado. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap');
+:root{
+  --tce-azul-50:hsl(225 72% 96%);--tce-azul-100:hsl(225 70% 90%);--tce-azul-300:hsl(222 70% 68%);--tce-azul-500:hsl(220 76% 48%);
+  --tce-azul-700:hsl(225 72% 36%);--tce-azul-800:hsl(227 75% 28%);--tce-azul-900:hsl(229 78% 18%);
+  --tce-dourado-100:hsl(46 92% 88%);--tce-dourado-300:hsl(45 90% 66%);--tce-dourado-400:hsl(44 90% 56%);--tce-dourado-500:hsl(44 88% 50%);--tce-dourado-700:hsl(36 82% 38%);
+  --primary:var(--tce-azul-700);--accent:var(--tce-dourado-400);
+  --manha:#f7c948;--tarde:#34d399;--noite:#fb923c;
+  --font-text:'Inter','Segoe UI',system-ui,-apple-system,Roboto,sans-serif;--font-display:'Manrope','Inter',system-ui,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;font-family:var(--font-text);line-height:1.4;-webkit-font-smoothing:antialiased}
+h1,h2,h3{text-wrap:balance;margin:0}
+p{text-wrap:pretty;margin:0}
+img{max-width:100%;display:block}
+button,input,select,textarea{font-family:inherit;font-size:inherit}
+button{background:none;border:0;padding:0;margin:0;color:inherit;font:inherit;cursor:pointer;text-align:inherit}
+button,a,input,select,[role=button]{touch-action:manipulation}
+a{color:inherit}
+ul,ol{margin:0;padding:0;list-style:none}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+svg.ico{flex:none;width:1em;height:1em}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}

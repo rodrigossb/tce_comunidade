@@ -1,11 +1,18 @@
 {
-  "name": "tce-comunidade-oiapoque",
-  "version": "1.0.0",
+  "name": "tce-comunidade",
+  "version": "2.0.0",
   "private": true,
-  "description": "TCE na Comunidade · 9ª Edição (Oiapoque e Distrito do Manga, 03–07/11/2026): modo TV e app com cursos, salas e serviços. Site estático, sem dependências.",
+  "type": "module",
+  "description": "TCE na Comunidade · 9ª Edição (Oiapoque e Distrito do Manga, 03–07/11/2026). Monorepo Next.js: site público (app, TV, totem, resumo, placas) exportado estático para o GitHub Pages e controle de senhas com server actions.",
+  "workspaces": ["packages/*", "apps/*"],
   "scripts": {
-    "test": "node --test tests/*.test.mjs",
-    "serve": "python3 -m http.server 8080"
+    "dev": "npm run dev -w apps/site",
+    "dev:senhas": "npm run dev -w apps/senhas",
+    "build": "npm run build -w apps/site",
+    "build:senhas": "npm run build -w apps/senhas",
+    "start:senhas": "npm run start -w apps/senhas",
+    "backup": "node apps/senhas/scripts/backup.js",
+    "test": "node --test \"packages/core/tests/*.test.mjs\""
   },
-  "engines": { "node": ">=18.18" }
+  "engines": { "node": ">=22.5" }
 }

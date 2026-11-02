@@ -3,7 +3,17 @@ Thumbs.db
 *.log
 .tmp/
 node_modules/
+.next/
+.next-*/
+out/
+next-env.d.ts
+*.tsbuildinfo
 .env
-server/data/
+.env.*
+!.env.example
+apps/senhas/data/
+apps/senhas/backups/
+# legado (pasta server/ sai na virada para apps/senhas)
 server/.env
+server/data/
 server/backups/

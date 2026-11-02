@@ -1,0 +1,19 @@
+{
+  "name": "@tce/senhas",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Controle de senhas dos serviços do TCE na Comunidade (triagem, porta da sala, painel). Next.js com server actions e SQLite embutido (node:sqlite), sem dependências nativas.",
+  "scripts": {
+    "dev": "next dev -p ${PORT:-3115}",
+    "build": "next build",
+    "start": "next start -p ${PORT:-3015} -H ${HOST:-127.0.0.1}",
+    "backup": "node scripts/backup.js"
+  },
+  "dependencies": {
+    "@tce/core": "*",
+    "next": "^16.4.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  }
+}

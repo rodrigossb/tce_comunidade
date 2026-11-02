@@ -1,0 +1,17 @@
+{
+  "name": "@tce/core",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Dados e regras do TCE na Comunidade (programação, serviços, plantas, rotas, estatísticas de senhas) e CSS compartilhado. Sem dependências.",
+  "exports": {
+    ".": "./src/shared.js",
+    "./shared": "./src/shared.js",
+    "./data": "./src/data.js",
+    "./icons": "./src/icons.js",
+    "./map": "./src/map.js",
+    "./salas-cursos": "./src/salas-cursos.js",
+    "./stats": "./src/stats.js",
+    "./css/*": "./css/*"
+  }
+}
