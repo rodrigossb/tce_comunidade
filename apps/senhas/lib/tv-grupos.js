@@ -28,10 +28,10 @@ export const CUSTOM = {
   manga: {},
 };
 
-/** Todas as filas do local (uma por ambiente usado por algum serviço), na ordem de número da sala. */
+/** Filas com senha do local (uma por ambiente de atendimento), na ordem de número da sala. */
 export function queuesFor(venue) {
   const list = [];
-  for (const g of T.queuesOf(venue)) for (const p of g.places) list.push({ service: g.service, place: p });
+  for (const g of T.ticketQueuesOf(venue)) for (const p of g.places) list.push({ service: g.service, place: p }); // só filas com senha (D.senhas)
   const numOf = (p) => (p.num ? Number(p.num) || 0 : 999);
   const kindOrder = { sala: 0, tenda: 1, area: 2 };
   return list.sort((a, b) => (kindOrder[a.place.kind] ?? 3) - (kindOrder[b.place.kind] ?? 3) || numOf(a.place) - numOf(b.place) || String(a.place.name).localeCompare(String(b.place.name), 'pt-BR'));

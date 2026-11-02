@@ -390,5 +390,12 @@ const maps = {
     ] },
 };
 
-export const TCE_DATA = { event, venues, tags, courses, services, maps };
+// Controle de senhas: só os atendimentos que distribuem senha entram na triagem, na porta da sala e na TV.
+// `services` = pilares com fila; `excludePlaces` = ambientes desses pilares que mesmo assim não têm senha;
+// áreas abertas (kind 'area') nunca têm fila. Acolhida, Cursos (inscrição), Crianças e Famílias e Feiras e Cultura ficam fora.
+const senhas = {
+  services: ['pilar-1', 'pilar-2', 'pilar-3', 'pilar-5', 'pilar-6'],
+  excludePlaces: [],
+};
+export const TCE_DATA = { event, venues, tags, courses, services, maps, senhas };
 export default TCE_DATA;

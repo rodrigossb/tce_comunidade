@@ -51,7 +51,7 @@ export default function Atendimento() {
   const ctxOf = (s, c) => { const d = T.serviceDays().find((x) => x.date === s.day) || dayDefault(c || T.now()); return { day: d.date, venue: d.venue, place: d.place }; };
   const svc = (id) => T.serviceById(id);
   const placeName = (id) => { const p = T.placeInfo(id); return p ? (p.kind === 'area' && !p.num ? p.name : `${placeLabel(p)} · ${p.name}`) : id; };
-  const queues = () => T.queuesOf(ctxOf(stRef.current).venue);
+  const queues = () => T.ticketQueuesOf(ctxOf(stRef.current).venue); // só filas que distribuem senha (D.senhas)
   const queueById = (id) => { for (const g of queues()) for (const p of g.places) if (p.id === id) return Object.assign({ svc: g.service }, p); return null; };
 
   // ---------- servidor (server actions) + fila offline ----------

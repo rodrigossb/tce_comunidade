@@ -171,6 +171,17 @@ const placesOf = (s, venue) => { const out = []; const push = (id) => { if (id &
 const itemWhere = (it, venue) => (typeof it === 'object' && it.where && it.where[venue]) || [];
 const placeInfo = (id) => { for (const m of Object.values(D.maps || {})) { const p = m.places.find((x) => x.id === id); if (p) return Object.assign({ venue: m.venue }, p); } return null; };
 /** Filas de senhas de um local: uma por sala/tenda/área usada por algum serviço, agrupadas pelo primeiro pilar que a usa. */
+/** Filas que distribuem senha no local (configuração D.senhas): usado pela triagem, pela porta da sala e pela TV. */
+function ticketQueuesOf(venue) {
+  const cfg = D.senhas || {}; const allow = cfg.services ? new Set(cfg.services) : null; const deny = new Set(cfg.excludePlaces || []);
+  const out = [];
+  for (const g of queuesOf(venue)) {
+    if (allow && !allow.has(g.service.id)) continue;
+    const places = g.places.filter((p) => p.kind !== 'area' && !deny.has(p.id));
+    if (places.length) out.push({ service: g.service, places });
+  }
+  return out;
+}
 function queuesOf(venue) {
   const seen = new Set(); const groups = [];
   for (const s of D.services) {
@@ -202,7 +213,7 @@ function search(q) {
 }
 const SUGGESTIONS = ['Saúde', 'Vacina', 'Identidade', 'Dentista', 'Castração', 'Casamento', 'Corte de cabelo', 'Energia', 'Mulheres', 'Crianças', 'Empreendedorismo', 'Feira'];
 
-export { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, queueLabel, courseRoomPlace, icon, SHIFT_ICON };
+export { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, ticketQueuesOf, queueLabel, courseRoomPlace, icon, SHIFT_ICON };
 /** Mesmo objeto `TCE` do site antigo (T.fmtDate, T.icon…), para portar as telas sem reescrever cada chamada. */
-export const TCE = { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, search, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, queueLabel, courseRoomPlace, icon, SHIFT_ICON };
+export const TCE = { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, search, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, ticketQueuesOf, queueLabel, courseRoomPlace, icon, SHIFT_ICON };
 export default TCE;
