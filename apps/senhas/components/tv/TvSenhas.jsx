@@ -51,23 +51,46 @@ function Board() {
   const [unlocked, setUnlocked] = useState(false);
   const [voiceErr, setVoiceErr] = useState('');
   const supported = typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+  const audio = useRef(null); // AudioContext da campainha (criado no gesto que libera o som)
+  const unlockedRef = useRef(false);
+  const [banner, setBanner] = useState(''); // aviso grande e temporário com o estado do som (legível na TV)
+  const bannerT = useRef(null);
+  const showBanner = useCallback((text, ms = 8000) => { setBanner(text); clearTimeout(bannerT.current); bannerT.current = setTimeout(() => setBanner(''), ms); }, []);
+  /** Campainha de dois tons (WebAudio): toca mesmo em aparelho sem motor de voz; precisa do mesmo gesto inicial. */
+  const chime = useCallback(() => {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx) return;
+      if (!audio.current) audio.current = new Ctx();
+      const ctx = audio.current; if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      const t = ctx.currentTime;
+      [[880, 0], [1175, 0.22]].forEach(([f, dt]) => { const o = ctx.createOscillator(); const g = ctx.createGain(); o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t + dt); g.gain.exponentialRampToValueAtTime(0.5, t + dt + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dt + 0.5); o.connect(g); g.connect(ctx.destination); o.start(t + dt); o.stop(t + dt + 0.55); });
+    } catch (e) { console.warn('[tv] campainha indisponível:', e); }
+  }, []);
   const speak = useCallback((text) => {
     if (!supported) return;
     try {
-      const u = new SpeechSynthesisUtterance(text); u.lang = 'pt-BR'; u.rate = 0.95;
-      const v = pickVoice(window.speechSynthesis.getVoices()); if (v) u.voice = v;
-      u.onerror = (e) => { const code = (e && e.error) || 'desconhecido'; if (code === 'interrupted' || code === 'canceled') return; console.warn('[tv] voz falhou:', code); setVoiceErr(code); if (code === 'not-allowed') setUnlocked(false); };
+      const synth = window.speechSynthesis;
+      const u = new SpeechSynthesisUtterance(text); u.lang = 'pt-BR'; u.rate = 0.95; u.volume = 1;
+      const v = pickVoice(synth.getVoices()); if (v) u.voice = v;
+      u.onerror = (e) => { const code = (e && e.error) || 'desconhecido'; if (code === 'interrupted' || code === 'canceled') return; console.warn('[tv] voz falhou:', code); setVoiceErr(code); if (code === 'not-allowed') { unlockedRef.current = false; setUnlocked(false); } showBanner(voiceLabel(`error:${code}`)); };
       u.onstart = () => setVoiceErr('');
-      window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+      // Chrome/Android: cancel() imediatamente seguido de speak() costuma engolir a fala; só cancela se há algo falando e espera um pouco.
+      if (synth.speaking || synth.pending) { synth.cancel(); setTimeout(() => synth.speak(u), 250); } else synth.speak(u);
     } catch (e) { console.warn('[tv] voz indisponível:', e); setVoiceErr('exception'); }
-  }, [supported]);
-  const unlock = useCallback(() => { if (!voice || !supported) return; setUnlocked((was) => { if (!was) speak('Som ativado. As senhas serão anunciadas.'); return true; }); setVoiceErr(''); }, [voice, supported, speak]);
+  }, [supported, showBanner]);
+  // Libera o som: precisa rodar de forma síncrona dentro do gesto (toque/tecla), por isso usa ref e não o estado.
+  const unlock = useCallback(() => {
+    if (!voice || !supported || unlockedRef.current) return;
+    unlockedRef.current = true; setUnlocked(true); setVoiceErr('');
+    chime(); speak('Som ativado. As senhas serão anunciadas.');
+    setTimeout(() => { const vs = window.speechSynthesis.getVoices(); showBanner(`Som ativado · ${voiceLabel(voiceState({ wanted: true, supported: true, voices: vs, unlocked: true, lastError: '' }), pickVoice(vs))}`); }, 1500);
+  }, [voice, supported, chime, speak, showBanner]);
   useEffect(() => {
     if (!voice || !supported) return;
     const load = () => setVoices(window.speechSynthesis.getVoices());
     load(); window.speechSynthesis.addEventListener('voiceschanged', load);
     // Já houve interação nesta página (ex.: tecla F para tela cheia)? Então o som já está liberado.
-    if (navigator.userActivation && navigator.userActivation.hasBeenActive) setUnlocked(true);
+    if (navigator.userActivation && navigator.userActivation.hasBeenActive) { unlockedRef.current = true; setUnlocked(true); }
     const gesture = () => unlock();
     window.addEventListener('pointerdown', gesture); window.addEventListener('keydown', gesture);
     return () => { window.speechSynthesis.removeEventListener('voiceschanged', load); window.removeEventListener('pointerdown', gesture); window.removeEventListener('keydown', gesture); };
@@ -146,10 +169,10 @@ function Board() {
     if (!c) { showing.current = false; setFlash(null); return; }
     showing.current = true;
     setFlash({ id: `${c.id}:${c.again ? Date.now() : 0}`, ticket: c.ticket, place: c.place, service: c.service, again: c.again, until: Date.now() + FLASH_MS });
-    if (voice && c.place) speak(`Senha ${c.ticket}. ${c.place.num ? `${svcName(c.place)}, ${speakable(c.place)}` : svcName(c.place)}.`);
+    if (voice) { chime(); if (c.place) setTimeout(() => speak(`Senha ${c.ticket}. ${c.place.num ? `${svcName(c.place)}, ${speakable(c.place)}` : svcName(c.place)}.`), 700); } // campainha e, depois dela, a voz
     timer.current = setTimeout(() => { setFlash(null); timer.current = setTimeout(next, 400); }, FLASH_MS);
-  }, [voice, speak, supported]);
-  useEffect(() => () => clearTimeout(timer.current), []);
+  }, [voice, speak, chime, supported]);
+  useEffect(() => () => { clearTimeout(timer.current); clearTimeout(bannerT.current); }, []);
   useEffect(() => {
     if (!data) return;
     // Cada anúncio tem uma chave id:repetição; a primeira carga só memoriza (não anuncia o passado), mesmo sem chamadas ainda.
@@ -253,6 +276,7 @@ function Board() {
           <Icon name="megaphone" /><span><b>Ativar som</b><small>pressione OK ou qualquer seta no controle da TV (ou toque na tela) para liberar os anúncios por voz</small></span>
         </button>
       ) : null}
+      {banner ? <div className="tv-banner" role="status"><Icon name="megaphone" />{banner}</div> : null}
       {flash ? (
         <div className="sq-flash" role="alert" key={flash.id} style={{ '--c': flash.service ? flash.service.color : '#fbbf24' }}>
           <div className="sq-flash-box">
