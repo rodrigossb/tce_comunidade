@@ -31,7 +31,7 @@ export const sessionsOf = (f) => T.allSessions().filter(f);
 
 // ---------- helpers que dependem do relógio/estado ----------
 export function useDomain() {
-  const { clock, favs, prefs } = useApp();
+  const { clock, favs, prefs, kiosk } = useApp();
   const st = (x) => T.sessionState(x, clock);
   const focusDate = () => (clock.date < D.event.start ? D.event.start : clock.date > D.event.end ? D.event.end : clock.date);
   const nextOf = (c) => T.nextSession(c, clock) || T.allSessions().find((x) => x.course === c);
@@ -52,7 +52,7 @@ export function useDomain() {
       return c.sessions.some((x) => (!dia || x.date === dia) && (!turno || T.shiftOf(x.time) === turno) && (!local || x.venue === local));
     });
   };
-  const defaultMapVenue = () => { const l = prefs.local; if (l && M.mapOf(l)) return l; const d = T.nextServiceDay(clock.date) || T.serviceDays()[0]; return d.venue; };
+  const defaultMapVenue = () => { const l = kiosk ? kiosk.local : prefs.local; if (l && M.mapOf(l)) return l; const d = T.nextServiceDay(clock.date) || T.serviceDays()[0]; return d.venue; };
   return { st, focusDate, nextOf, shiftState, dayWord, courseSort, filterCourses, defaultMapVenue };
 }
 export const activeFilterCount = (p) => ['tema', 'dia', 'turno', 'local', 'fav'].filter((k) => p.get(k)).length;
@@ -158,13 +158,15 @@ export function PlaceChip({ id, on, s }) {
 }
 /** Campo de busca: digitação local com debounce; o valor vem da rota quando o campo não está em foco. */
 export function SearchBox({ q, id = 'q', big, placeholder, autoFocus, debounce = 0, onInput, onClear }) {
+  const { kiosk, showOsk } = useApp() || {};
   const [val, setVal] = useState(q || ''); const ref = useRef(null); const timer = useRef(null);
   useEffect(() => { if (document.activeElement !== ref.current) setVal(q || ''); }, [q]);
   useEffect(() => { if (autoFocus && ref.current) { const el = ref.current; el.focus({ preventScroll: true }); try { el.setSelectionRange(el.value.length, el.value.length); } catch { /* */ } } }, [autoFocus]);
   useEffect(() => () => clearTimeout(timer.current), []);
   return (
     <div className={`search ${big ? 'big' : ''}`}>{I('search')}<label className="sr-only" htmlFor={id}>Buscar</label>
-      <input ref={ref} id={id} type="search" value={val} placeholder={placeholder || 'Buscar curso, serviço, sala…'} autoComplete="off" enterKeyHint="search" data-search
+      <input ref={ref} id={id} type="search" value={val} placeholder={placeholder || 'Buscar curso, serviço, sala…'} autoComplete="off" enterKeyHint="search" data-search inputMode={kiosk ? 'none' : undefined}
+        onFocus={kiosk ? (e) => showOsk(e.currentTarget) : undefined} onPointerDown={kiosk ? (e) => showOsk(e.currentTarget) : undefined}
         onChange={(e) => { const v = e.target.value; setVal(v); clearTimeout(timer.current); if (debounce) timer.current = setTimeout(() => onInput(v.trim()), debounce); else onInput(v.trim()); }}
         onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} />
       {q ? <button className="icon-btn" onClick={() => { setVal(''); onClear(); }} aria-label="Limpar busca">{I('x')}</button> : null}
@@ -181,5 +183,6 @@ export function ServicesStrip() {
   );
 }
 export function Footer() {
-  return <footer className="foot">{D.event.organizer}<br />{D.event.edition} · {D.event.place} · {D.event.datesLabel}<br /><a href="tv.html">Modo TV</a></footer>;
+  const { kiosk } = useApp();
+  return <footer className="foot">{D.event.organizer}<br />{D.event.edition} · {D.event.place} · {D.event.datesLabel}{kiosk ? null : <><br /><a href="tv.html">Modo TV</a></>}</footer>;
 }

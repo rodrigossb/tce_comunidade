@@ -43,10 +43,24 @@ Mapa: planta com marcadores (`components/PlanMap.jsx`), rota a pé do acesso at�
 "Ouvir o caminho" (síntese de voz), botões "Ver no mapa" em cursos, serviços e locais.
 
 ## Totem (`totem.html`)
-Aparelho compartilhado, em pé, por toque (1080×1920). Parâmetros: `?local=jn`, `?ocioso=90`, `?descanso=0`,
-`?entrada=a1|a2|a3` (origem das rotas), `?t=`/`?d=`, `?app=`. Tecla `F` tela cheia. Início com busca + mapa
-vivo, abas grandes, teclado na tela, painéis com "Voltar", QR fixo no rodapé, tela de descanso com a
-programação do dia; sem memória entre pessoas; recarrega às 4h.
+O **mesmo app do celular em modo quiosque** (`components/app/App.jsx` com a prop `kiosk`, montado por
+`components/totem/TotemKiosk.jsx`): visual e telas idênticos ao `index.html`, mas sem menu lateral em qualquer largura
+(barra inferior), letra maior, sem memória entre pessoas (nada em `localStorage`), volta ao início sozinho, tela de
+descanso, teclado na tela na busca, links externos bloqueados (a pessoa leva pelo QR Code: no cabeçalho há um QR que
+abre no celular a mesma tela que está no totem; no curso, "Inscrever-se pelo celular" leva ao QR), origem de todos os
+caminhos do mapa fixa na posição do totem ("Você está aqui"). Parâmetros na URL:
+
+| Parâmetro | Função |
+|---|---|
+| `?local=jn` | local onde o totem está (`jn`, `manga`, `sebrae`, `auditorio`, `iaparra`): programação inicial e mapa padrão |
+| `?entrada=` | **posição do totem na planta** = origem das rotas: um acesso (`a1`, `a2`, `a3`), o id de uma sala em frente à qual ele fica (ex.: `jn-r11`) ou coordenadas `x,y` em pixels da planta (ex.: `900,1100`; planta JN 1800×1208, Manga 1600×1484) |
+| `?ocioso=90` | segundos sem toque até voltar ao início (mín. 20) · `?descanso=0` desliga a tela de descanso |
+| `?zoom=1.3` | escala da letra (1 = celular; 1,3 fica bom em 42" 1080×1920) |
+| `?t=HH:MM&d=AAAA-MM-DD` | simulação de data/hora (igual ao app e à TV) |
+
+Ex.: `totem.html?local=jn&entrada=jn-r11&zoom=1.3`. Tecla `F` = tela cheia; recarrega sozinho às 4h. O app do
+cidadão (`index.html`) não muda. O layout anterior do totem (telas próprias, mapa vivo) continua em
+`totem-classico.html` com os mesmos parâmetros.
 
 ## Resumo da organização (`resumo.html`)
 Documento imprimível (A4) para a coordenação: visão geral dias × locais, cada dia por local (cursos e
@@ -134,7 +148,7 @@ tem `places: { jn, manga }` e itens podem ter `where` (sala específica). `packa
 marcadores, calcula a rota a pé do acesso até a sala (Dijkstra sobre os corredores, destino projetado no
 corredor mais próximo) e gera as instruções em texto ("vire à esquerda… Sala 11 fica à sua direita").
 Totem: aba "Mapa" (planta geral, filtro por serviço, toque na sala → rota) e "Onde fica" em cada serviço;
-a origem da rota é o acesso em `?entrada=a1|a2|a3` (padrão a1 = entrada principal). App: `#mapa?local=jn&p=jn-r11&s=pilar-1&entrada=a1`.
+a origem da rota é o acesso em `?entrada=a1|a2|a3` (padrão a1 = entrada principal; no totem também o id de uma sala ou `x,y`). App: `#mapa?local=jn&p=jn-r11&s=pilar-1&entrada=a1`.
 Sem escala: a rota é orientação visual. Ambientes "A definir" e a tenda Webflash ficam ocultos (`hide`).
 Início do totem: "mapa vivo" (destaca um serviço a cada 4 s, com as salas nomeadas; toque na sala abre o
 caminho; chips por serviço). Rota com "Ouvir o caminho" (síntese de voz pt-BR, quando o navegador tem).

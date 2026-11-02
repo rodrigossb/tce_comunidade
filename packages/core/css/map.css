@@ -66,3 +66,5 @@
 .map-zoom .tcemap{width:220%;border-radius:0}
 .map-zoom.x3 .tcemap{width:320%}
 .map-actions{display:flex;gap:.5em;flex-wrap:wrap;margin:.6em 0}
+/* origem personalizada (totem em frente a uma sala ou em x,y): pulso vermelho */
+.tcemap .ent.custom .pulse{fill:#e11d48;stroke:none;opacity:.3;transform-origin:center;animation:mkpulse 1.6s ease-out infinite}

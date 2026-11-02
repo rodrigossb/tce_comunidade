@@ -64,6 +64,12 @@ export default function PlanMap({ venue, entrance, place, alias, highlight, show
             </>
           ) : null}
           {places.filter((p) => p.id !== place).map(pin)}
+          {from.custom ? (
+            <g className="ent here custom" data-entrance={from.id} transform={`translate(${from.x} ${from.y})`} aria-label={from.label}>
+              <circle className="pulse" r={30 * S} /><circle r={18 * S} /><text dy={6 * S} fontSize={16 * S}>★</text>
+              <g className="lbl here" transform={`translate(0 ${30 * S})`}><rect x={-80 * S} y="0" width={160 * S} height={28 * S} rx={8 * S} /><text y={20 * S} fontSize={15 * S}>Você está aqui</text></g>
+            </g>
+          ) : null}
           {map.entrances.map((e) => {
             const here = e.id === from.id;
             return (

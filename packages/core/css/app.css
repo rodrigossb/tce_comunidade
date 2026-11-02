@@ -393,3 +393,54 @@ em.only .ico{width:.95em;height:.95em}
 .btn-map span small{display:block;font-weight:500;font-size:.8em;opacity:.85;margin-top:.1em}
 .btn-map>.ico:last-child{width:1em;height:1em;opacity:.8}
 .chips.types{margin:.3em 0 .6em}
+
+/* ---------- modo quiosque (totem.html): layout do celular em qualquer largura, teclado na tela, descanso ---------- */
+.app.kiosk{user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;min-height:100dvh}
+.app.kiosk,.app.kiosk *{scrollbar-width:none}.app.kiosk *::-webkit-scrollbar{display:none}
+.app.kiosk .side-nav{display:none}
+.app.kiosk .kiosk-qr{display:flex;align-items:center;gap:.45em;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:.25em .5em .25em .3em;margin-right:.3em}
+.app.kiosk .kiosk-qr svg{width:2.9em;height:2.9em;border-radius:6px}
+.app.kiosk .kiosk-qr small{font-size:.68em;font-weight:700;color:var(--mut);line-height:1.15;display:flex;flex-direction:column;align-items:flex-start}
+.app.kiosk .kiosk-qr small .ico{width:1.1em;height:1.1em;color:var(--primary);margin-bottom:.1em}
+.app.kiosk .sess,.app.kiosk .card,.app.kiosk .chip,.app.kiosk .btn,.app.kiosk .tabs button{cursor:pointer}
+.app.kiosk .qr-box.kiosk{border:2px solid color-mix(in srgb,var(--primary) 35%,var(--line));background:var(--p-soft)}
+.app.kiosk .qr-box.kiosk svg{width:9em;height:9em}
+.app.kiosk .qr-box.kiosk small{font-size:.95em}
+.app.kiosk .map-bar .here.fixed{display:inline-flex;align-items:center;gap:.4em;background:var(--card);border:1.5px solid var(--line);border-radius:999px;padding:.35em .8em;font-size:.9em;color:var(--mut)}
+.app.kiosk .map-bar .here.fixed b{color:var(--ink)}
+.app.kiosk .map-bar .here.fixed .ico{color:#e11d48;width:1.1em;height:1.1em}
+@media (min-width:980px){
+  .app.kiosk{--nav-h:66px}
+  .app.kiosk .bottom-nav{display:grid}
+  .app.kiosk .head-search{display:inline-flex}
+  .app.kiosk .app-head{position:sticky}
+  .app.kiosk .app-body{flex-direction:column;align-items:stretch}
+  .app.kiosk .app-main{max-width:none;padding:1em 1.1em calc(var(--nav-h) + 1.6em)}
+  .app.kiosk .sheet-root{align-items:flex-end;padding:0}
+  .app.kiosk .sheet{max-width:none;border-radius:22px 22px 0 0;max-height:calc(100dvh - env(safe-area-inset-top) - .75em);animation:up .28s cubic-bezier(.2,.8,.2,1)}
+  .app.kiosk .sheet-grab{display:block}
+  .app.kiosk .toast{bottom:calc(var(--nav-h) + 1em)}
+}
+.app.kiosk .bottom-nav button{font-size:.78em}
+/* teclado na tela */
+.app.kiosk .osk{position:fixed;left:0;right:0;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));z-index:35;background:var(--card);border-top:1px solid var(--line);padding:.7em .7em .9em;display:flex;flex-direction:column;gap:.5em;box-shadow:0 -10px 30px rgba(11,18,32,.14);animation:up .2s cubic-bezier(.2,.8,.2,1)}
+.app.kiosk .osk-row{display:flex;gap:.45em;justify-content:center}
+.app.kiosk .osk button{flex:1 1 0;min-width:0;max-width:3.2em;height:3.3em;border-radius:12px;background:var(--bg);border:1.5px solid var(--line);font:inherit;font-size:1.15em;font-weight:800;color:var(--ink);text-transform:uppercase;display:grid;place-items:center;cursor:pointer}
+.app.kiosk .osk button:active{background:var(--p-soft);border-color:var(--primary);transform:scale(.96)}
+.app.kiosk .osk button.wide{max-width:none;flex:2.2 1 0;text-transform:none;font-size:1em;display:inline-flex;gap:.3em;align-items:center;justify-content:center}
+.app.kiosk .osk button.space{flex:6 1 0;max-width:none;text-transform:none;font-size:.95em}
+.app.kiosk .osk button.danger{color:#dc2626}
+.app.kiosk .osk button.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.app.kiosk .osk button .ico{width:1.2em;height:1.2em}
+.app.kiosk.osk-open .app-main{padding-bottom:22em}
+/* tela de descanso */
+.app.kiosk .kiosk-attract{position:fixed;inset:0;z-index:80;border:0;cursor:pointer;background:radial-gradient(120% 80% at 50% 0%,#16307a 0%,#0b1b3d 55%,#071128 100%);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6em;padding:2em;font:inherit;text-align:center;animation:fade .35s}
+.app.kiosk .kiosk-attract img{width:min(60vw,22em);background:#fff;border-radius:18px;padding:1em 1.4em;margin-bottom:1.2em}
+.app.kiosk .kiosk-attract b{font-family:var(--font-display);font-size:2.6em;line-height:1.05;letter-spacing:-.02em}
+.app.kiosk .kiosk-attract > span{font-size:1.25em;opacity:.85}
+.app.kiosk .kiosk-attract em{font-style:normal;font-family:var(--font-display);font-weight:800;font-size:4.2em;line-height:1;margin:.35em 0 .1em;font-variant-numeric:tabular-nums;display:flex;flex-direction:column;align-items:center}
+.app.kiosk .kiosk-attract em small{font-family:var(--font-text);font-weight:600;font-size:.28em;opacity:.8;margin-top:.5em}
+.app.kiosk .kiosk-attract .cta{display:inline-flex;align-items:center;gap:.6em;background:var(--accent);color:#1f1300;font-family:var(--font-display);font-weight:800;font-size:1.45em;padding:.75em 1.6em;border-radius:999px;margin-top:1.4em;box-shadow:0 16px 40px rgba(0,0,0,.45),0 0 0 .35em color-mix(in srgb,var(--accent) 30%,transparent);animation:cta 2.2s ease-in-out infinite}
+.app.kiosk .kiosk-attract .cta .ico{width:1.2em;height:1.2em}
+.app.kiosk .kiosk-attract .org{position:absolute;bottom:1.6em;font-size:.9em;opacity:.7}
+@keyframes cta{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}

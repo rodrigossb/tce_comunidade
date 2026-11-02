@@ -17,3 +17,12 @@ test('salas dos cursos apontam para ambientes existentes na planta', () => {
     assert.ok(M.maps[venue].places.some((p) => p.id === id), `${venue}: ambiente ${id} não existe na planta`);
   }
 });
+test('origem da rota pode ser um acesso, um ambiente (totem em frente a ele) ou coordenadas x,y', () => {
+  const map = M.maps.jn;
+  assert.equal(M.entranceOf(map, 'a2').id, 'a2');
+  assert.equal(M.entranceOf(map, 'nada').id, 'a1'); // padrão
+  const byPlace = M.entranceOf(map, 'jn-r11'); assert.ok(byPlace.custom); assert.match(byPlace.short, /Totem/);
+  const byXy = M.entranceOf(map, '900,1100'); assert.ok(byXy.custom); assert.equal(byXy.x, 900);
+  assert.equal(M.entranceOf(map, '99999,5').id, 'a1'); // fora da planta: padrão
+  for (const ent of ['jn-r11', '900,1100']) for (const p of map.places) { const r = M.route('jn', p.id, ent); assert.ok(r && r.points.length >= 2, `${ent}→${p.id}`); assert.match(r.steps[0].text, /totem/i); }
+});

@@ -28,7 +28,8 @@ const Head = ({ kicker, style, onClose }) => <div className="sheet-head"><span c
 export function NotFound({ msg, onClose }) { return <><Head kicker="Ops" onClose={onClose} /><div className="sheet-body"><Empty icon="alert">{msg}</Empty></div></>; }
 
 export function SheetCurso({ c, onClose }) {
-  const { clock, favs, toggleFav, nav, share, download, toast } = useApp(); const { st, nextOf, dayWord } = useDomain();
+  const { clock, favs, kiosk, toggleFav, nav, share, download, toast } = useApp(); const { st, nextOf, dayWord } = useDomain();
+  const qrRef = useRef(null);
   const sessions = T.allSessions().filter((x) => x.course === c);
   const byDay = {}; sessions.forEach((x) => { (byDay[x.date] = byDay[x.date] || []).push(x); });
   const venues = [...new Set(sessions.map((x) => D.venues[x.venue].short))].join(' · ');
@@ -59,26 +60,38 @@ export function SheetCurso({ c, onClose }) {
         {Object.keys(byDay).map((d) => (
           <div key={d} className="day-group"><small className={d === clock.date ? 'today' : ''}>{T.fmtDate(d)}{d === clock.date ? ' · hoje' : ''}</small>
             {byDay[d].map((x, k) => { const sx = st(x); const pl = T.courseRoomPlace(x); return (
-              <div key={k} className={`sess-static ${sx}`} style={{ '--c': shiftColor(x.shift) }}><span className="sess-time"><b>{T.fmtTime(x.time)}</b><small>até {T.fmtTime(T.sessionEnd(x))}</small></span><span className="sess-body"><b>{x.room || D.venues[x.venue].short}{x.label ? ` · ${x.label}` : ''}{pl ? <em className={`room-tag ${pl.kind}`}>{I('map')}{M.placeLabel(pl)}</em> : null}</b><small>{D.venues[x.venue].name}</small></span><span className="sess-right"><StateBadge s={sx} c={shiftColor(x.shift)} /></span>{links.length > 1 && x.link !== c.link ? <a className="sess-link link" href={x.link} target="_blank" rel="noopener">Inscrição {x.label || ''} {I('external')}</a> : null}</div>
+              <div key={k} className={`sess-static ${sx}`} style={{ '--c': shiftColor(x.shift) }}><span className="sess-time"><b>{T.fmtTime(x.time)}</b><small>até {T.fmtTime(T.sessionEnd(x))}</small></span><span className="sess-body"><b>{x.room || D.venues[x.venue].short}{x.label ? ` · ${x.label}` : ''}{pl && M.placeLabel(pl) !== x.room ? <em className={`room-tag ${pl.kind}`}>{I('map')}{M.placeLabel(pl)}</em> : null}</b><small>{D.venues[x.venue].name}</small></span><span className="sess-right"><StateBadge s={sx} c={shiftColor(x.shift)} /></span>{!kiosk && links.length > 1 && x.link !== c.link ? <a className="sess-link link" href={x.link} target="_blank" rel="noopener">Inscrição {x.label || ''} {I('external')}</a> : null}</div>
             ); })}
           </div>
         ))}
-        <div className="actions">
-          <a className="btn btn-primary" href={c.link} target="_blank" rel="noopener">{I('external')}Fazer inscrição{links.length > 1 ? ` (${sessions.find((x) => x.link === c.link)?.label || 'Turma I'})` : ''}</a>
-          <button className={`btn btn-ghost ${fav ? 'on' : ''}`} onClick={() => toggleFav(c.id)}>{I('bookmark')}{fav ? 'Salvo' : 'Salvar'}</button>
-          <button className="btn btn-ghost" onClick={onIcs}>{I('calendarplus')}Lembrar</button>
-          <button className="btn btn-ghost" onClick={onShare}>{I('share')}Compartilhar</button>
-          <button className="btn btn-ghost" onClick={() => nav(`programacao?d=${nx.date}&local=${nx.venue}`)}>{I('calendar')}Ver o dia</button>
-        </div>
-        <p className="tiny muted">A inscrição é feita no site da Escola de Contas (ESCON). É gratuita.{c.linkNote ? ' Se o link não abrir, procure o curso pelo nome na página de cursos da Escola de Contas.' : ''}</p>
-        <div className="qr-box"><Qr text={T.appUrl(`curso/${c.id}`)} margin={1} /><small><b>Mostre para alguém:</b> este QR Code abre esta página do curso no celular.</small></div>
+        {kiosk ? (
+          <>
+            <div className="actions">
+              <button className="btn btn-primary" onClick={() => qrRef.current && qrRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })}>{I('qr')}Inscrever-se pelo celular</button>
+              <button className="btn btn-ghost" onClick={() => nav(`programacao?d=${nx.date}&local=${nx.venue}`)}>{I('calendar')}Ver o dia</button>
+            </div>
+            <div className="qr-box kiosk" ref={qrRef}><Qr text={T.appUrl(`curso/${c.id}`)} margin={1} /><small><b>Aponte a câmera do celular</b> para este QR Code: abre esta página do curso com o botão de inscrição (gratuita, pelo site da Escola de Contas).</small></div>
+          </>
+        ) : (
+          <>
+            <div className="actions">
+              <a className="btn btn-primary" href={c.link} target="_blank" rel="noopener">{I('external')}Fazer inscrição{links.length > 1 ? ` (${sessions.find((x) => x.link === c.link)?.label || 'Turma I'})` : ''}</a>
+              <button className={`btn btn-ghost ${fav ? 'on' : ''}`} onClick={() => toggleFav(c.id)}>{I('bookmark')}{fav ? 'Salvo' : 'Salvar'}</button>
+              <button className="btn btn-ghost" onClick={onIcs}>{I('calendarplus')}Lembrar</button>
+              <button className="btn btn-ghost" onClick={onShare}>{I('share')}Compartilhar</button>
+              <button className="btn btn-ghost" onClick={() => nav(`programacao?d=${nx.date}&local=${nx.venue}`)}>{I('calendar')}Ver o dia</button>
+            </div>
+            <p className="tiny muted">A inscrição é feita no site da Escola de Contas (ESCON). É gratuita.{c.linkNote ? ' Se o link não abrir, procure o curso pelo nome na página de cursos da Escola de Contas.' : ''}</p>
+            <div className="qr-box"><Qr text={T.appUrl(`curso/${c.id}`)} margin={1} /><small><b>Mostre para alguém:</b> este QR Code abre esta página do curso no celular.</small></div>
+          </>
+        )}
       </div>
     </>
   );
 }
 
 export function SheetServico({ s, onClose }) {
-  const { route, nav, share } = useApp(); const { defaultMapVenue } = useDomain();
+  const { route, nav, share, kiosk } = useApp(); const { defaultMapVenue } = useDomain();
   const dia = route.p.get('dia'); const ctx = (dia && T.mapVenueOf(dia)) || defaultMapVenue(); const ids = T.placesOf(s, ctx); const m = M.mapOf(ctx);
   return (
     <>
@@ -90,7 +103,7 @@ export function SheetServico({ s, onClose }) {
         {s.detail ? <p className="note">{I('info')}<span>{s.detail}</span></p> : null}
         <h3>{I('users')}Quem atende</h3><div className="partners">{s.partners.map((p) => <span key={p}>{p}</span>)}</div>
         {s.coursesLink ? <div className="actions"><button className="btn btn-primary" onClick={() => nav('cursos')}>{I('graduation')}Ver os {D.courses.length} cursos com inscrição</button></div> : null}
-        <div className="share-row"><button className="btn btn-ghost" onClick={() => share(s.title, `${s.title}: ${s.summary} · ${D.event.name} · ${D.event.datesLabel}`, T.appUrl(`servico/${s.id}`))}>{I('share')}Compartilhar</button></div>
+        {kiosk ? <div className="qr-box kiosk"><Qr text={T.appUrl(`servico/${s.id}`)} margin={1} /><small><b>Aponte a câmera do celular</b> para levar este serviço, com salas e horários, no seu aparelho.</small></div> : <div className="share-row"><button className="btn btn-ghost" onClick={() => share(s.title, `${s.title}: ${s.summary} · ${D.event.name} · ${D.event.datesLabel}`, T.appUrl(`servico/${s.id}`))}>{I('share')}Compartilhar</button></div>}
       </div>
     </>
   );

@@ -58,7 +58,17 @@ const placeLabel = (p) => (p.kind === 'sala' ? `Sala ${p.num}` : p.kind === 'ten
 const placeFull = (p) => (p.kind === 'area' && !p.num ? p.name : `${placeLabel(p)} · ${p.name}`);
 const mapOf = (venue) => MAPS[venue] || null;
 function placeById(id) { for (const m of Object.values(MAPS)) { const p = m.places.find((x) => x.id === id); if (p) return { map: m, place: p }; } return null; }
-const entranceOf = (map, id) => map.entrances.find((e) => e.id === id) || map.entrances.find((e) => e.default) || map.entrances[0];
+/** Origem das rotas. `id` pode ser um acesso da planta (a1, a2…), o id de um ambiente (o totem fica em frente a ele)
+    ou coordenadas "x,y" em pixels da planta (posição exata do totem). Sem correspondência: acesso padrão. */
+function entranceOf(map, id) {
+  const e = map.entrances.find((x) => x.id === id); if (e) return e;
+  const s = String(id || '').trim();
+  const xy = s.match(/^(\d+(?:\.\d+)?)\s*[,;x]\s*(\d+(?:\.\d+)?)$/);
+  if (xy) { const x = Number(xy[1]); const y = Number(xy[2]); if (x >= 0 && x <= map.w && y >= 0 && y <= map.h) return { id: s, x, y, short: 'Totem', label: 'Totem · você está aqui', custom: true, startText: 'Você está no totem.' }; }
+  const pl = map.places.find((p) => p.id === s);
+  if (pl) return { id: s, x: pl.x, y: pl.y, short: `Totem · ${placeLabel(pl)}`, label: `Totem, em frente a ${placeLabel(pl)} · você está aqui`, custom: true, startText: `Você está no totem, em frente a ${placeLabel(pl)} (${pl.name}).` };
+  return map.entrances.find((x) => x.default) || map.entrances[0];
+}
 
 /** Rota do acesso até a sala: pontos (px da imagem) e passos em texto. */
 function route(venue, placeId, entranceId, alias) {
@@ -71,10 +81,11 @@ function route(venue, placeId, entranceId, alias) {
   let path = dijkstra(adj, start, goal) || [start, goal];
   if (place.door) path = path.concat([[place.x, place.y]]);
   path = simplify(path);
+  if (path.length < 2) path = [start, goal]; // origem na própria sala (totem em frente a ela)
   return { map, place, from, points: path, steps: steps(path, place, from) };
 }
 function steps(path, place, from) {
-  const out = [{ kind: 'start', text: `Você está no ${from.short}. Entre na escola.` }];
+  const out = [{ kind: 'start', text: from.startText || `Você está no ${from.short}. Entre na escola.` }];
   // O último ponto é a porta/centro da sala; as curvas valem só pelo corredor (até o penúltimo ponto).
   const corr = path.length > 2 ? path.slice(0, -1) : path;
   let straight = 0;
