@@ -17,6 +17,6 @@ const nextConfig = {
   // Permite vários `next dev`/`next build` em paralelo na mesma pasta (NEXT_DIST_DIR=.next-xxx).
   distDir: process.env.NEXT_DIST_DIR || '.next',
   // Só em desenvolvimento: deixa os links relativos do export (tv.html, totem.html…) funcionarem no `next dev`.
-  ...(process.env.NODE_ENV === 'development' ? { async rewrites() { return [{ source: '/:page(index|tv|totem|totem-classico|resumo|resumo-cursos|placas).html', destination: '/:page' }]; } } : {}),
+  ...(process.env.NODE_ENV === 'development' ? { async rewrites() { return [{ source: '/:page(index|tv|totem|totem-classico|resumo|resumo-cursos|resumo-total|placas).html', destination: '/:page' }]; } } : {}),
 };
 export default nextConfig;

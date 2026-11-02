@@ -34,12 +34,14 @@ const load = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem storage */ } };
 
 // ---------- página ----------
-export default function ResumoCursos() {
+/** variant: undefined = resumo de cursos (por dia, A–Z, totais, atenção); 'total' = resumo total (totais e turmas por local). */
+export default function ResumoCursos({ variant }) {
   const mounted = useMounted();
-  return <div className="rs">{mounted ? <Doc /> : <p className="rs-loading">Montando o resumo…</p>}</div>;
+  return <div className="rs">{mounted ? <Doc variant={variant} /> : <p className="rs-loading">Montando o resumo…</p>}</div>;
 }
 
-function Doc() {
+function Doc({ variant }) {
+  const total = variant === 'total'; const page = total ? 'resumo-total.html' : 'resumo-cursos.html';
   const [enr, setEnr] = useState(() => load(LS_DATA, null));
   const [key, setKey] = useState(() => T.params.get('k') || load(LS_KEY, ''));
   const [paste, setPaste] = useState('');
@@ -130,45 +132,23 @@ function Doc() {
   const Num = ({ v }) => <td className="n">{v == null ? '—' : v}</td>;
   const room = (x) => { const p = T.courseRoomPlace(x); return <>{x.room || <span className="muted">sem sala</span>}{p && M.placeLabel(p) !== x.room ? <> <span className={`room ${p.kind} sm`}>{M.placeLabel(p)}</span></> : null}</>; };
 
-  return (
-    <>
-      <div className="rs-tools"><button onClick={() => window.print()}><Icon name="download" />Imprimir / PDF</button><a href="resumo.html"><Icon name="list" />Resumo geral</a><a href="index.html"><Icon name="phone" />App</a></div>
-      <div className="rs-tools rs-locais"><span className="muted tiny">Local:</span><a href="resumo-cursos.html" className={sel ? '' : 'on'}>Todos</a>{VENUE_ORDER.filter((v) => T.allSessions().some((x) => x.venue === v)).map((v) => <a key={v} href={`resumo-cursos.html?local=${v}`} className={sameSet(sel, venueFilter(v)) ? 'on' : ''}>{D.venues[v].short}</a>)}</div>
-      <section className="cover">
-        <img src="img/tce-logo.png" alt="Tribunal de Contas do Estado do Amapá" />
-        <p className="kicker">Resumo de cursos e inscrições{sel ? ` · ${selLabel}` : ''}</p>
-        <h1>{D.event.name}<br /><span>{D.event.edition}</span></h1>
-        <p className="sub">{sel ? `${selLabel} · ` : `${D.event.place} · `}{D.event.datesLabel}</p>
-        <div className="kpis">
-          <div className="kpi"><small>Cursos</small><b>{courses.length}</b><em>{tot.turmas} turmas · {all.length} aulas</em></div>
-          <div className="kpi"><small>Vagas</small><b>{tot.vagas}</b><em>soma das turmas</em></div>
-          <div className="kpi"><small>Inscritos</small><b>{tot.com ? tot.inscritos : '—'}</b><em>{tot.com ? `${tot.com} de ${courses.length} cursos com dado` : 'sem dados do painel'}</em></div>
-          <div className="kpi"><small>Vagas restantes</small><b>{tot.com ? tot.restantes : '—'}</b><em>{tot.com ? `${tot.lotados} lotado(s)` : ''}</em></div>
-          <div className="kpi"><small>Ocupação</small><b>{tot.pct != null ? `${tot.pct}%` : '—'}</b><em>inscritos ÷ vagas (cursos com dado)</em></div>
-          <div className="kpi"><small>Painel ESCON</small><b style={{ fontSize: '1rem' }}>{enr ? `${T.fmtDate(T.partsOf(new Date(enr.updatedAt)).date, 'wd')} ${T.partsOf(new Date(enr.updatedAt)).time}` : 'não lido'}</b><em>{enr ? `${enr.painelInfo ? `painel de ${enr.painelInfo} · ` : ''}${enr.source === 'coletor' ? 'via coletor (ao vivo)' : enr.source === 'publicado' ? 'publicado com o site' : enr.source === 'painel' ? 'lido do painel' : 'colado'}` : 'sem leitura'}</em></div>
+  const totais = (num) => (
+      <section className="sec" id="totais">
+        <h2><span className="n">{num}.</span> Totais{sel ? ` · ${selLabel}` : ''}<span className="h2sub">vagas, inscritos e vagas restantes por local e por dia · turmas de mais de um dia contam uma vez por local</span></h2>
+        <div className="tot-grid">
+          <table className="t6 tt"><thead><tr><th>Local</th><th className="n c-num">Cursos</th><th className="n c-num">Turmas</th><th className="n c-num">Vagas</th><th className="n c-num">Inscritos</th><th className="n c-num">Restam</th><th className="c-bar">Ocupação</th></tr></thead>
+            <tbody>{VENUE_ORDER.filter((v) => all.some((x) => x.venue === v)).map((v) => { const t = sumBy(courses, (g) => g.venue === v); return <tr key={v}><td><b>{D.venues[v].name}</b><span className="muted tiny"> · {D.venues[v].city}</span></td><Num v={t.cursos} /><Num v={t.turmas} /><Num v={t.vagas} /><Num v={t.com ? t.inscritos : null} /><Num v={t.com ? t.restantes : null} /><td><Bar i={{ pct: t.pct, restantes: t.com ? t.restantes : 1, over: 0 }} /></td></tr>; })}</tbody>
+            <tfoot><tr className="tot"><td>Total geral{sel ? ` (${selLabel})` : ''}</td><td className="n">{tot.cursos}</td><td className="n">{tot.turmas}</td><td className="n">{tot.vagas}</td><td className="n">{tot.com ? tot.inscritos : '—'}</td><td className="n">{tot.com ? tot.restantes : '—'}</td><td><Bar i={{ pct: tot.pct, restantes: tot.com ? tot.restantes : 1, over: 0 }} /></td></tr></tfoot>
+          </table>
+          <table className="t6 tt"><thead><tr><th>Dia</th><th className="n c-num">Cursos</th><th className="n c-num">Aulas</th><th className="n c-num">Vagas</th><th className="n c-num">Inscritos</th><th className="n c-num">Restam</th><th className="c-bar">Ocupação</th></tr></thead>
+            <tbody>{days.map((d) => { const rows = all.filter((x) => x.date === d); const t = totOfRows(rows); return <tr key={d}><td><b>{cap(T.fmtDate(d))}</b></td><Num v={t.cursos} /><Num v={rows.length} /><Num v={t.vagas} /><Num v={t.com ? t.inscritos : null} /><Num v={t.com ? t.restantes : null} /><td><Bar i={{ pct: t.pct, restantes: t.com ? t.restantes : 1, over: 0 }} /></td></tr>; })}</tbody>
+          </table>
         </div>
-        <div className={`src ${enr ? 'ok' : 'warn'}`}>
-          <Icon name={enr ? 'check' : 'info'} />
-          <input type="password" placeholder="Chave do painel (?k=…)" value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
-          <button disabled={busy} onClick={() => fetchPanel(key)}>{busy ? 'Lendo…' : 'Atualizar do painel'}</button>
-          <a className="ghost" href={`${PANEL}${key ? `?k=${encodeURIComponent(key)}` : ''}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '.85rem' }}>Abrir o painel <Icon name="external" /></a>
-          {msg ? <p className="msg">{msg}</p> : <p className="msg">Os inscritos são lidos pelo seu navegador no painel administrativo da ESCON; a chave fica só neste aparelho. Se o navegador bloquear a leitura, copie o conteúdo do painel e cole abaixo.</p>}
-          <details><summary>Atualização automática (coletor)</summary>
-            <p className="msg">O painel da ESCON só abre de dentro da rede do TCE, então a coleta roda do lado de quem tem acesso e envia para a API do controle de senhas; esta página lê de lá ao vivo. Duas opções:</p>
-            <ol className="msg" style={{ paddingLeft: '1.2rem', display: 'grid', gap: '.3rem' }}>
-              <li><b>Favorito “Enviar inscritos”</b>: arraste este botão para a barra de favoritos → <a ref={bmRef} href="#enviar-inscritos" onClick={(e) => e.preventDefault()} style={{ fontWeight: 700, border: '1px solid var(--navy)', borderRadius: 8, padding: '.15rem .5rem', textDecoration: 'none', color: 'var(--navy)' }}>Enviar inscritos</a>. Com o painel aberto, clique no favorito: ele pede o token uma vez e envia os números na hora.</li>
-              <li><b>Automático a cada 30 min</b>: instale a extensão Tampermonkey e abra <a href={USERSCRIPT}>{USERSCRIPT}</a> para instalar o script; deixe uma aba do painel aberta (ex.: no computador da TV) e ele envia sozinho ao abrir e a cada 30 minutos.</li>
-              <li><b>Servidor dentro do TCE</b>: <code>node apps/senhas/scripts/inscritos-coletor.mjs</code> (ver README).</li>
-            </ol>
-          </details>
-          <details open={!enr}><summary>Colar o conteúdo do painel</summary>
-            <textarea value={paste} onChange={(e) => setPaste(e.target.value)} placeholder="Abra o painel, Ctrl+A, Ctrl+C e cole aqui (tabela, texto ou HTML)." />
-            <div style={{ marginTop: '.4rem', display: 'flex', gap: '.5rem' }}><button onClick={() => { if (apply(parseAny(paste), 'colado')) setPaste(''); }}>Usar dados colados</button>{enr ? <button className="ghost" onClick={() => { localStorage.removeItem(LS_DATA); setEnr(null); setMsg('Dados de inscrição apagados deste aparelho.'); }}>Limpar</button> : null}</div>
-          </details>
-        </div>
-        <p className="version">Versão gerada em {today} · dados dos cursos do site · inscrições do painel ESCON{enr ? ` (${T.partsOf(new Date(enr.updatedAt)).time})` : ''} · www.tce.ap.gov.br/tce-na-comunidade</p>
+        <p className="tiny muted">Na tabela por dia, um curso de vários encontros entra em cada um dos seus dias; por isso a soma dos dias é maior que o total geral. Vagas restantes nunca ficam negativas: inscritos acima das vagas aparecem como "lotado +N" nas tabelas.</p>
       </section>
-
+  );
+  const fullBody = (
+    <>
       {days.map((d, di) => {
         const sess = all.filter((x) => x.date === d);
         const venues = VENUE_ORDER.filter((v) => sess.some((x) => x.venue === v));
@@ -203,19 +183,7 @@ function Doc() {
         </table>
       </section>
 
-      <section className="sec" id="totais">
-        <h2><span className="n">{days.length + 2}.</span> Totais{sel ? ` · ${selLabel}` : ''}<span className="h2sub">vagas, inscritos e vagas restantes por local e por dia · turmas de mais de um dia contam uma vez por local</span></h2>
-        <div className="tot-grid">
-          <table className="t6 tt"><thead><tr><th>Local</th><th className="n c-num">Cursos</th><th className="n c-num">Turmas</th><th className="n c-num">Vagas</th><th className="n c-num">Inscritos</th><th className="n c-num">Restam</th><th className="c-bar">Ocupação</th></tr></thead>
-            <tbody>{VENUE_ORDER.filter((v) => all.some((x) => x.venue === v)).map((v) => { const t = sumBy(courses, (g) => g.venue === v); return <tr key={v}><td><b>{D.venues[v].name}</b><span className="muted tiny"> · {D.venues[v].city}</span></td><Num v={t.cursos} /><Num v={t.turmas} /><Num v={t.vagas} /><Num v={t.com ? t.inscritos : null} /><Num v={t.com ? t.restantes : null} /><td><Bar i={{ pct: t.pct, restantes: t.com ? t.restantes : 1, over: 0 }} /></td></tr>; })}</tbody>
-            <tfoot><tr className="tot"><td>Total geral{sel ? ` (${selLabel})` : ''}</td><td className="n">{tot.cursos}</td><td className="n">{tot.turmas}</td><td className="n">{tot.vagas}</td><td className="n">{tot.com ? tot.inscritos : '—'}</td><td className="n">{tot.com ? tot.restantes : '—'}</td><td><Bar i={{ pct: tot.pct, restantes: tot.com ? tot.restantes : 1, over: 0 }} /></td></tr></tfoot>
-          </table>
-          <table className="t6 tt"><thead><tr><th>Dia</th><th className="n c-num">Cursos</th><th className="n c-num">Aulas</th><th className="n c-num">Vagas</th><th className="n c-num">Inscritos</th><th className="n c-num">Restam</th><th className="c-bar">Ocupação</th></tr></thead>
-            <tbody>{days.map((d) => { const rows = all.filter((x) => x.date === d); const t = totOfRows(rows); return <tr key={d}><td><b>{cap(T.fmtDate(d))}</b></td><Num v={t.cursos} /><Num v={rows.length} /><Num v={t.vagas} /><Num v={t.com ? t.inscritos : null} /><Num v={t.com ? t.restantes : null} /><td><Bar i={{ pct: t.pct, restantes: t.com ? t.restantes : 1, over: 0 }} /></td></tr>; })}</tbody>
-          </table>
-        </div>
-        <p className="tiny muted">Na tabela por dia, um curso de vários encontros entra em cada um dos seus dias; por isso a soma dos dias é maior que o total geral. Vagas restantes nunca ficam negativas: inscritos acima das vagas aparecem como "lotado +N" nas tabelas.</p>
-      </section>
+      {totais(days.length + 2)}
 
       <section className="sec" id="alerta">
         <h2><span className="n">{days.length + 3}.</span> Atenção</h2>
@@ -235,6 +203,78 @@ function Doc() {
           <li>Laboratório II – Joaquim Nabuco, 05/11 às 14h: Videomaker (145, movido em 02/11) e Rios do Saber (156) no mesmo horário; confirmar a divisão do laboratório.</li>
         </ul>
       </section>
+    </>
+  );
+  const totalBody = (
+    <>
+      {totais(1)}
+      {VENUE_ORDER.filter((v) => all.some((x) => x.venue === v)).map((v, vi) => {
+        // Uma linha por turma do local (turma = curso@local@idESCON), em ordem do primeiro encontro.
+        const rows = [];
+        for (const c of courses) for (const g of groupsOf(c).filter((x) => x.venue === v)) { const ss = c.sessions.filter((s) => groupKey(c, s) === g.key); rows.push({ c, g, ss, i: calc(c, [g]) }); }
+        rows.sort((x, y) => x.ss[0].date.localeCompare(y.ss[0].date) || T.toMin(x.ss[0].time) - T.toMin(y.ss[0].time) || T.title(x.c).localeCompare(T.title(y.c), 'pt-BR'));
+        const t = sumBy(courses, (g) => g.venue === v);
+        return (
+          <section className="sec venue-sec" key={v} id={`l-${v}`}>
+            <h2><span className="n">{vi + 2}.</span> {D.venues[v].name}<span className="h2sub">{D.venues[v].city} · {t.cursos} cursos · {t.turmas} turmas · {t.vagas} vagas{t.com ? ` · ${t.inscritos} inscritos e ${t.restantes} restantes` : ''}</span></h2>
+            <table className="t6"><thead><tr><th className="c-quando">Quando</th><th className="c-id">Cód.</th><th>Curso</th><th className="c-local">Sala</th><th className="n c-num">Vagas</th><th className="n c-num">Inscritos</th><th className="n c-num">Restam</th><th className="c-bar">Ocupação</th></tr></thead>
+              <tbody>{rows.map(({ c, g, ss, i }) => <tr key={g.key}><td>{ss.map((s, k) => <span key={k} className="when">{T.fmtDate(s.date, 'wd')} {T.fmtTime(s.time)}</span>)}</td><td className="num">{c.id}</td><td><b>{T.title(c)}</b>{ss[0].label ? <span className="muted tiny"> · {ss[0].label}</span> : null}{ss.length > 1 ? <span className="muted tiny"> · {ss.length} encontros</span> : null}</td><td>{room(ss[0])}</td><Num v={i.vagas} /><Num v={i.inscritos} /><Num v={i.restantes} /><td><Bar i={i} /></td></tr>)}</tbody>
+              <tfoot><TotRow t={t} label={`Total · ${D.venues[v].short}`} lead={4} /></tfoot>
+            </table>
+          </section>
+        );
+      })}
+      <section className="sec" id="obs">
+        <h3>Observações</h3>
+        <ul className="tiny muted">
+          <li>Uma linha por turma: cursos com encontros em vários dias aparecem uma vez, com todos os dias na coluna "Quando". Cursos com turmas em locais diferentes (Cuidador, Tecnologia e Direito das Mulheres, Videomaker, Cidadania Conectada) aparecem em cada local com os números daquela turma.</li>
+          <li>Vagas: número cadastrado no site do evento (ou o do painel, quando informado). Restantes: do painel ou vagas − inscritos; nunca negativas (inscritos acima das vagas aparecem como "lotado +N").</li>
+          <li>Inscritos: painel administrativo da ESCON, via coletor dentro da rede do TCE (ao vivo) ou publicado com o site.</li>
+        </ul>
+      </section>
+    </>
+  );
+
+  return (
+    <>
+      <div className="rs-tools"><button onClick={() => window.print()}><Icon name="download" />Imprimir / PDF</button><a href="resumo.html"><Icon name="list" />Resumo geral</a>{total ? <a href="resumo-cursos.html"><Icon name="graduation" />Resumo de cursos</a> : <a href="resumo-total.html"><Icon name="layers" />Resumo total</a>}<a href="index.html"><Icon name="phone" />App</a></div>
+      <div className="rs-tools rs-locais"><span className="muted tiny">Local:</span><a href={page} className={sel ? '' : 'on'}>Todos</a>{VENUE_ORDER.filter((v) => T.allSessions().some((x) => x.venue === v)).map((v) => <a key={v} href={`${page}?local=${v}`} className={sameSet(sel, venueFilter(v)) ? 'on' : ''}>{D.venues[v].short}</a>)}</div>
+      <section className="cover">
+        <img src="img/tce-logo.png" alt="Tribunal de Contas do Estado do Amapá" />
+        <p className="kicker">{total ? 'Resumo total · cursos, vagas e inscritos por local' : 'Resumo de cursos e inscrições'}{sel ? ` · ${selLabel}` : ''}</p>
+        <h1>{D.event.name}<br /><span>{D.event.edition}</span></h1>
+        <p className="sub">{sel ? `${selLabel} · ` : `${D.event.place} · `}{D.event.datesLabel}</p>
+        <div className="kpis">
+          <div className="kpi"><small>Cursos</small><b>{courses.length}</b><em>{tot.turmas} turmas · {all.length} aulas</em></div>
+          <div className="kpi"><small>Vagas</small><b>{tot.vagas}</b><em>soma das turmas</em></div>
+          <div className="kpi"><small>Inscritos</small><b>{tot.com ? tot.inscritos : '—'}</b><em>{tot.com ? `${tot.com} de ${courses.length} cursos com dado` : 'sem dados do painel'}</em></div>
+          <div className="kpi"><small>Vagas restantes</small><b>{tot.com ? tot.restantes : '—'}</b><em>{tot.com ? `${tot.lotados} lotado(s)` : ''}</em></div>
+          <div className="kpi"><small>Ocupação</small><b>{tot.pct != null ? `${tot.pct}%` : '—'}</b><em>inscritos ÷ vagas (cursos com dado)</em></div>
+          <div className="kpi"><small>Painel ESCON</small><b style={{ fontSize: '1rem' }}>{enr ? `${T.fmtDate(T.partsOf(new Date(enr.updatedAt)).date, 'wd')} ${T.partsOf(new Date(enr.updatedAt)).time}` : 'não lido'}</b><em>{enr ? `${enr.painelInfo ? `painel de ${enr.painelInfo} · ` : ''}${enr.source === 'coletor' ? 'via coletor (ao vivo)' : enr.source === 'publicado' ? 'publicado com o site' : enr.source === 'painel' ? 'lido do painel' : 'colado'}` : 'sem leitura'}</em></div>
+        </div>
+        <div className={`src ${enr ? 'ok' : 'warn'}`}>
+          <Icon name={enr ? 'check' : 'info'} />
+          <input type="password" placeholder="Chave do painel (?k=…)" value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
+          <button disabled={busy} onClick={() => fetchPanel(key)}>{busy ? 'Lendo…' : 'Atualizar do painel'}</button>
+          <a className="ghost" href={`${PANEL}${key ? `?k=${encodeURIComponent(key)}` : ''}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '.85rem' }}>Abrir o painel <Icon name="external" /></a>
+          {msg ? <p className="msg">{msg}</p> : <p className="msg">Os inscritos são lidos pelo seu navegador no painel administrativo da ESCON; a chave fica só neste aparelho. Se o navegador bloquear a leitura, copie o conteúdo do painel e cole abaixo.</p>}
+          <details><summary>Atualização automática (coletor)</summary>
+            <p className="msg">O painel da ESCON só abre de dentro da rede do TCE, então a coleta roda do lado de quem tem acesso e envia para a API do controle de senhas; esta página lê de lá ao vivo. Duas opções:</p>
+            <ol className="msg" style={{ paddingLeft: '1.2rem', display: 'grid', gap: '.3rem' }}>
+              <li><b>Favorito “Enviar inscritos”</b>: arraste este botão para a barra de favoritos → <a ref={bmRef} href="#enviar-inscritos" onClick={(e) => e.preventDefault()} style={{ fontWeight: 700, border: '1px solid var(--navy)', borderRadius: 8, padding: '.15rem .5rem', textDecoration: 'none', color: 'var(--navy)' }}>Enviar inscritos</a>. Com o painel aberto, clique no favorito: ele pede o token uma vez e envia os números na hora.</li>
+              <li><b>Automático a cada 30 min</b>: instale a extensão Tampermonkey e abra <a href={USERSCRIPT}>{USERSCRIPT}</a> para instalar o script; deixe uma aba do painel aberta (ex.: no computador da TV) e ele envia sozinho ao abrir e a cada 30 minutos.</li>
+              <li><b>Servidor dentro do TCE</b>: <code>node apps/senhas/scripts/inscritos-coletor.mjs</code> (ver README).</li>
+            </ol>
+          </details>
+          <details open={!enr}><summary>Colar o conteúdo do painel</summary>
+            <textarea value={paste} onChange={(e) => setPaste(e.target.value)} placeholder="Abra o painel, Ctrl+A, Ctrl+C e cole aqui (tabela, texto ou HTML)." />
+            <div style={{ marginTop: '.4rem', display: 'flex', gap: '.5rem' }}><button onClick={() => { if (apply(parseAny(paste), 'colado')) setPaste(''); }}>Usar dados colados</button>{enr ? <button className="ghost" onClick={() => { localStorage.removeItem(LS_DATA); setEnr(null); setMsg('Dados de inscrição apagados deste aparelho.'); }}>Limpar</button> : null}</div>
+          </details>
+        </div>
+        <p className="version">Versão gerada em {today} · dados dos cursos do site · inscrições do painel ESCON{enr ? ` (${T.partsOf(new Date(enr.updatedAt)).time})` : ''} · www.tce.ap.gov.br/tce-na-comunidade</p>
+      </section>
+
+      {total ? totalBody : fullBody}
     </>
   );
 }

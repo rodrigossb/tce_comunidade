@@ -40,3 +40,7 @@
 .rs .tt{table-layout:auto}.rs .tt th:first-child{width:auto}.rs .tt tr.tot td{font-weight:800}
 
 @media print{.rs .rs-locais{display:none}.rs .tot-grid{gap:.6rem}}
+/* resumo total: turmas por local */
+.rs .t6 .c-quando{width:8rem}
+.rs .when{display:block;white-space:nowrap;font-size:.85rem}
+@media print{.rs .venue-sec{break-inside:auto}.rs .venue-sec h2{break-after:avoid}}

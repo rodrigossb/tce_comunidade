@@ -5,7 +5,7 @@ Superfícies digitais do evento, em um monorepo **Next.js** (JavaScript, sem Typ
 | Pasta | O que é | Como roda |
 | --- | --- | --- |
 | `packages/core` (`@tce/core`) | Dados (`src/data.js`), regras (`src/shared.js`), ícones, plantas e rotas (`src/map.js`), DE→PARA das salas (`src/salas-cursos.js`), agregações de senhas (`src/stats.js`) e o CSS compartilhado (`css/`). Sem dependências. | Importado pelos dois apps; testes em `tests/` |
-| `apps/site` | Site público: **app** (`index.html`), **TV** (`tv.html`), **totem** (`totem.html`), **resumo da organização** (`resumo.html`) e **placas de porta** (`placas.html`) | `next build` exporta HTML estático em `apps/site/out/`, publicado no GitHub Pages |
+| `apps/site` | Site público: **app** (`index.html`), **TV** (`tv.html`), **totem** (`totem.html`), **resumos da organização** (`resumo.html`, `resumo-cursos.html`, `resumo-total.html`) e **placas de porta** (`placas.html`) | `next build` exporta HTML estático em `apps/site/out/`, publicado no GitHub Pages |
 | `apps/senhas` | **Controle de senhas** da equipe (triagem, porta da sala, painel) e **TV das senhas** (`/tce-senhas/tv`): Next com **server actions** e SQLite embutido (`node:sqlite`) | Servidor Node no pm2 (`tce-senhas`, porta 3015) atrás do nginx em `/tce-senhas/` |
 
 Requisito único: **Node 22.5+** (o `node:sqlite` é embutido; não há addon nativo nem Python).
@@ -70,7 +70,10 @@ serviços com sala), plantas com o uso de cada sala, cursos A–Z e pendências.
 Cursos por dia e local e de A a Z com vagas, inscritos e vagas restantes por turma, totais por tabela, seção "Totais"
 (por local e por dia, com total geral) e alertas (lotados, quase lotados, baixa procura). `?local=` filtra o documento
 inteiro por local: `jn`, `manga`, `sebrae`, `auditorio`, `iaparra` (vários com vírgula) ou as cidades `oiapoque` e `manga`
-(ex.: `resumo-cursos.html?local=jn`); a barra "Local" no topo da página troca o filtro. Os inscritos vêm do painel administrativo da ESCON ("Próximas ações em Oiapoque": um cartão por curso da
+(ex.: `resumo-cursos.html?local=jn`); a barra "Local" no topo da página troca o filtro.
+**Resumo total** (`resumo-total.html`, mesmo componente com `variant="total"`): só os totais (por local e por dia, com
+total geral) e uma tabela por local com uma linha por turma (quando, curso, sala, vagas, inscritos, restam, ocupação) e
+subtotal; aceita o mesmo `?local=`. Os inscritos vêm do painel administrativo da ESCON ("Próximas ações em Oiapoque": um cartão por curso da
 ESCON, sem código nem vagas), que **só é acessível de dentro da rede do TCE** (este servidor, buscadores externos e os
 servidores do GitHub não o alcançam). O leitor (`packages/core/src/inscritos.js`) casa cada cartão com uma turma pelo nome,
 pelo prefixo de local ("Manga -", "(Oiapoque)") e pelos dias; a chave é `curso@local@idESCON` (Cuidador, Tecnologia e
