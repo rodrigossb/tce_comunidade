@@ -1,0 +1,6 @@
+{
+  "updatedAt": 0,
+  "source": "nenhum",
+  "note": "Gerado por apps/site/scripts/inscritos.mjs a partir do painel da ESCON. byId: { \"codigoDoCurso\": { vagas, inscritos, restantes } }",
+  "byId": {}
+}

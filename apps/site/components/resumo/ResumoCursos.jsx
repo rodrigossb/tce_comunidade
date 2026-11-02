@@ -4,6 +4,7 @@ import { TCE as T } from '@tce/core';
 import { TCEMap as M } from '@tce/core/map';
 import Icon from '@/components/Icon';
 import { useMounted } from '@/lib/hooks';
+import { parseAny } from '@/lib/inscritos';
 
 const D = T.D;
 const PANEL = 'https://servicos.tce.ap.gov.br/escon/admin/painel/oiapoque';
@@ -11,85 +12,8 @@ const LS_DATA = 'tce_inscritos';
 const LS_KEY = 'tce_painel_k';
 const VENUE_ORDER = ['jn', 'manga', 'sebrae', 'auditorio', 'iaparra'];
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-const norm = (s) => T.norm(s).replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 const load = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch { return fb; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem storage */ } };
-
-// ---------- leitura do painel da ESCON (HTML, JSON ou texto colado) ----------
-const COURSES = D.courses.map((c) => ({ c, id: String(c.id), t: norm(c.title), s: c.short ? norm(c.short) : '' }));
-/** Curso citado em um texto: pelo id (ex.: "145") ou pelo título (o mais longo que couber). */
-function courseOf(text) {
-  const n = norm(text);
-  const ids = n.match(/\b1\d\d\b/g) || [];
-  for (const id of ids) { const hit = COURSES.find((x) => x.id === id); if (hit) return hit.c; }
-  let best = null;
-  for (const x of COURSES) { if (x.t.length >= 8 && n.includes(x.t) && (!best || x.t.length > best.t.length)) best = x; }
-  if (!best) for (const x of COURSES) { if (x.s && x.s.length >= 8 && n.includes(x.s) && (!best || x.s.length > best.s.length)) best = x; }
-  return best ? best.c : null;
-}
-const numsIn = (s) => (String(s).match(/\d+/g) || []).map(Number);
-const isHeader = (cells) => cells.some((c) => /vaga|inscri|matric/i.test(c)) && !cells.some((c) => courseOf(c));
-/** Linhas (arrays de células) → { [id]: { vagas, inscritos, restantes } }. Reconhece cabeçalho; sem ele, usa a ordem vagas · inscritos · restantes. */
-function fromRows(rows) {
-  const out = {}; let idx = null;
-  for (const cells of rows) {
-    if (!cells.length) continue;
-    if (isHeader(cells)) {
-      const f = (re, not) => cells.findIndex((c) => re.test(norm(c)) && !(not && not.test(norm(c))));
-      idx = { v: f(/vaga|limite|capac/, /restan|dispon|saldo|livre|remanesc/), i: f(/inscri|matric|confirm/), r: f(/restan|dispon|saldo|livre|remanesc/) };
-      continue;
-    }
-    const c = courseOf(cells.join(' ')); if (!c) continue;
-    const row = out[c.id] || (out[c.id] = {});
-    const val = (k) => (idx && idx[k] >= 0 && cells[idx[k]] != null ? numsIn(cells[idx[k]])[0] : undefined);
-    let v = val('v'); let i = val('i'); let r = val('r');
-    if (i == null && r == null) {
-      // Sem cabeçalho: números da linha fora do título/id do curso.
-      const nums = cells.flatMap((cell) => (courseOf(cell) ? [] : numsIn(cell))).filter((n) => n !== c.id && n < 100000);
-      if (nums.length >= 3) [v, i, r] = nums; else if (nums.length === 2) { if (nums[0] === c.seats) [v, i] = nums; else [i, r] = nums; } else if (nums.length === 1) [i] = nums;
-    }
-    if (v != null) row.vagas = v; if (i != null) row.inscritos = i; if (r != null) row.restantes = r;
-  }
-  return out;
-}
-function fromHtml(html) {
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  const rows = [...doc.querySelectorAll('tr')].map((tr) => [...tr.children].map((td) => td.textContent.replace(/\s+/g, ' ').trim()));
-  let out = fromRows(rows);
-  if (!Object.keys(out).length) { // sem tabela: blocos/cartões → uma linha por elemento com texto curto
-    const blocks = [...doc.querySelectorAll('li, article, .card, .row, div')].map((el) => el.textContent.replace(/\s+/g, ' ').trim()).filter((t) => t.length > 8 && t.length < 400);
-    out = fromRows(blocks.map((t) => t.split(/\s{2,}|\s\|\s|\t/)));
-  }
-  if (!Object.keys(out).length) out = fromText(doc.body ? doc.body.innerText || doc.body.textContent : html);
-  return out;
-}
-function fromText(text) {
-  const lines = String(text).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const rows = lines.map((l) => l.split(/\t|\s{2,}|\s\|\s|;/).map((s) => s.trim()).filter(Boolean));
-  let out = fromRows(rows);
-  if (!Object.keys(out).length) { // título numa linha e números na(s) seguinte(s)
-    const merged = []; for (let k = 0; k < lines.length; k++) { if (courseOf(lines[k])) merged.push([lines[k], lines[k + 1] || '', lines[k + 2] || '']); }
-    out = fromRows(merged);
-  }
-  return out;
-}
-function fromJson(data) {
-  const list = Array.isArray(data) ? data : Object.values(data).find(Array.isArray) || [];
-  const out = {};
-  for (const o of list) {
-    if (!o || typeof o !== 'object') continue;
-    const c = courseOf(Object.values(o).filter((v) => typeof v === 'string' || typeof v === 'number').join(' ')); if (!c) continue;
-    const pick = (re) => { const k = Object.keys(o).find((key) => re.test(norm(key))); return k != null ? Number(o[k]) : undefined; };
-    out[c.id] = { vagas: pick(/^(vaga|limite|capac)/), inscritos: pick(/inscri|matric|confirm/), restantes: pick(/restan|dispon|saldo|livre/) };
-  }
-  return out;
-}
-function parseAny(text) {
-  const t = String(text || '').trim(); if (!t) return {};
-  if (/^[[{]/.test(t)) { try { return fromJson(JSON.parse(t)); } catch { /* não é JSON */ } }
-  if (/<\s*(table|tr|html|div|body)[\s>]/i.test(t)) return fromHtml(t);
-  return fromText(t);
-}
 
 // ---------- página ----------
 export default function ResumoCursos() {
@@ -128,7 +52,16 @@ function Doc() {
       setMsg(`Não consegui ler o painel direto daqui (${why}). Abra o painel em outra aba, selecione tudo (Ctrl+A), copie (Ctrl+C) e cole no campo abaixo.`);
     } finally { setBusy(false); }
   }
-  useEffect(() => { if (key) fetchPanel(key); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => {
+    // 1º: inscritos.json publicado com o site (gerado no servidor a partir do painel); 2º: chave para ler o painel direto.
+    fetch('inscritos.json?t=' + Date.now(), { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((pub) => {
+      if (pub && pub.byId && Object.keys(pub.byId).length) {
+        setEnr((cur) => { if (cur && cur.updatedAt > pub.updatedAt) return cur; const data = { byId: pub.byId, updatedAt: pub.updatedAt, source: 'publicado' }; save(LS_DATA, data); return data; });
+      }
+    }).catch(() => {});
+    if (key) fetchPanel(key);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const byId = (enr && enr.byId) || {};
   const info = (c) => {
@@ -157,7 +90,7 @@ function Doc() {
           <div className="kpi"><small>Inscritos</small><b>{tot.com ? tot.inscritos : '—'}</b><em>{tot.com ? `${tot.com} de ${D.courses.length} cursos com dado` : 'sem dados do painel'}</em></div>
           <div className="kpi"><small>Vagas restantes</small><b>{tot.com ? tot.restantes : '—'}</b><em>{tot.com ? `${D.courses.filter((c) => info(c).restantes === 0).length} lotado(s)` : ''}</em></div>
           <div className="kpi"><small>Ocupação</small><b>{tot.com && tot.vagas ? `${Math.round((100 * tot.inscritos) / D.courses.filter((c) => info(c).has).reduce((n, c) => n + info(c).vagas, 0))}%` : '—'}</b><em>inscritos ÷ vagas (cursos com dado)</em></div>
-          <div className="kpi"><small>Painel ESCON</small><b style={{ fontSize: '1rem' }}>{enr ? `${T.fmtDate(T.partsOf(new Date(enr.updatedAt)).date, 'wd')} ${T.partsOf(new Date(enr.updatedAt)).time}` : 'não lido'}</b><em>{enr ? (enr.source === 'painel' ? 'lido do painel' : 'colado') : 'informe a chave abaixo'}</em></div>
+          <div className="kpi"><small>Painel ESCON</small><b style={{ fontSize: '1rem' }}>{enr ? `${T.fmtDate(T.partsOf(new Date(enr.updatedAt)).date, 'wd')} ${T.partsOf(new Date(enr.updatedAt)).time}` : 'não lido'}</b><em>{enr ? (enr.source === 'painel' ? 'lido do painel' : enr.source === 'publicado' ? 'publicado com o site' : 'colado') : 'informe a chave abaixo'}</em></div>
         </div>
         <div className={`src ${enr ? 'ok' : 'warn'}`}>
           <Icon name={enr ? 'check' : 'info'} />

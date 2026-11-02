@@ -52,6 +52,14 @@ programação do dia; sem memória entre pessoas; recarrega às 4h.
 Documento imprimível (A4) para a coordenação: visão geral dias × locais, cada dia por local (cursos e
 serviços com sala), plantas com o uso de cada sala, cursos A–Z e pendências. Fora da navegação pública.
 
+## Resumo de cursos e inscrições (`resumo-cursos.html`)
+Cursos por dia e local e de A a Z com vagas, inscritos e vagas restantes, mais alertas (lotados, quase lotados, baixa
+procura). Os inscritos vêm do painel administrativo da ESCON, que só é acessível de dentro da rede do TCE. Três formas
+de alimentar, em ordem de preferência: (1) `apps/site/public/inscritos.json` publicado com o site, gerado por
+`node apps/site/scripts/inscritos.mjs <painel salvo .html|.txt|.json>` (reconhece cursos por código ou nome e as colunas
+pelo cabeçalho; mantém o último valor de quem não vier) e enviado com `git push`; (2) `?k=chave` na URL, para o navegador
+ler o painel direto (se o painel permitir); (3) colar o conteúdo do painel no campo da capa (fica só no aparelho).
+
 ## Placas de porta (`placas.html`)
 Folhas A4 paisagem, duas versões: **consolidada** (uma folha por sala/tenda/ambiente, 57) e **por curso /
 serviço** (`?modo=destaque`, 88). Filtros `?local=jn|manga`, `?sala=jn-r08,jn-r09`, `?todas=1`. Painel escuro
