@@ -170,7 +170,7 @@ Pontos a conferir com a organização:
 ## Desenvolver / testar
 ```bash
 npm test                    # consistência dos dados, estados por horário, .ics e QR
-python3 -m http.server 8080 # abre http://localhost:8080/tv.html?t=09:15&d=2026-11-05
+npx -y serve -l 8080 .    # abre http://localhost:8080/tv.html?t=09:15&d=2026-11-05
 ```
 Ao alterar arquivos publicados, suba `VERSION` em `sw.js` para renovar o cache dos celulares.
 Projeto de design em `docs/plans/2026-10-28-painel-tce-comunidade-design.md`.
