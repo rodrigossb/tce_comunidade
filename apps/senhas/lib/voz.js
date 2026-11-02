@@ -29,9 +29,9 @@ export function voiceState({ wanted, supported, voices, unlocked, lastError }) {
 export function voiceLabel(state, voice) {
   if (state === 'off') return '';
   if (state === 'unsupported') return 'voz indisponível neste navegador';
-  if (state === 'locked') return 'voz: toque na tela para ativar o som';
+  if (state === 'locked') return 'voz: aperte OK no controle (ou toque na tela) para ativar o som';
   if (state === 'novoice') return 'voz: nenhuma voz instalada no aparelho (instale o pacote de voz pt-BR)';
   if (state === 'fallback') return 'voz: sem voz em português, usando a padrão';
-  if (state.startsWith('error:')) { const e = state.slice(6); return e === 'not-allowed' ? 'voz bloqueada: toque na tela para ativar o som' : e === 'synthesis-unavailable' || e === 'synthesis-failed' ? 'voz: motor de voz do aparelho indisponível' : `voz: erro ${e}`; }
+  if (state.startsWith('error:')) { const e = state.slice(6); return e === 'not-allowed' ? 'voz bloqueada: aperte OK no controle (ou toque na tela) para ativar o som' : e === 'synthesis-unavailable' || e === 'synthesis-failed' ? 'voz: motor de voz do aparelho indisponível' : `voz: erro ${e}`; }
   return `voz ativa${voice ? ` · ${voice.name}` : ''}`;
 }
