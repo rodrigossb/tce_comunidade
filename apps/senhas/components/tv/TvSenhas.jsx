@@ -1,6 +1,6 @@
 'use client';
 /* TV das senhas (16:9, lida a distância). Mesmo esqueleto da TV "pátio" do Painel Escolar Digital
-   (cabeçalho com marca + relógio, quadro fixo em tela cheia no visual do "horários full", QR e rodapé),
+   (cabeçalho com marca + relógio, quadro fixo em tela cheia no visual do "horários full" e rodapé),
    mas o quadro é de SALAS × SENHAS: um cartão por sala com a senha atual em destaque máximo, o serviço,
    o estado (chamando / em atendimento) e quantas pessoas aguardam; à direita, as últimas chamadas.
    Nova chamada: sobreposição grande por alguns segundos (+ voz com ?voz=1; o Chrome só fala depois de um toque/tecla na
@@ -18,7 +18,7 @@ import { pickVoice, voiceState, voiceLabel } from '@/lib/voz';
 const D = T.D;
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const POLL_MS = 4000;
-const FLASH_MS = 9000;
+const FLASH_MS = 7000; // cada chamada fica em destaque por 7 s; chamadas simultâneas entram numa fila e saem uma por vez
 const PAGE_SECS_DEFAULT = 10;
 const MAX_PER_PAGE = { landscape: 30, portrait: 12 };
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -133,21 +133,38 @@ function Board() {
   const waitingTotal = rows.reduce((n, r) => n + (r.stat ? r.stat.waiting : 0), 0);
   const inService = rows.filter((r) => r.stat && r.stat.current && r.stat.current.status === 'served' && r.stat.in_service > 0).length;
 
-  // ---- nova chamada: sobreposição + voz ----
+  // ---- nova chamada: sobreposição + voz, uma por vez (fila) ----
   const [flash, setFlash] = useState(null);
   const seen = useRef(null);
+  const queue = useRef([]); // chamadas aguardando a vez na tela
+  const showing = useRef(false);
+  const timer = useRef(null);
+  const next = useCallback(() => {
+    // Só avança quando a anterior saiu da tela e a voz terminou de falar.
+    if (supported && voice && window.speechSynthesis.speaking) { timer.current = setTimeout(next, 300); return; }
+    const c = queue.current.shift();
+    if (!c) { showing.current = false; setFlash(null); return; }
+    showing.current = true;
+    setFlash({ id: `${c.id}:${c.again ? Date.now() : 0}`, ticket: c.ticket, place: c.place, service: c.service, again: c.again, until: Date.now() + FLASH_MS });
+    if (voice && c.place) speak(`Senha ${c.ticket}. ${c.place.num ? `${svcName(c.place)}, ${speakable(c.place)}` : svcName(c.place)}.`);
+    timer.current = setTimeout(() => { setFlash(null); timer.current = setTimeout(next, 400); }, FLASH_MS);
+  }, [voice, speak, supported]);
+  useEffect(() => () => clearTimeout(timer.current), []);
   useEffect(() => {
-    if (!recent.length) return;
-    const top = recent[0];
-    if (seen.current == null) { seen.current = top.id; return; } // primeira carga: não anuncia o passado
-    if (top.id <= seen.current) return;
-    seen.current = top.id;
-    if (top.ticket == null || Date.now() - top.called_at > 60000) return; // chamada antiga (ex.: recarga) não pisca
-    const p = T.placeInfo(top.place_id); const s = D.services.find((x) => x.id === top.service_id);
-    setFlash({ id: top.id, ticket: top.ticket, place: p, service: s, until: Date.now() + FLASH_MS });
-    if (voice && p) speak(`Senha ${top.ticket}. ${p.num ? `${svcName(p)}, ${speakable(p)}` : svcName(p)}.`);
-  }, [recent, voice, speak]);
-  useEffect(() => { if (!flash) return; const id = setTimeout(() => setFlash(null), Math.max(0, flash.until - Date.now())); return () => clearTimeout(id); }, [flash]);
+    if (!data) return;
+    // Cada anúncio tem uma chave id:repetição; a primeira carga só memoriza (não anuncia o passado), mesmo sem chamadas ainda.
+    const stamp = (c) => Math.max(c.called_at || 0, c.recalled_at || 0);
+    const keyOf = (c) => `${c.id}:${c.recalled_at || 0}`;
+    if (seen.current == null) { seen.current = new Set(recent.map(keyOf)); return; }
+    const fresh = recent.filter((c) => !seen.current.has(keyOf(c))).sort((a, b) => stamp(a) - stamp(b));
+    if (!fresh.length) return;
+    for (const c of fresh) {
+      seen.current.add(keyOf(c));
+      if (c.ticket == null || Date.now() - stamp(c) > 60000) continue; // chamada antiga (ex.: recarga) não pisca
+      queue.current.push({ id: c.id, ticket: c.ticket, place: T.placeInfo(c.place_id), service: D.services.find((x) => x.id === c.service_id), again: !!c.recalled_at });
+    }
+    if (!showing.current && queue.current.length) next();
+  }, [data, recent, next]);
 
   // ---- páginas (quando há mais salas do que cabe) ----
   const per = MAX_PER_PAGE[portrait ? 'portrait' : 'landscape'];
@@ -164,7 +181,6 @@ function Board() {
 
   const sd = T.serviceDayOf(clock.date);
   const subtitle = [D.event.edition, venueName, sd ? 'Serviços gratuitos · hoje' : day !== clock.date ? `Serviços gratuitos · ${T.fmtDate(day, 'wd')}` : 'Serviços gratuitos'].join(' · ');
-  const qr = useMemo(() => T.qrSvg(T.appUrl(`servicos?dia=${day}`), { margin: 1 }), [day]);
   const stateOf = (r) => {
     const c = r.stat && r.stat.current; if (!c || c.ticket == null) return { k: 'idle', label: r.stat && r.stat.called ? 'sem senha' : 'aguardando início' };
     if (c.status === 'called') return { k: 'calling', label: 'chamando' };
@@ -230,7 +246,7 @@ function Board() {
         </aside>
       </div>
 
-      <footer className="tv-foot"><span>{D.event.organizer} · {D.event.datesLabel}</span><span className="tv-foot-msg">Fique atento ao número da sua senha e à sala · atendimento por ordem de chegada</span>{vLabel ? <span className={`tv-voice ${vState === 'ready' ? 'ok' : vState === 'locked' || vState.startsWith('error') || vState === 'novoice' ? 'warn' : ''}`} title={vLabel}><Icon name="megaphone" />{vLabel}</span> : null}<span className="tv-qr mini"><span className="tv-qr-svg" dangerouslySetInnerHTML={{ __html: qr }} /><p><Icon name="phone" />Serviços, salas e mapa<br />no celular</p></span></footer>
+      <footer className="tv-foot"><span>{D.event.organizer} · {D.event.datesLabel}</span><span className="tv-foot-msg">Fique atento ao número da sua senha e à sala · atendimento por ordem de chegada</span>{vLabel ? <span className={`tv-voice ${vState === 'ready' ? 'ok' : vState === 'locked' || vState.startsWith('error') || vState === 'novoice' ? 'warn' : ''}`} title={vLabel}><Icon name="megaphone" />{vLabel}</span> : null}</footer>
 
       {voice && supported && !unlocked ? (
         <button type="button" className="tv-sound" autoFocus onClick={unlock}>
@@ -240,7 +256,7 @@ function Board() {
       {flash ? (
         <div className="sq-flash" role="alert" key={flash.id} style={{ '--c': flash.service ? flash.service.color : '#fbbf24' }}>
           <div className="sq-flash-box">
-            <small><Icon name="megaphone" />Chamando agora</small>
+            <small><Icon name="megaphone" />{flash.again ? 'Chamando novamente' : 'Chamando agora'}</small>
             <div className="sq-flash-row"><span className="sq-flash-num"><em>senha</em><b>{flash.ticket}</b></span><Icon name="right" className="sq-flash-arrow" /><span className="sq-flash-room"><b>{flash.place ? svcName(flash.place) : flash.place_id}</b><small>{flash.place ? roomLine(flash.place) : ''}{flash.service ? ` · ${flash.service.short}` : ''}</small></span></div>
           </div>
         </div>

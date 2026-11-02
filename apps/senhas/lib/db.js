@@ -25,6 +25,7 @@ function open(file) {
   const db = new DatabaseSync(file);
   db.exec(DDL);
   if (!db.prepare(`PRAGMA table_info(issued_log)`).all().some((c) => c.name === 'place_id')) db.exec(`ALTER TABLE issued_log ADD COLUMN place_id TEXT NOT NULL DEFAULT ''`);
+  if (!db.prepare(`PRAGMA table_info(calls)`).all().some((c) => c.name === 'recalled_at')) db.exec(`ALTER TABLE calls ADD COLUMN recalled_at INTEGER`); // "chamar novamente" (reanuncia na TV)
   const q = {
     issuedLatest: db.prepare(`SELECT service_id, place_id, count, ts FROM issued_log i WHERE day=? AND venue=? AND ts=(SELECT MAX(ts) FROM issued_log WHERE day=i.day AND venue=i.venue AND service_id=i.service_id AND place_id=i.place_id)`),
     issuedInsert: db.prepare(`INSERT INTO issued_log (day, venue, service_id, place_id, count, device, ts) VALUES (?,?,?,?,?,?,?)`),
@@ -36,6 +37,7 @@ function open(file) {
     callStatus: db.prepare(`UPDATE calls SET status=?, status_at=? WHERE id=?`),
     callEnd: db.prepare(`UPDATE calls SET ended_at=? WHERE id=?`),
     callDelete: db.prepare(`DELETE FROM calls WHERE id=?`),
+    callRecall: db.prepare(`UPDATE calls SET recalled_at=? WHERE id=?`),
     openServed: db.prepare(`SELECT id FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=? AND status='served' AND ended_at IS NULL`),
     lastTicket: db.prepare(`SELECT MAX(ticket) t FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=?`),
     exportDay: db.prepare(`SELECT * FROM calls WHERE day=? ORDER BY venue, service_id, place_id, called_at`),
@@ -108,6 +110,12 @@ export function setStatus(idRaw, status) {
   q.callStatus.run(status, now, id); if (status === 'absent') q.callEnd.run(null, id);
   notify(c.day, c.venue); return { ok: true, status_at: now };
 }
+/** Chamar novamente: a senha continua a mesma (sem nova chamada no histórico), mas a TV volta a anunciá-la. Só para senha ainda chamando. */
+export function recall(idRaw) {
+  const id = Number(idRaw); const { q } = conn(); const c = q.callGet.get(id); if (!c) throw err(404, 'chamada não encontrada');
+  if (c.status !== 'called') throw err(409, 'essa senha já entrou ou faltou');
+  const now = Date.now(); q.callRecall.run(now, id); notify(c.day, c.venue); return { ok: true, recalled_at: now };
+}
 export function endCall(idRaw) {
   const id = Number(idRaw); const { q } = conn(); const c = q.callGet.get(id); if (!c) throw err(404, 'chamada não encontrada');
   const now = Date.now(); q.callEnd.run(now, id); notify(c.day, c.venue); return { ok: true, ended_at: now };
@@ -123,7 +131,7 @@ export function tvBoard(day, venue) {
   const places = [];
   for (const s of st.services) for (const p of s.places) places.push({ service_id: s.service_id, place_id: p.place_id, issued: p.issued || 0, called: p.called || 0, waiting: p.not_called || 0, in_service: p.in_service || 0, current: p.current || null, serving: serving[p.place_id] && (!p.current || serving[p.place_id].id !== p.current.id) ? serving[p.place_id] : null });
   const recent = calls.slice().sort((a, b) => b.called_at - a.called_at || b.id - a.id).slice(0, 60)
-    .map((x) => ({ id: x.id, ticket: x.ticket, service_id: x.service_id, place_id: x.place_id, status: x.status, called_at: x.called_at, status_at: x.status_at, ended_at: x.ended_at }));
+    .map((x) => ({ id: x.id, ticket: x.ticket, service_id: x.service_id, place_id: x.place_id, status: x.status, called_at: x.called_at, recalled_at: x.recalled_at || null, status_at: x.status_at, ended_at: x.ended_at }));
   return { day: c.day, venue: c.venue, now, places, recent, total: { issued: st.total.issued, called: st.total.called, waiting: st.total.not_called, in_service: st.total.in_service } };
 }
 /** Chamadas do dia no local (para o dashboard: séries por hora e linha do tempo). */

@@ -159,3 +159,9 @@
 .local-line>span b{color:var(--ink)}
 .local-line .ico{width:1.1em;height:1.1em;color:var(--primary)}
 .local-line .btn.sm{padding:.4em .7em;font-size:.85em;white-space:nowrap}
+/* senha atual clicável: "chamar novamente" (reanuncia na TV) */
+.door-now .door-num{display:block;width:100%;font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;border-radius:14px;-webkit-tap-highlight-color:transparent}
+.door-now .door-num:active{transform:scale(.97)}.door-now .door-num:disabled{opacity:.7;cursor:default}
+.door-now .door-num b{margin:.05em 0 0}
+.door-now .door-num em{display:inline-flex;align-items:center;gap:.3em;font-style:normal;font-size:.72em;font-weight:700;opacity:.8;margin-bottom:.4em}
+.door-now .door-num em .ico{width:1em;height:1em}

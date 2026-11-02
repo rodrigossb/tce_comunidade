@@ -51,3 +51,13 @@ test('CSV do dia com BOM, cabeçalho e uma linha por chamada', () => {
   assert.equal(csv.split('\n').length, 3);
   assert.equal(db.exportCsv('2026-11-04').csv.split('\n').length, 1);
 });
+
+test('chamar novamente: marca recalled_at na senha que está chamando, aparece no quadro da TV e recusa senha já resolvida', () => {
+  const DAY2 = '2026-11-07'; const V2 = 'jn'; const S2 = 'pilar-1'; const P2 = 'jn-r03';
+  const c = db.call({ day: DAY2, venue: V2, service_id: S2, place_id: P2, ticket: 41 });
+  const r = db.recall(c.id); assert.ok(r.ok && r.recalled_at > 0);
+  const b = db.tvBoard(DAY2, V2); assert.equal(b.recent.find((x) => x.id === c.id).recalled_at, r.recalled_at);
+  db.setStatus(c.id, 'served');
+  assert.throws(() => db.recall(c.id), (e) => e.status === 409);
+  assert.throws(() => db.recall(999999), (e) => e.status === 404);
+});

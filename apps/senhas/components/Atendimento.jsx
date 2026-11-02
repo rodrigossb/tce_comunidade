@@ -13,7 +13,7 @@ const D = T.D;
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const LS = 'tce_at';
 const VER = '2.0';
-const ACTIONS = { setIssued: A.setIssued, call: A.call, setStatus: A.setStatus, endCall: A.endCall };
+const ACTIONS = { setIssued: A.setIssued, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall };
 const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch { return d; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem storage */ } };
 const fmtT = (ms) => T.partsOf(new Date(ms)).time;
@@ -138,6 +138,7 @@ export default function Atendimento() {
     // para a próxima pessoa já ficar aguardando na entrada da sala (a TV mostra "chamando").
     resolve: (id, status, nextTicket) => { const c = ctxOf(st); setBusy(true); run(async () => { try { await post('setStatus', id, status); if (nextTicket != null) await post('call', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket: nextTicket, device: st.device }); await refresh(); } finally { setBusy(false); } }); },
     end: (id) => run(async () => { await post('endCall', id); await refresh(); }),
+    recall: (id) => { if (busy) return; setBusy(true); run(async () => { try { const r = await post('recall', id); if (r) toast('Chamada repetida na TV', 'megaphone'); await refresh(); } finally { setBusy(false); } }); },
     undo: (id) => { if (!confirm('Desfazer a última chamada?')) return; run(async () => { await post('setStatus', id, 'undo'); await refresh(); }); },
   };
 
@@ -260,8 +261,8 @@ export default function Atendimento() {
         <div className="door">
           {atDoor ? (
             <>
-              <div className="door-now door-call"><small>{I('megaphone')}Chamando · próxima a entrar</small><b>{atDoor.ticket ?? '—'}</b>
-                <span className="st called">chamada às {fmtT(atDoor.called_at)} · aguardando na porta</span></div>
+              <div className="door-now door-call"><small>{I('megaphone')}Chamando · próxima a entrar</small><button type="button" className="door-num" data-act="recall" disabled={busy} onClick={() => act.recall(atDoor.id)} title="Chamar novamente na TV"><b>{atDoor.ticket ?? '—'}</b><em>{I('megaphone')}toque para chamar de novo</em></button>
+                <span className="st called">chamada às {fmtT(atDoor.called_at)}{atDoor.recalled_at ? ` · repetida às ${fmtT(atDoor.recalled_at)}` : ''} · aguardando na porta</span></div>
               <p className="door-hint">A senha <b>{atDoor.ticket ?? '—'}</b>…</p>
               <div className="door-res big"><button className="ok" data-act="resolve" data-status="served" disabled={busy} onClick={() => act.resolve(atDoor.id, 'served', canAuto ? next : null)}>{I('check')}<span>Entrou{canAuto ? <small>chama a senha {next}</small> : null}</span></button><button className="no" data-act="resolve" data-status="absent" disabled={busy} onClick={() => act.resolve(atDoor.id, 'absent', canAuto ? next : null)}>{I('x')}<span>Não veio{canAuto ? <small>chama a senha {next}</small> : null}</span></button></div>
             </>
