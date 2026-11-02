@@ -79,13 +79,17 @@ servidores do GitHub não o alcançam). O leitor (`packages/core/src/inscritos.j
 pelo prefixo de local ("Manga -", "(Oiapoque)") e pelos dias; a chave é `curso@local@idESCON` (Cuidador, Tecnologia e
 Direito das Mulheres, Videomaker e Cidadania Conectada têm mais de uma turma).
 
-Fontes da página, em ordem: (1) **API ao vivo** `GET /tce-senhas/api/inscritos` (CORS liberado), alimentada por um coletor
-que roda do lado de quem tem acesso ao painel e faz `POST` com `X-Token: INSCRITOS_TOKEN` (do `apps/senhas/.env`); envios
-parciais fundem com o último retrato; (2) `apps/site/public/inscritos.json` publicado com o site, gerado por
-`node apps/site/scripts/inscritos.mjs <painel salvo .html>`; (3) chave `?k=` ou conteúdo colado na capa (só no aparelho).
-Coletores: **favorito "Enviar inscritos"** (bookmarklet na própria página; pede o token uma vez), **userscript**
+Desde 02/11 a ESCON expõe também a **API pública do painel** (`/escon/admin/api/public/painel/oiapoque?k=…`, JSON, mesma
+chave), igualmente só de dentro da rede do TCE. Todos os caminhos aceitam esse JSON (`apiCards` em
+`packages/core/src/inscritos.js`: leitura tolerante de título/período/inscritos/vagas/id; um `id` igual ao id da ESCON
+casa a turma direto). Fontes da página, em ordem: (1) **API ao vivo** `GET /tce-senhas/api/inscritos` (CORS liberado),
+alimentada por um coletor que roda do lado de quem tem acesso ao painel e faz `POST` com `X-Token: INSCRITOS_TOKEN` (do
+`apps/senhas/.env`; corpo `{ json }`, `{ html }`, `{ text }` ou `{ cards }`); envios parciais fundem com o último retrato; (2) `apps/site/public/inscritos.json` publicado com o site, gerado por
+`node apps/site/scripts/inscritos.mjs <painel salvo .html>`; (3) chave `?k=` (a página tenta a API JSON e depois o HTML do painel) ou conteúdo colado na capa (só no aparelho).
+Coletores: **favorito "Enviar inscritos"** (bookmarklet na própria página do painel ou da API; busca a API na mesma
+origem e cai para os cartões; pede o token uma vez), **userscript**
 `public/coletor-inscritos.user.js` (Tampermonkey; envia ao abrir e a cada 30 min enquanto a aba do painel ficar aberta) e
-**Node** `apps/senhas/scripts/inscritos-coletor.mjs` (servidor/PC dentro do TCE; `PANEL_URL`, `INSCRITOS_TOKEN`, `INTERVAL_MIN`;
+**Node** `apps/senhas/scripts/inscritos-coletor.mjs` (servidor/PC dentro do TCE; `PANEL_URL` = URL da API JSON ou do painel, `INSCRITOS_TOKEN`, `INTERVAL_MIN`;
 `pm2 start … --name inscritos-coletor`). O workflow `inscritos.yml` fica só sob demanda (segredo `ESCON_PANEL_URL`), para
 o caso de o painel um dia ficar acessível de fora.
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Coletor para rodar DENTRO da rede do TCE (servidor local ou um PC): baixa o painel da ESCON e envia para a API.
-// Variáveis (ou apps/senhas/.env): PANEL_URL (com ?k=…), INSCRITOS_TOKEN, API_URL (padrão produção), INTERVAL_MIN (padrão 30).
+// Variáveis (ou apps/senhas/.env): PANEL_URL (de preferência a API pública do painel,
+//   https://servicos.tce.ap.gov.br/escon/admin/api/public/painel/oiapoque?k=…, ou a página HTML do painel), INSCRITOS_TOKEN,
+//   API_URL (padrão produção), INTERVAL_MIN (padrão 30).
 // Uso: node apps/senhas/scripts/inscritos-coletor.mjs            → repete a cada INTERVAL_MIN
 //      node apps/senhas/scripts/inscritos-coletor.mjs --once     → uma vez e sai
 //      pm2 start apps/senhas/scripts/inscritos-coletor.mjs --name inscritos-coletor
@@ -18,10 +20,10 @@ if (!PANEL || !TOKEN) { console.error('Defina PANEL_URL e INSCRITOS_TOKEN (no am
 const stamp = () => new Date().toLocaleString('pt-BR', { timeZone: 'America/Belem' });
 async function run() {
   try {
-    const r = await fetch(PANEL, { headers: { 'User-Agent': 'Mozilla/5.0 (tce-na-comunidade/coletor)' }, signal: AbortSignal.timeout(40000) });
+    const r = await fetch(PANEL, { headers: { 'User-Agent': 'Mozilla/5.0 (tce-na-comunidade/coletor)', Accept: 'application/json, text/html;q=0.8' }, signal: AbortSignal.timeout(40000) });
     if (!r.ok) throw new Error(`painel HTTP ${r.status}`);
-    const html = await r.text();
-    const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': TOKEN }, body: JSON.stringify({ html, source: 'coletor-node' }), signal: AbortSignal.timeout(30000) });
+    const body = await r.text(); const isJson = /^\s*[[{]/.test(body);
+    const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': TOKEN }, body: JSON.stringify(isJson ? { json: body, source: 'coletor-node' } : { html: body, source: 'coletor-node' }), signal: AbortSignal.timeout(30000) });
     const out = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(`API ${res.status}: ${out.error || ''}`);
     console.log(`${stamp()} ✔ ${out.cursos} turmas enviadas (painel ${out.painelInfo || '?'})${out.semCorrespondencia?.length ? ` · sem correspondência: ${out.semCorrespondencia.join(' | ')}` : ''}`);

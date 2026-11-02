@@ -5,20 +5,21 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseAny, panelCards, fromPanelCards, htmlToText } from '../lib/inscritos.js';
+import { parseAny, panelCards, apiCards, panelInfoOf, fromPanelCards, htmlToText } from '../lib/inscritos.js';
 import { TCE as T } from '@tce/core';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const out = path.join(here, '..', 'public', 'inscritos.json');
 const input = process.argv[2] ? fs.readFileSync(process.argv[2], 'utf8') : fs.readFileSync(0, 'utf8');
-const cards = /po-cartao|pessoas? inscritas?/i.test(input) ? panelCards(input) : [];
+const apiJson = /^\s*[[{]/.test(input) ? (() => { try { return JSON.parse(input); } catch { return null; } })() : null;
+const cards = apiJson ? apiCards(apiJson) : /po-cartao|pessoas? inscritas?/i.test(input) ? panelCards(input) : [];
 const panel = cards.length ? fromPanelCards(cards) : null;
 const byId = panel ? panel.byKey : parseAny(input);
 const ids = Object.keys(byId);
 const plain = /<\w+[\s>]/.test(input) ? htmlToText(input) : input;
 const MES = { janeiro: '01', fevereiro: '02', marco: '03', março: '03', abril: '04', maio: '05', junho: '06', julho: '07', agosto: '08', setembro: '09', outubro: '10', novembro: '11', dezembro: '12' };
 const pi = plain.match(/N[úu]meros de (\d{1,2}) de (\w+),? [àa]s (\d{1,2}:\d{2})/i);
-const painelInfo = pi ? `${pi[1].padStart(2, '0')}/${MES[pi[2].toLowerCase()] || pi[2]} ${pi[3]}` : '';
+const painelInfo = (apiJson && panelInfoOf(apiJson)) || (pi ? `${pi[1].padStart(2, '0')}/${MES[pi[2].toLowerCase()] || pi[2]} ${pi[3]}` : '');
 if (!ids.length) { console.error('Nenhum curso reconhecido na entrada.'); process.exit(1); }
 const prev = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, 'utf8')) : { byId: {} };
 const merged = Object.assign({}, prev.byId || {}, byId); // cursos ausentes na entrada mantêm o último valor

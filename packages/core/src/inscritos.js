@@ -76,7 +76,7 @@ function fromJson(data) {
 function parseAny(text) {
   const t = String(text || '').trim(); if (!t) return {};
   if (/po-cartao|pessoas? inscritas?/i.test(t)) { const cards = panelCards(t); if (cards.length) return fromPanelCards(cards).byKey; }
-  if (/^[[{]/.test(t)) { try { return fromJson(JSON.parse(t)); } catch { /* não é JSON */ } }
+  if (/^[[{]/.test(t)) { try { const j = JSON.parse(t); const cards = apiCards(j); if (cards.length) return fromPanelCards(cards).byKey; return fromJson(j); } catch { /* não é JSON */ } }
   if (/<\s*(table|tr|html|div|body)[\s>]/i.test(t)) return fromHtml(t);
   return fromText(t);
 }
@@ -119,6 +119,48 @@ function panelCards(text) {
   }
   return cards;
 }
+/** Cartões a partir do JSON da API pública do painel (/escon/admin/api/public/painel/oiapoque?k=…). O formato exato
+    não é conhecido de fora da rede do TCE, então a leitura é tolerante: procura a maior lista de objetos e, em cada um,
+    o título (titulo/nome/curso…), o período (periodo/data/inicio+fim), os inscritos (inscritos/qtd…), vagas e id. */
+function apiCards(data) {
+  const lists = []; const walk = (v, depth) => { if (!v || typeof v !== 'object' || depth > 6) return; if (Array.isArray(v)) { if (v.length && v.every((x) => x && typeof x === 'object' && !Array.isArray(x))) lists.push(v); v.forEach((x) => walk(x, depth + 1)); } else Object.values(v).forEach((x) => walk(x, depth + 1)); };
+  walk(data, 0);
+  const keyOf = (o, re, type) => { const k = Object.keys(o).find((key) => re.test(norm(key).replace(/\s+/g, '_')) && (type === 'any' || typeof o[key] === type || (type === 'number' && /^\d+$/.test(String(o[key]))))); return k == null ? undefined : o[k]; };
+  const isoDay = (s) => { const m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})/) || String(s || '').match(/(\d{2})\/(\d{2})\/(\d{4})/); if (!m) return null; return m[0].includes('-') ? { y: +m[1], mo: +m[2], d: +m[3] } : { y: +m[3], mo: +m[2], d: +m[1] }; };
+  const MESES = ['', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  let best = [];
+  for (const list of lists) {
+    const cards = [];
+    for (const o of list) {
+      const title = keyOf(o, /^(titulo|title|nome|name|curso|acao|evento|descricao)$|titulo|nome_|_nome|curso/, 'string'); if (!title) continue;
+      const inscritos = keyOf(o, /inscri|matric|confirm|participante|qtd|quant|total/, 'number'); if (inscritos == null) continue;
+      const vagas = keyOf(o, /^(vagas?|limite|capacidade|lotacao)$|vaga/, 'number');
+      const id = keyOf(o, /^(id|codigo|cod|course_id|curso_id|id_curso|acao_id|id_acao)$/, 'any');
+      let date = keyOf(o, /periodo|^data$|data_|date|^dia$|dias/, 'string') || '';
+      const ini = isoDay(keyOf(o, /inicio|start|data_ini|de$/, 'string')); const fim = isoDay(keyOf(o, /^fim$|termino|end|data_fim|ate$/, 'string')) || ini;
+      let days = [];
+      if (ini) { for (let d = ini.d; d <= (fim.mo === ini.mo ? fim.d : 31); d++) days.push(d); if (!date) date = ini.d === fim.d ? `Dia ${ini.d} de ${MESES[ini.mo]}` : `De ${ini.d} a ${fim.d} de ${MESES[fim.mo]}`; }
+      else { const dd = isoDay(date); if (dd) { days = [dd.d]; date = `Dia ${dd.d} de ${MESES[dd.mo]}`; } }
+      const local = keyOf(o, /^(local|cidade|polo|unidade|municipio)$/, 'string') || '';
+      let t = String(title).trim();
+      if (local && !/^\(?(manga|oiapoque)\)?\s*[-–:]?\s/i.test(t)) { if (/manga|iaparr/i.test(local)) t = `Manga - ${t}`; else if (/oiapoque/i.test(local)) t = `(Oiapoque) ${t}`; }
+      cards.push({ title: t, date, days, inscritos: Number(inscritos) || 0, vagas: vagas != null ? Number(vagas) : undefined, id: id != null ? String(id) : undefined });
+    }
+    if (cards.length > best.length) best = cards;
+  }
+  return best;
+}
+/** "Números de 2 de novembro, às 11:40" → "02/11 11:40", a partir de um campo do JSON (atualizado_em, gerado, data_hora, updated_at…). */
+function panelInfoOf(data) {
+  const found = []; const walk = (v, depth) => { if (!v || typeof v !== 'object' || depth > 4 || Array.isArray(v)) return; for (const [k, x] of Object.entries(v)) { if (typeof x === 'string' && /atualiz|gerad|numeros|data_hora|datahora|updated|timestamp|referencia/.test(norm(k))) found.push(x); else if (x && typeof x === 'object' && !Array.isArray(x)) walk(x, depth + 1); } };
+  walk(data, 0);
+  for (const s of found) {
+    const m = s.match(/N[úu]meros de (\d{1,2}) de (\w+),? [àa]s (\d{1,2}:\d{2})/i); if (m) { const MES = { outubro: '10', novembro: '11', dezembro: '12' }; return `${m[1].padStart(2, '0')}/${MES[m[2].toLowerCase()] || m[2]} ${m[3]}`; }
+    const d = new Date(s); if (!Number.isNaN(d.getTime()) && /\d{4}/.test(s)) { const p = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Belem', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d); const g = (t) => p.find((x) => x.type === t).value; return `${g('day')}/${g('month')} ${g('hour')}:${g('minute')}`; }
+    const m2 = s.match(/(\d{2})\/(\d{2})\/\d{4},?\s+(\d{2}:\d{2})/); if (m2) return `${m2[1]}/${m2[2]} ${m2[3]}`;
+  }
+  return '';
+}
 const daysOf = (date) => { const m = String(date).match(/de (\d{1,2}) a (\d{1,2})/i) || String(date).match(/dia (\d{1,2})/i); if (!m) return []; const a = Number(m[1]); const b = m[2] ? Number(m[2]) : a; const out = []; for (let d = a; d <= b; d++) out.push(d); return out; };
 /** Casa cada cartão com uma turma: título parecido (radicais em comum), local do prefixo e dias. Devolve { byKey, matches, unmatched }. */
 function fromPanelCards(cards) {
@@ -127,11 +169,13 @@ function fromPanelCards(cards) {
   for (const card of cards) {
     const hint = /^\(?manga\)?\s*[-–:]?/i.test(card.title) ? 'manga' : /^\(?oiapoque\)?\s*[-–:]?\s/i.test(card.title) || /^\(oiapoque\)/i.test(card.title) ? 'oiapoque' : null;
     const clean = card.title.replace(/^\(?(manga|oiapoque)\)?\s*[-–:]?\s*/i, '');
-    const tk = tokens(clean); const days = daysOf(card.date);
+    const tk = tokens(clean); const days = card.days && card.days.length ? card.days : daysOf(card.date);
     for (const g of groups) {
+      // Id da ESCON vindo da API: casa direto com a turma daquele link (o local/dias desempatam quando há mais de uma).
+      const byId = card.id != null && String(card.id) === g.linkId;
       const ct = new Set([...tokens(g.course.title), ...tokens(g.course.short || ''), ...tokens(String(g.course.link).split('/').pop().replace(/-/g, ' '))]);
-      const common = [...tk].filter((w) => ct.has(w)).length; if (!tk.size || !common) continue;
-      let score = common / tk.size + 0.4 * (common / Math.max(1, ct.size));
+      const common = [...tk].filter((w) => ct.has(w)).length; if (!byId && (!tk.size || !common)) continue;
+      let score = (tk.size ? common / tk.size : 0) + 0.4 * (common / Math.max(1, ct.size)) + (byId ? 1 : 0);
       const inManga = MANGA.includes(g.venue);
       if (hint === 'manga') score += inManga ? 0.4 : -1; else if (hint === 'oiapoque') score += inManga ? -1 : 0.4; else score += inManga ? 0 : 0.08;
       if (days.length && days.some((d) => g.days.has(d))) score += 0.15;
@@ -144,7 +188,7 @@ function fromPanelCards(cards) {
   for (const { card, g, score } of scored) {
     if (done.has(card) || used.has(g.key) || score < 0.6) continue;
     done.add(card); used.add(g.key);
-    byKey[g.key] = { inscritos: card.inscritos, titulo: card.title, periodo: card.date };
+    byKey[g.key] = Object.assign({ inscritos: card.inscritos, titulo: card.title, periodo: card.date }, card.vagas != null && card.vagas > 0 ? { vagas: card.vagas } : {});
     matches.push({ card, group: g, score });
   }
   for (const card of cards) if (!done.has(card)) unmatched.push(card);
@@ -156,4 +200,4 @@ function htmlToText(html) {
   return String(html).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<\/(td|th)>/gi, '\t').replace(/<\/(tr|li|p|div|h\d)>|<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#(\d+);/g, (m, n) => String.fromCharCode(n)).replace(/[ \u00a0]+/g, ' ').replace(/ *\t */g, '\t').replace(/\n\s*\n+/g, '\n');
 }
-export { parseAny, courseOf, fromRows, fromText, fromHtml, fromJson, htmlToText, panelCards, fromPanelCards, groupsOf, groupKey, linkIdOf };
+export { parseAny, courseOf, fromRows, fromText, fromHtml, fromJson, htmlToText, panelCards, apiCards, panelInfoOf, fromPanelCards, groupsOf, groupKey, linkIdOf };

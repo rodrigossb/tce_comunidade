@@ -8,12 +8,13 @@ import { parseAny, groupsOf, groupKey } from '@/lib/inscritos';
 
 const D = T.D;
 const PANEL = 'https://servicos.tce.ap.gov.br/escon/admin/painel/oiapoque';
+const PANEL_API = 'https://servicos.tce.ap.gov.br/escon/admin/api/public/painel/oiapoque'; // JSON (mesma chave ?k=)
 const LS_DATA = 'tce_inscritos';
 const LS_KEY = 'tce_painel_k';
 const API = () => (T.params.get('api') || D.event.apiUrl || '').replace(/\/$/, '');
 const USERSCRIPT = 'coletor-inscritos.user.js';
 // Bookmarklet: na página do painel, lê os cartões e envia para a API (pede o token na primeira vez e guarda no navegador).
-const BOOKMARKLET = `javascript:(()=>{const A='${'https://dev.gerenciahub.com.br/tce-senhas/api/inscritos'}';let t=localStorage.getItem('tce_inscritos_token')||prompt('Token do coletor de inscritos:');if(!t)return;localStorage.setItem('tce_inscritos_token',t);const c=[...document.querySelectorAll('li.po-cartao')].map(l=>({title:(l.querySelector('h3')||{}).textContent||'',date:(l.querySelector('.po-data')||{}).textContent||'',inscritos:Number(((l.querySelector('.po-inscritos strong')||{}).textContent||'').replace(/\\D/g,''))})).filter(x=>x.title);if(!c.length){alert('Nenhum cartão encontrado nesta página. Abra o painel da ESCON.');return;}const m=document.body.innerText.match(/N[úu]meros de (\\d{1,2}) de (\\w+),? [àa]s (\\d{1,2}:\\d{2})/i);const pi=m?m[1].padStart(2,'0')+'/'+({novembro:'11',dezembro:'12',outubro:'10'}[m[2].toLowerCase()]||m[2])+' '+m[3]:'';const go=()=>fetch(A,{method:'POST',headers:{'Content-Type':'application/json','X-Token':t},body:JSON.stringify({cards:c,painelInfo:pi,source:'bookmarklet'})}).then(r=>r.json().then(j=>{if(!r.ok){if(/token/.test(j.error||''))localStorage.removeItem('tce_inscritos_token');throw new Error(j.error||r.status);}alert('Inscritos enviados: '+j.cursos+' turmas (painel '+(j.painelInfo||'?')+').');})).catch(e=>alert('Falha: '+e.message));go();})();`;
+const BOOKMARKLET = `javascript:(()=>{const A='${'https://dev.gerenciahub.com.br/tce-senhas/api/inscritos'}';let t=localStorage.getItem('tce_inscritos_token')||prompt('Token do coletor de inscritos:');if(!t)return;localStorage.setItem('tce_inscritos_token',t);const post=(b)=>fetch(A,{method:'POST',headers:{'Content-Type':'application/json','X-Token':t},body:JSON.stringify(b)}).then(r=>r.json().then(j=>{if(!r.ok){if(/token/.test(j.error||''))localStorage.removeItem('tce_inscritos_token');throw new Error(j.error||r.status);}alert('Inscritos enviados: '+j.cursos+' turmas (painel '+(j.painelInfo||'?')+').'+(j.semCorrespondencia&&j.semCorrespondencia.length?' Sem correspondência: '+j.semCorrespondencia.join(' | '):''));}));const viaApi=()=>fetch('/escon/admin/api/public/painel/oiapoque'+location.search,{credentials:'include',headers:{Accept:'application/json'}}).then(r=>{if(!r.ok)throw new Error('api '+r.status);return r.text();}).then(x=>{JSON.parse(x);return post({json:x,source:'bookmarklet-api'});});if(/\\/api\\/public\\/painel\\//.test(location.pathname)){post({json:document.body.innerText,source:'bookmarklet-api'}).catch(e=>alert('Falha: '+e.message));return;}const c=[...document.querySelectorAll('li.po-cartao')].map(l=>({title:(l.querySelector('h3')||{}).textContent||'',date:(l.querySelector('.po-data')||{}).textContent||'',inscritos:Number(((l.querySelector('.po-inscritos strong')||{}).textContent||'').replace(/\\D/g,''))})).filter(x=>x.title);const m=document.body.innerText.match(/N[úu]meros de (\\d{1,2}) de (\\w+),? [àa]s (\\d{1,2}:\\d{2})/i);const pi=m?m[1].padStart(2,'0')+'/'+({novembro:'11',dezembro:'12',outubro:'10'}[m[2].toLowerCase()]||m[2])+' '+m[3]:'';viaApi().catch(()=>post({cards:c,painelInfo:pi,source:'bookmarklet'})).catch(e=>alert('Falha: '+e.message));})();`;
 const VENUE_ORDER = ['jn', 'manga', 'sebrae', 'auditorio', 'iaparra'];
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const sameSet = (a, b) => !!a && !!b && a.size === b.size && [...a].every((x) => b.has(x));
@@ -70,8 +71,11 @@ function Doc({ variant }) {
     setBusy(true); setMsg('Lendo o painel da ESCON…');
     try {
       const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 12000); // sem resposta em 12 s: desiste e orienta a colar
-      const res = await fetch(`${PANEL}?k=${encodeURIComponent(kk)}`, { cache: 'no-store', signal: ctl.signal }).finally(() => clearTimeout(timer));
-      const text = await res.text();
+      // Primeiro a API pública (JSON); se ela falhar, a página HTML do painel.
+      let res; let text;
+      try { res = await fetch(`${PANEL_API}?k=${encodeURIComponent(kk)}`, { cache: 'no-store', signal: ctl.signal, headers: { Accept: 'application/json' } }); text = await res.text(); if (!res.ok || !/^\s*[[{]/.test(text)) throw new Error('api'); }
+      catch (e1) { if (e1.name === 'AbortError') throw e1; res = await fetch(`${PANEL}?k=${encodeURIComponent(kk)}`, { cache: 'no-store', signal: ctl.signal }); text = await res.text(); }
+      clearTimeout(timer);
       if (!res.ok) throw new Error(`painel respondeu ${res.status}`);
       save(LS_KEY, kk);
       if (apply(parseAny(text), 'painel')) history.replaceState(null, '', location.pathname); // tira a chave do endereço
