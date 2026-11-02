@@ -25,6 +25,8 @@ const asScale = (v) => { const n = Number(v); return n > 0 ? (n > 5 ? n / 100 : 
 const roomWord = (p) => (p.kind === 'sala' ? 'Sala' : p.kind === 'tenda' ? 'Tenda' : p.num ? 'Ambiente' : '');
 const roomBig = (p) => (p.num ? `${roomWord(p)} ${p.num}` : p.name);
 const speakable = (p) => (p.num ? `${roomWord(p).toLowerCase()} ${Number(p.num)}` : p.name);
+const svcName = (p) => p.name; // o que a pessoa procura: a especialidade/atendimento da sala
+const roomLine = (p) => (p.num ? roomBig(p) : roomWord(p)); // "Sala 04" (ou "Tenda"/"Ambiente" se não houver número)
 
 export default function TvSenhas() {
   const [mounted, setMounted] = useState(false);
@@ -113,7 +115,7 @@ function Board() {
     const p = T.placeInfo(top.place_id); const s = D.services.find((x) => x.id === top.service_id);
     setFlash({ id: top.id, ticket: top.ticket, place: p, service: s, until: Date.now() + FLASH_MS });
     if (voice && window.speechSynthesis && p) {
-      try { const u = new SpeechSynthesisUtterance(`Senha ${top.ticket}. ${speakable(p)}${s ? `, ${s.short}` : ''}.`); u.lang = 'pt-BR'; u.rate = 0.95; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } catch { /* sem voz */ }
+      try { const u = new SpeechSynthesisUtterance(`Senha ${top.ticket}. ${p.num ? `${svcName(p)}, ${speakable(p)}` : svcName(p)}.`); u.lang = 'pt-BR'; u.rate = 0.95; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } catch { /* sem voz */ }
     }
   }, [recent, voice]);
   useEffect(() => { if (!flash) return; const id = setTimeout(() => setFlash(null), Math.max(0, flash.until - Date.now())); return () => clearTimeout(id); }, [flash]);
@@ -165,9 +167,9 @@ function Board() {
               {shown.map((r) => { const st = stateOf(r); const c = r.stat && r.stat.current; const isLatest = c && latestId != null && c.id === latestId && Date.now() - c.called_at < 60000;
                 return (
                   <div key={r.key} className={`sq-card ${st.k} ${isLatest ? 'latest' : ''}`} style={{ '--c': r.service.color }}>
-                    <div className="sq-top"><span className="sq-svc" title={r.service.title}><Icon name={r.service.icon} /><span>{r.service.short}</span></span></div>
+                    <div className="sq-top"><span className="sq-svc" title={`${svcName(r.place)} · ${r.service.title}`}><span>{svcName(r.place)}</span></span></div>
                     <div className="sq-mid"><b className="sq-num">{c && c.ticket != null ? c.ticket : '—'}</b></div>
-                    <div className="sq-bot"><div className="sq-line"><b className="sq-roomname">{roomBig(r.place)}</b><small className="sq-place">{r.place.num ? r.place.name : roomWord(r.place)}</small>{r.stat && r.stat.issued ? <span className="sq-wait">{r.stat.waiting} aguardando</span> : null}</div><span className={`sq-state ${st.k}`}>{st.k === 'calling' ? <Icon name="megaphone" /> : st.k === 'serving' ? <Icon name="check" /> : null}{st.label}{c && st.k !== 'idle' ? <em> · {fmtT(c.status_at || c.called_at)}</em> : null}</span></div>
+                    <div className="sq-bot"><div className="sq-line"><b className="sq-roomname">{roomLine(r.place)}</b><small className="sq-place"><Icon name={r.service.icon} />{r.service.short}</small>{r.stat && r.stat.issued ? <span className="sq-wait">{r.stat.waiting} aguardando</span> : null}</div><span className={`sq-state ${st.k}`}>{st.k === 'calling' ? <Icon name="megaphone" /> : st.k === 'serving' ? <Icon name="check" /> : null}{st.label}{c && st.k !== 'idle' ? <em> · {fmtT(c.status_at || c.called_at)}</em> : null}</span></div>
                   </div>
                 ); })}
             </div>
@@ -179,7 +181,7 @@ function Board() {
           <div className="sq-recent">
             <span className="mb-title"><Icon name="list" />Chamadas anteriores</span>
             {recent.length > 1 ? <ol>{recent.slice(1, portrait ? 4 : 6).map((c) => { const p = T.placeInfo(c.place_id); const s = D.services.find((x) => x.id === c.service_id); return (
-              <li key={c.id} className={c.status} style={{ '--c': s ? s.color : '#94a3b8' }}><b>{c.ticket ?? '—'}</b><span><strong>{s ? s.short : ''}</strong><small>{p ? roomBig(p) : c.place_id}{p && p.num ? ` · ${p.name}` : ''}</small></span><em>{fmtT(c.called_at)}</em></li>
+              <li key={c.id} className={c.status} style={{ '--c': s ? s.color : '#94a3b8' }}><b>{c.ticket ?? '—'}</b><span><strong>{p ? svcName(p) : c.place_id}</strong><small>{p ? roomLine(p) : ''}{s ? ` · ${s.short}` : ''}</small></span><em>{fmtT(c.called_at)}</em></li>
             ); })}</ol> : <p className="sq-none">{recent.length ? 'Só uma chamada até agora.' : 'Nenhuma chamada ainda hoje.'}</p>}
           </div>
           {(() => {
@@ -190,9 +192,9 @@ function Board() {
             return (
               <div className={`sq-now ${k}`} style={{ '--c': s ? s.color : '#fbbf24' }}>
                 <small className="sq-now-k"><Icon name={k === 'calling' ? 'megaphone' : 'ticket'} />Senha atual · <em>{label}</em> · {fmtT(c.called_at)}</small>
-                <div className="sq-now-svc">{s ? <><Icon name={s.icon} />{s.short}</> : null}</div>
+                <div className="sq-now-svc">{p ? svcName(p) : c.place_id}</div>
                 <b className="sq-now-num">{c.ticket ?? '—'}</b>
-                <div className="sq-now-room"><b>{p ? roomBig(p) : c.place_id}</b><span>{p && p.num ? p.name : ''}</span></div>
+                <div className="sq-now-room"><b>{p ? roomLine(p) : ''}</b><span>{s ? <><Icon name={s.icon} />{s.short}</> : null}</span></div>
               </div>
             );
           })()}
@@ -205,7 +207,7 @@ function Board() {
         <div className="sq-flash" role="alert" key={flash.id} style={{ '--c': flash.service ? flash.service.color : '#fbbf24' }}>
           <div className="sq-flash-box">
             <small><Icon name="megaphone" />Chamando agora</small>
-            <div className="sq-flash-row"><span className="sq-flash-num"><em>senha</em><b>{flash.ticket}</b></span><Icon name="right" className="sq-flash-arrow" /><span className="sq-flash-room"><b>{flash.service ? flash.service.short : ''}</b><small>{flash.place ? roomBig(flash.place) : flash.place_id}{flash.place && flash.place.num ? ` · ${flash.place.name}` : ''}</small></span></div>
+            <div className="sq-flash-row"><span className="sq-flash-num"><em>senha</em><b>{flash.ticket}</b></span><Icon name="right" className="sq-flash-arrow" /><span className="sq-flash-room"><b>{flash.place ? svcName(flash.place) : flash.place_id}</b><small>{flash.place ? roomLine(flash.place) : ''}{flash.service ? ` · ${flash.service.short}` : ''}</small></span></div>
           </div>
         </div>
       ) : null}
