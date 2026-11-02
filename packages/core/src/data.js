@@ -87,10 +87,10 @@ const courses = [
     audience: 'Alunos do Ensino Médio', seats: 20,
     link: ESCON + '119/oiapoque-introducao-a-ia-x-transparencia', tags: ['tecnologia', 'gestao-publica'],
     sessions: [s('03', '08:00', 'jn', 'Laboratório I')] },
-  { id: 121, title: 'Primeiros Socorros no Esporte', hours: 8,
+  { id: 121, title: 'Primeiros Socorros no Esporte', hours: 8, // encontro de 03/11 à tarde retirado pela organização em 02/11
     audience: 'Atletas', seats: 20,
     link: ESCON + '121/primeiros-socorros-no-esporte', tags: ['saude'],
-    sessions: [s('03', '14:00', 'jn', 'Sala II'), s('06', '18:00', 'jn', 'Sala III')] },
+    sessions: [s('06', '18:00', 'jn', 'Sala III')] },
   { id: 125, title: 'Tecnologia e Direito das Mulheres', hours: 4,
     audience: 'Servidoras públicas, empreendedoras, autônomas, mães', seats: 20,
     link: ESCON + '125/oiapoque-tecnologia-e-direito-das-mulheres', tags: ['tecnologia', 'mulheres'],
