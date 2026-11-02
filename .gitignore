@@ -17,3 +17,4 @@ apps/senhas/backups/
 server/.env
 server/data/
 server/backups/
+apps/*/AGENTS.md

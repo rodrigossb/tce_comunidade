@@ -112,6 +112,15 @@ const courseState = (c, clock) => {
 };
 
 // ---- QR ----
+/** Módulos do QR como caminho SVG: { size, path, dark, light } (para componentes React desenharem o <svg> direto). */
+function qrPath(text, opts) {
+  const o = Object.assign({ margin: 2, dark: '#0b1b3a', light: '#ffffff' }, opts || {});
+  const q = qrcode(0, 'M'); q.addData(text); q.make();
+  const n = q.getModuleCount(); const size = n + o.margin * 2;
+  let path = '';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) path += `M${c + o.margin} ${r + o.margin}h1v1h-1z`;
+  return { size, path, dark: o.dark, light: o.light };
+}
 function qrSvg(text, opts) {
   const o = Object.assign({ cell: 4, margin: 2, dark: '#0b1b3a', light: '#ffffff' }, opts || {});
   const q = qrcode(0, 'M'); q.addData(text); q.make();
@@ -193,7 +202,7 @@ function search(q) {
 }
 const SUGGESTIONS = ['Saúde', 'Vacina', 'Identidade', 'Dentista', 'Castração', 'Casamento', 'Corte de cabelo', 'Energia', 'Mulheres', 'Crianças', 'Empreendedorismo', 'Feira'];
 
-export { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, appUrl, icsFor, params, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, queueLabel, courseRoomPlace, icon, SHIFT_ICON };
+export { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, queueLabel, courseRoomPlace, icon, SHIFT_ICON };
 /** Mesmo objeto `TCE` do site antigo (T.fmtDate, T.icon…), para portar as telas sem reescrever cada chamada. */
-export const TCE = { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, appUrl, icsFor, params, search, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, queueLabel, courseRoomPlace, icon, SHIFT_ICON };
+export const TCE = { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, search, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, queueLabel, courseRoomPlace, icon, SHIFT_ICON };
 export default TCE;

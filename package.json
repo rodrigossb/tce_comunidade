@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "description": "TCE na Comunidade · 9ª Edição (Oiapoque e Distrito do Manga, 03–07/11/2026). Monorepo Next.js: site público (app, TV, totem, resumo, placas) exportado estático para o GitHub Pages e controle de senhas com server actions.",
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "dev": "npm run dev -w apps/site",
     "dev:senhas": "npm run dev -w apps/senhas",
@@ -12,7 +15,10 @@
     "build:senhas": "npm run build -w apps/senhas",
     "start:senhas": "npm run start -w apps/senhas",
     "backup": "node apps/senhas/scripts/backup.js",
-    "test": "node --test \"packages/core/tests/*.test.mjs\""
+    "test": "node --test \"packages/core/tests/*.test.mjs\" \"apps/senhas/tests/*.test.mjs\"",
+    "test:core": "node --test \"packages/core/tests/*.test.mjs\""
   },
-  "engines": { "node": ">=22.5" }
+  "engines": {
+    "node": ">=22.5"
+  }
 }

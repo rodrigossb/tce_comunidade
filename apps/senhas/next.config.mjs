@@ -7,6 +7,9 @@ const nextConfig = {
   env: { NEXT_PUBLIC_BASE_PATH: basePath },
   transpilePackages: ['@tce/core'],
   reactStrictMode: true,
+  agentRules: false,
+  // Só em desenvolvimento: libera acesso por IP/127.0.0.1 aos recursos do `next dev`.
+  allowedDevOrigins: ['127.0.0.1', 'localhost', '10.*.*.*', '192.168.*.*', '172.16.*.*', '172.31.*.*'],
   poweredByHeader: false,
   compress: true,
   distDir: process.env.NEXT_DIST_DIR || '.next',

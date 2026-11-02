@@ -1,0 +1,6 @@
+/* Complemento de impressão da página Next: o App Router acrescenta <next-route-announcer> ao fim do body;
+   depois da última placa (break-after:page) ele abriria uma folha em branco. */
+@media print{
+  next-route-announcer{display:none}
+  .pl-sheets .placa:last-child{break-after:auto;page-break-after:auto}
+}

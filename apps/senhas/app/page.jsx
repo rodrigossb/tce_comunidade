@@ -1,3 +1,3 @@
-export default function Page() {
-  return <p style={{ padding: '2em' }}>Em construção: atendimento</p>;
-}
+import Atendimento from '@/components/Atendimento';
+
+export default function Page() { return <Atendimento />; }

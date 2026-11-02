@@ -5,13 +5,18 @@
 // tv.html, totem.html, resumo.html, placas.html).
 const nextConfig = {
   output: 'export',
-  assetPrefix: './',
+  // Relativo só no export: no `next dev` o prefixo relativo impede a hidratação/HMR.
+  assetPrefix: process.env.NODE_ENV === 'development' ? undefined : './',
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
   trailingSlash: false,
   images: { unoptimized: true },
   transpilePackages: ['@tce/core'],
   reactStrictMode: true,
+  agentRules: false,
   poweredByHeader: false,
   // Permite vários `next dev`/`next build` em paralelo na mesma pasta (NEXT_DIST_DIR=.next-xxx).
   distDir: process.env.NEXT_DIST_DIR || '.next',
+  // Só em desenvolvimento: deixa os links relativos do export (tv.html, totem.html…) funcionarem no `next dev`.
+  ...(process.env.NODE_ENV === 'development' ? { async rewrites() { return [{ source: '/:page(index|tv|totem|resumo|placas).html', destination: '/:page' }]; } } : {}),
 };
 export default nextConfig;
