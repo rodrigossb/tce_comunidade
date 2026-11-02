@@ -75,9 +75,80 @@ function fromJson(data) {
 }
 function parseAny(text) {
   const t = String(text || '').trim(); if (!t) return {};
+  if (/po-cartao|pessoas? inscritas?/i.test(t)) { const cards = panelCards(t); if (cards.length) return fromPanelCards(cards).byKey; }
   if (/^[[{]/.test(t)) { try { return fromJson(JSON.parse(t)); } catch { /* não é JSON */ } }
   if (/<\s*(table|tr|html|div|body)[\s>]/i.test(t)) return fromHtml(t);
   return fromText(t);
+}
+
+
+// ---------- formato real do painel "Próximas ações em Oiapoque" (cartões, sem código nem vagas) ----------
+// Cada cartão: título (com prefixo "Manga - " / "Oiapoque - " / "(Oiapoque)"), período ("Dia 5 de novembro", "De 3 a 6 de novembro")
+// e "N pessoas inscritas". O painel tem um cartão por curso da ESCON; nos nossos dados um curso pode reunir turmas de
+// locais diferentes (ex.: Cuidador no Manga e na Joaquim Nabuco) ou com links distintos (Cidadania Conectada I e II).
+// Por isso a chave é por turma: `${curso}@${local}@${id ESCON do link}` (groupKey).
+const STOP = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o', 'as', 'os', 'em', 'no', 'na', 'nos', 'nas', 'para', 'com', 'x', 'ou', 'ao', 'aos', 'um', 'uma', 'curso', 'oiapoque', 'manga', 'suas', 'seu', 'sua', 'que', 'por']);
+const stem = (w) => (w.length > 5 ? w.slice(0, 5) : w);
+const tokens = (s) => new Set(norm(s).split(' ').filter((w) => w.length >= 2 && !STOP.has(w) && !/^\d+$/.test(w)).map(stem));
+const MANGA = ['manga', 'iaparra']; const OIAPOQUE = ['jn', 'sebrae', 'auditorio'];
+const linkIdOf = (c, sess) => { const m = String((sess && sess.link) || c.link || '').match(/cursos\/(\d+)/); return m ? m[1] : String(c.id); };
+const groupKey = (c, sess) => `${c.id}@${sess.venue}@${linkIdOf(c, sess)}`;
+/** Turmas de um curso (por local e id da ESCON), com os dias do mês em que acontecem. */
+function groupsOf(c) {
+  const map = new Map();
+  for (const s of c.sessions) { const k = groupKey(c, s); if (!map.has(k)) map.set(k, { key: k, course: c, venue: s.venue, linkId: linkIdOf(c, s), days: new Set() }); map.get(k).days.add(Number(s.date.slice(8))); }
+  return [...map.values()];
+}
+const ALL_GROUPS = () => D.courses.flatMap(groupsOf);
+/** Cartões a partir do HTML do painel ou do texto copiado dele. */
+function panelCards(text) {
+  const t = String(text || ''); const cards = [];
+  if (/po-cartao/.test(t)) {
+    for (const m of t.matchAll(/<li class="po-cartao">([\s\S]*?)<\/li>/g)) {
+      const pick = (re) => { const x = m[1].match(re); return x ? x[1].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').trim() : ''; };
+      cards.push({ title: pick(/<h3>([\s\S]*?)<\/h3>/), date: pick(/po-data">([^<]*)/), inscritos: Number(pick(/<strong>([^<]*)/)) || 0, presentes: Number(pick(/po-presentes[^>]*><strong>([^<]*)/)) || null });
+    }
+    return cards;
+  }
+  const lines = (/<\w+[\s>]/.test(t) ? htmlToText(t) : t).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^(\d+)\s+pessoas?\s+inscritas?/i); if (!m) continue;
+    const date = lines[i - 1] || ''; const title = lines[i - 2] || '';
+    if (!/novembro|dezembro|outubro|^dia |^de \d/i.test(date)) continue;
+    cards.push({ title, date, inscritos: Number(m[1]) });
+  }
+  return cards;
+}
+const daysOf = (date) => { const m = String(date).match(/de (\d{1,2}) a (\d{1,2})/i) || String(date).match(/dia (\d{1,2})/i); if (!m) return []; const a = Number(m[1]); const b = m[2] ? Number(m[2]) : a; const out = []; for (let d = a; d <= b; d++) out.push(d); return out; };
+/** Casa cada cartão com uma turma: título parecido (radicais em comum), local do prefixo e dias. Devolve { byKey, matches, unmatched }. */
+function fromPanelCards(cards) {
+  const groups = ALL_GROUPS(); const used = new Set(); const byKey = {}; const matches = []; const unmatched = [];
+  const scored = [];
+  for (const card of cards) {
+    const hint = /^\(?manga\)?\s*[-–:]?/i.test(card.title) ? 'manga' : /^\(?oiapoque\)?\s*[-–:]?\s/i.test(card.title) || /^\(oiapoque\)/i.test(card.title) ? 'oiapoque' : null;
+    const clean = card.title.replace(/^\(?(manga|oiapoque)\)?\s*[-–:]?\s*/i, '');
+    const tk = tokens(clean); const days = daysOf(card.date);
+    for (const g of groups) {
+      const ct = new Set([...tokens(g.course.title), ...tokens(g.course.short || ''), ...tokens(String(g.course.link).split('/').pop().replace(/-/g, ' '))]);
+      const common = [...tk].filter((w) => ct.has(w)).length; if (!tk.size || !common) continue;
+      let score = common / tk.size + 0.4 * (common / Math.max(1, ct.size));
+      const inManga = MANGA.includes(g.venue);
+      if (hint === 'manga') score += inManga ? 0.4 : -1; else if (hint === 'oiapoque') score += inManga ? -1 : 0.4; else score += inManga ? 0 : 0.08;
+      if (days.length && days.some((d) => g.days.has(d))) score += 0.15;
+      if (/\bii\b/i.test(clean) !== /turma ii|\bii\b/i.test(g.course.sessions.find((s) => groupKey(g.course, s) === g.key)?.label || '')) score -= 0.3;
+      scored.push({ card, g, score });
+    }
+  }
+  scored.sort((a, b) => b.score - a.score);
+  const done = new Set();
+  for (const { card, g, score } of scored) {
+    if (done.has(card) || used.has(g.key) || score < 0.6) continue;
+    done.add(card); used.add(g.key);
+    byKey[g.key] = { inscritos: card.inscritos, titulo: card.title, periodo: card.date };
+    matches.push({ card, group: g, score });
+  }
+  for (const card of cards) if (!done.has(card)) unmatched.push(card);
+  return { byKey, matches, unmatched };
 }
 
 /** HTML → texto: células viram tabulações e linhas viram quebras (para o script em Node). */
@@ -85,4 +156,4 @@ function htmlToText(html) {
   return String(html).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<\/(td|th)>/gi, '\t').replace(/<\/(tr|li|p|div|h\d)>|<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#(\d+);/g, (m, n) => String.fromCharCode(n)).replace(/[ \u00a0]+/g, ' ').replace(/ *\t */g, '\t').replace(/\n\s*\n+/g, '\n');
 }
-export { parseAny, courseOf, fromRows, fromText, fromHtml, fromJson, htmlToText };
+export { parseAny, courseOf, fromRows, fromText, fromHtml, fromJson, htmlToText, panelCards, fromPanelCards, groupsOf, groupKey, linkIdOf };

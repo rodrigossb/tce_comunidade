@@ -4,7 +4,7 @@ import { TCE as T } from '@tce/core';
 import { TCEMap as M } from '@tce/core/map';
 import Icon from '@/components/Icon';
 import { useMounted } from '@/lib/hooks';
-import { parseAny } from '@/lib/inscritos';
+import { parseAny, groupsOf, groupKey } from '@/lib/inscritos';
 
 const D = T.D;
 const PANEL = 'https://servicos.tce.ap.gov.br/escon/admin/painel/oiapoque';
@@ -56,7 +56,7 @@ function Doc() {
     // 1º: inscritos.json publicado com o site (gerado no servidor a partir do painel); 2º: chave para ler o painel direto.
     fetch('inscritos.json?t=' + Date.now(), { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((pub) => {
       if (pub && pub.byId && Object.keys(pub.byId).length) {
-        setEnr((cur) => { if (cur && cur.updatedAt > pub.updatedAt) return cur; const data = { byId: pub.byId, updatedAt: pub.updatedAt, source: 'publicado' }; save(LS_DATA, data); return data; });
+        setEnr((cur) => { if (cur && cur.updatedAt > pub.updatedAt) return cur; const data = { byId: pub.byId, updatedAt: pub.updatedAt, source: 'publicado', painelInfo: pub.painelInfo || '' }; save(LS_DATA, data); return data; });
       }
     }).catch(() => {});
     if (key) fetchPanel(key);
@@ -64,15 +64,27 @@ function Doc() {
   }, []);
 
   const byId = (enr && enr.byId) || {};
-  const info = (c) => {
-    const e = byId[c.id]; if (!e) return { has: false, vagas: c.seats, inscritos: null, restantes: null, pct: null };
-    const vagas = e.vagas ?? c.seats; const inscritos = e.inscritos ?? (e.restantes != null ? Math.max(0, vagas - e.restantes) : null);
-    const restantes = e.restantes ?? (inscritos != null ? Math.max(0, vagas - inscritos) : null);
-    return { has: inscritos != null || restantes != null, vagas, inscritos, restantes, pct: inscritos != null && vagas ? Math.round((100 * inscritos) / vagas) : null };
+  /** Números de um curso (todas as turmas) ou de uma turma (sess): vagas, inscritos, restantes, % e se há dado.
+      Chaves por turma (curso@local@idESCON) vêm do painel; a chave só por código vem de tabelas coladas. */
+  const info = (c, sess) => {
+    const groups = groupsOf(c); const gs = sess ? groups.filter((g) => g.key === groupKey(c, sess)) : groups;
+    const entries = gs.map((g) => byId[g.key] || null); const generic = byId[c.id];
+    const out = { has: false, vagas: 0, inscritos: 0, restantes: 0, over: 0, pct: null };
+    if (!entries.some(Boolean) && generic && (generic.inscritos != null || generic.restantes != null)) {
+      const v = generic.vagas ?? c.seats * gs.length; const i = generic.inscritos ?? Math.max(0, v - generic.restantes);
+      return { has: true, vagas: v, inscritos: i, restantes: generic.restantes ?? Math.max(0, v - i), over: Math.max(0, i - v), pct: v ? Math.round((100 * i) / v) : null };
+    }
+    gs.forEach((g, k) => {
+      const e = entries[k]; const v = (e && e.vagas) || c.seats; out.vagas += v;
+      if (e && (e.inscritos != null || e.restantes != null)) { out.has = true; const i = e.inscritos ?? Math.max(0, v - e.restantes); out.inscritos += i; out.restantes += e.restantes ?? Math.max(0, v - i); out.over += Math.max(0, i - v); }
+      else out.restantes += v;
+    });
+    if (!out.has) return { has: false, vagas: out.vagas, inscritos: null, restantes: null, over: 0, pct: null };
+    out.pct = out.vagas ? Math.round((100 * out.inscritos) / out.vagas) : null; return out;
   };
   const totals = (courses) => courses.reduce((a, c) => { const i = info(c); a.vagas += i.vagas || 0; if (i.has) { a.inscritos += i.inscritos || 0; a.restantes += i.restantes || 0; a.com++; } return a; }, { vagas: 0, inscritos: 0, restantes: 0, com: 0 });
   const tot = totals(D.courses);
-  const Bar = ({ i }) => (i.pct == null ? <span className="nd">sem dado</span> : <><span className={`bar ${i.restantes <= 0 ? 'full' : i.pct < 30 ? 'low' : ''}`}><i style={{ width: `${Math.min(100, i.pct)}%` }} /></span> {i.pct}%{i.restantes <= 0 ? <span className="full-tag">lotado</span> : null}</>);
+  const Bar = ({ i }) => (i.pct == null ? <span className="nd">sem dado</span> : <><span className={`bar ${i.restantes <= 0 ? 'full' : i.pct < 30 ? 'low' : ''}`}><i style={{ width: `${Math.min(100, i.pct)}%` }} /></span> {i.pct}%{i.restantes <= 0 ? <span className="full-tag">{i.over ? `lotado +${i.over}` : 'lotado'}</span> : null}</>);
   const Num = ({ v }) => <td className="n">{v == null ? '—' : v}</td>;
   const room = (x) => { const p = T.courseRoomPlace(x); return <>{x.room || <span className="muted">sem sala</span>}{p ? <> <span className={`room ${p.kind} sm`}>{M.placeLabel(p)}</span></> : null}</>; };
 
@@ -90,7 +102,7 @@ function Doc() {
           <div className="kpi"><small>Inscritos</small><b>{tot.com ? tot.inscritos : '—'}</b><em>{tot.com ? `${tot.com} de ${D.courses.length} cursos com dado` : 'sem dados do painel'}</em></div>
           <div className="kpi"><small>Vagas restantes</small><b>{tot.com ? tot.restantes : '—'}</b><em>{tot.com ? `${D.courses.filter((c) => info(c).restantes === 0).length} lotado(s)` : ''}</em></div>
           <div className="kpi"><small>Ocupação</small><b>{tot.com && tot.vagas ? `${Math.round((100 * tot.inscritos) / D.courses.filter((c) => info(c).has).reduce((n, c) => n + info(c).vagas, 0))}%` : '—'}</b><em>inscritos ÷ vagas (cursos com dado)</em></div>
-          <div className="kpi"><small>Painel ESCON</small><b style={{ fontSize: '1rem' }}>{enr ? `${T.fmtDate(T.partsOf(new Date(enr.updatedAt)).date, 'wd')} ${T.partsOf(new Date(enr.updatedAt)).time}` : 'não lido'}</b><em>{enr ? (enr.source === 'painel' ? 'lido do painel' : enr.source === 'publicado' ? 'publicado com o site' : 'colado') : 'informe a chave abaixo'}</em></div>
+          <div className="kpi"><small>Painel ESCON</small><b style={{ fontSize: '1rem' }}>{enr ? `${T.fmtDate(T.partsOf(new Date(enr.updatedAt)).date, 'wd')} ${T.partsOf(new Date(enr.updatedAt)).time}` : 'não lido'}</b><em>{enr ? (enr.painelInfo ? `números do painel de ${enr.painelInfo}` : enr.source === 'painel' ? 'lido do painel' : enr.source === 'publicado' ? 'publicado com o site' : 'colado') : 'informe a chave abaixo'}</em></div>
         </div>
         <div className={`src ${enr ? 'ok' : 'warn'}`}>
           <Icon name={enr ? 'check' : 'info'} />
@@ -120,7 +132,7 @@ function Doc() {
                 <div className="venue" key={v}>
                   <h3>{D.venues[v].name} <small>{D.venues[v].city}</small></h3>
                   <table className="t6"><thead><tr><th className="c-hora">Hora</th><th className="c-id">Cód.</th><th>Curso</th><th className="c-local">Sala</th><th>Público</th><th className="n c-num">Vagas</th><th className="n c-num">Inscritos</th><th className="n c-num">Restam</th><th className="c-bar">Ocupação</th></tr></thead>
-                    <tbody>{rows.map((x, k) => { const i = info(x.course); return (
+                    <tbody>{rows.map((x, k) => { const i = info(x.course, x); return (
                       <tr key={k}><td>{T.fmtTime(x.time)}–{T.fmtTime(T.sessionEnd(x))}</td><td className="num">{x.course.id}</td><td><b>{T.title(x.course)}</b>{x.course.sessions.length > 1 ? <span className="muted tiny"> · {x.course.sessions.length} encontros</span> : null}</td><td>{room(x)}</td><td className="aud">{x.course.audience}</td><Num v={i.vagas} /><Num v={i.inscritos} /><Num v={i.restantes} /><td><Bar i={i} /></td></tr>); })}</tbody>
                   </table>
                 </div>
@@ -152,7 +164,8 @@ function Doc() {
         <h3>Observações</h3>
         <ul className="tiny muted">
           <li>Vagas: número cadastrado no site do evento (ou o do painel, quando informado). Restantes: do painel ou vagas − inscritos.</li>
-          <li>Cursos com mais de um encontro aparecem em cada dia com os mesmos números (é a mesma turma).</li>
+          <li>Cursos com mais de um encontro aparecem em cada dia com os mesmos números (é a mesma turma). Cursos com turmas em locais diferentes (Cuidador, Tecnologia e Direito das Mulheres, Videomaker, Cidadania Conectada) têm os números por turma nas tabelas por dia e somados na lista A–Z.</li>
+          <li>O painel da ESCON informa só os inscritos; as vagas são as cadastradas no site (por turma). Inscritos acima das vagas aparecem como "lotado +N".</li>
           <li>Laboratório II – Joaquim Nabuco, 05/11 às 14h: Videomaker (145, movido em 02/11) e Rios do Saber (156) no mesmo horário; confirmar a divisão do laboratório.</li>
         </ul>
       </section>

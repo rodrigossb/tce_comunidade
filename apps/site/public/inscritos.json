@@ -1,6 +1,162 @@
 {
-  "updatedAt": 0,
-  "source": "nenhum",
-  "note": "Gerado por apps/site/scripts/inscritos.mjs a partir do painel da ESCON. byId: { \"codigoDoCurso\": { vagas, inscritos, restantes } }",
-  "byId": {}
+  "updatedAt": 1793632109577,
+  "source": "painel",
+  "painelInfo": "02/11 11:40",
+  "byId": {
+    "116@manga@116": {
+      "inscritos": 49,
+      "titulo": "Manga - Formação De Cuidadores",
+      "periodo": "De 3 a 6 de novembro"
+    },
+    "125@manga@125": {
+      "inscritos": 0,
+      "titulo": "Manga - Tecnologia e Direito das Mulheres",
+      "periodo": "Dia 3 de novembro"
+    },
+    "128@manga@128": {
+      "inscritos": 6,
+      "titulo": "Manga - Preservação dos Rios",
+      "periodo": "Dia 4 de novembro"
+    },
+    "112@iaparra@112": {
+      "inscritos": 23,
+      "titulo": "Manga - Curso de Formação de Gestão Financeira nas Escolas",
+      "periodo": "Dia 5 de novembro"
+    },
+    "154@jn@154": {
+      "inscritos": 1,
+      "titulo": "(Oiapoque) Cidadania Conectada: Capacitação Tecnológica e Inserção Profissional",
+      "periodo": "Dia 5 de novembro"
+    },
+    "154@jn@158": {
+      "inscritos": 0,
+      "titulo": "(Oiapoque) Cidadania Conectada: Capacitação Tecnológica e Inserção Profissional II",
+      "periodo": "Dia 7 de novembro"
+    },
+    "145@manga@145": {
+      "inscritos": 6,
+      "titulo": "Manga - Videomaker",
+      "periodo": "Dia 4 de novembro"
+    },
+    "121@jn@121": {
+      "inscritos": 2,
+      "titulo": "Oiapoque - Primeiros Socorros em Atividades Esportivas",
+      "periodo": "De 3 a 6 de novembro"
+    },
+    "157@jn@157": {
+      "inscritos": 3,
+      "titulo": "(Oiapoque) PDDE e suas Ações Integradas: execução dos recursos, prestação de contas e assessoramento às Escolas Municipais",
+      "periodo": "De 5 a 6 de novembro"
+    },
+    "116@jn@116": {
+      "inscritos": 37,
+      "titulo": "Formação De Cuidadores",
+      "periodo": "De 3 a 6 de novembro"
+    },
+    "119@jn@119": {
+      "inscritos": 13,
+      "titulo": "Introdução a IA x Transparência",
+      "periodo": "Dia 3 de novembro"
+    },
+    "137@sebrae@137": {
+      "inscritos": 7,
+      "titulo": "Arranjo Natalino",
+      "periodo": "De 4 a 5 de novembro"
+    },
+    "130@auditorio@130": {
+      "inscritos": 1,
+      "titulo": "Empreendedorismo Feminino: Como transformar habilidades em renda",
+      "periodo": "Dia 4 de novembro"
+    },
+    "149@sebrae@149": {
+      "inscritos": 16,
+      "titulo": "Customização de Camisas",
+      "periodo": "De 4 a 6 de novembro"
+    },
+    "127@sebrae@127": {
+      "inscritos": 23,
+      "titulo": "Extensão de Cílios",
+      "periodo": "De 4 a 6 de novembro"
+    },
+    "146@sebrae@146": {
+      "inscritos": 22,
+      "titulo": "Panificação: Pães Recheados e Salgados Assados",
+      "periodo": "De 4 a 6 de novembro"
+    },
+    "142@jn@142": {
+      "inscritos": 5,
+      "titulo": "Tecnologia / Ouvidoria",
+      "periodo": "Dia 4 de novembro"
+    },
+    "129@sebrae@129": {
+      "inscritos": 3,
+      "titulo": "Embalagem de Presentes",
+      "periodo": "De 5 a 6 de novembro"
+    },
+    "152@jn@152": {
+      "inscritos": 19,
+      "titulo": "Tecnologia a Serviço do Controle Social e Ouvidoria",
+      "periodo": "Dia 5 de novembro"
+    },
+    "125@jn@125": {
+      "inscritos": 11,
+      "titulo": "Tecnologia e Direito das Mulheres",
+      "periodo": "De 5 a 7 de novembro"
+    },
+    "122@jn@122": {
+      "inscritos": 30,
+      "titulo": "Tomada de Contas Ordinária e Tomada de Contas Especial",
+      "periodo": "Dia 5 de novembro"
+    },
+    "120@jn@120": {
+      "inscritos": 9,
+      "titulo": "Procedimentos de exportação de produtos e subprodutos madeireiros de espécies nativas oriundos de florestas naturais ou plantadas",
+      "periodo": "Dia 5 de novembro"
+    },
+    "156@jn@156": {
+      "inscritos": 30,
+      "titulo": "Rios do Saber: Formação de Docentes e Gestores Escolares em Inteligência Artificial Generativa, Metodologias Ativas de Ensino e Inovação Pedagógica para Escolas Públicas Amazônica",
+      "periodo": "Dia 5 de novembro"
+    },
+    "150@sebrae@150": {
+      "inscritos": 21,
+      "titulo": "Como vender pela internet",
+      "periodo": "De 5 a 6 de novembro"
+    },
+    "114@jn@114": {
+      "inscritos": 4,
+      "titulo": "Fomento a operacionalização do SIPIA para o Conselho Tutelar",
+      "periodo": "Dia 6 de novembro"
+    },
+    "131@jn@131": {
+      "inscritos": 0,
+      "titulo": "Protocolo de Atenção Integral a Crianças e Adolescentes vítimas de Violência",
+      "periodo": "Dia 6 de novembro"
+    },
+    "139@jn@139": {
+      "inscritos": 1,
+      "titulo": "Roda de Conversa Mulheres",
+      "periodo": "Dia 6 de novembro"
+    },
+    "141@jn@141": {
+      "inscritos": 23,
+      "titulo": "Painéis e Sistemas de Acompanhamento da Gestão Pública",
+      "periodo": "Dia 6 de novembro"
+    },
+    "110@jn@110": {
+      "inscritos": 10,
+      "titulo": "Oficina de Reciclagem e Reutilização de Materiais (Resíduos Sólidos)",
+      "periodo": "De 3 a 6 de dezembro"
+    },
+    "145@jn@145": {
+      "inscritos": 20,
+      "titulo": "Videomaker",
+      "periodo": "Dia 5 de novembro"
+    },
+    "109@jn@109": {
+      "inscritos": 56,
+      "titulo": "Formação de Brinquedistas: corpo, criação, mediação e brincadeira",
+      "periodo": "De 3 a 6 de novembro"
+    }
+  }
 }
