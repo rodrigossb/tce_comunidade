@@ -43,7 +43,7 @@
 /* painel principal: tudo em em, base --k mm (ajustada por JS) */
 .pl-body{flex:1;min-height:0;overflow:hidden;padding-top:.8em;display:flex;flex-direction:column;gap:.6em;font-size:calc(1mm * var(--k,4.2));line-height:1.2}
 .pl-body.few{justify-content:center;padding-bottom:2em}
-.pl-day h3{font-family:var(--font-display);font-size:1.05em;font-weight:800;color:var(--navy);margin:0 0 .25em;letter-spacing:.03em;text-transform:uppercase}
+.pl-day h3{white-space:nowrap;font-family:var(--font-display);font-size:1.05em;font-weight:800;color:var(--navy);margin:0 0 .25em;letter-spacing:.03em;text-transform:uppercase}
 .pl-svc h3{color:#7a5200}
 .pl-row{display:grid;grid-template-columns:5.6em 1fr;gap:.8em;align-items:start;padding:.4em 0;border-top:.25mm solid var(--line)}
 .pl-row:first-of-type{border-top:0}

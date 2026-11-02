@@ -12,6 +12,8 @@ const itemsAt = (s, p) => s.items.filter((it) => T.itemWhere(it, p.venue).includ
 const roomSort = (a, b) => (Number(a.num) || 999) - (Number(b.num) || 999) || String(a.num).localeCompare(String(b.num));
 const KIND = { sala: 'Sala', tenda: 'Tenda', area: 'Ambiente' };
 const when = (x) => `${cap(T.fmtDate(x.date, 'wdlong'))} · ${T.fmtTime(x.time)}–${T.fmtTime(T.sessionEnd(x))}`;
+// Palavras com hífen ("Bem-estar") não quebram no hífen: cada uma vai num span nowrap.
+const nb = (t) => String(t || '').split(' ').map((w, i) => [i ? ' ' : '', w.includes('-') ? <span key={i} style={{ whiteSpace: 'nowrap' }}>{w}</span> : w]);
 const range = (x) => `${T.fmtTime(x.time)}–${T.fmtTime(T.sessionEnd(x))}`;
 
 // ---- partes comuns ----
@@ -33,7 +35,7 @@ function Side({ p, uses }) {
   );
 }
 const Head = ({ p }) => <header className="pl-head"><img className="pl-marca" src="img/arte-marca.png" alt="TCE na Comunidade" /><div className="pl-head-t"><b>{D.event.edition}</b><span>{D.maps[p.venue].title}</span></div><img className="pl-logo" src="img/tce-logo.png" alt="Tribunal de Contas do Estado do Amapá" /></header>;
-const Foot = () => <footer className="pl-foot"><span>{D.event.datesLabel} · www.tce.ap.gov.br/tce-na-comunidade</span><span>Cursos: inscrição pelo site da ESCON · Serviços gratuitos: por ordem de chegada</span></footer>;
+const Foot = () => <footer className="pl-foot"><span>{D.event.datesLabel} · www.tce.ap.gov.br/tce-na-comunidade</span><span>Cursos: inscrição pelo site da ESCON · Serviços: por ordem de chegada</span></footer>;
 const Sheet = ({ p, uses, cls, children }) => (
   <article className={`placa ${p.kind} ${cls}`} data-place={p.id}><div className="pl-band" /><Side p={p} uses={uses} /><section className="pl-main"><Head p={p} /><div className={`pl-body ${cls}`}>{children}</div><Foot /></section></article>
 );
@@ -49,8 +51,8 @@ function Consolidada({ p, uses, showAll }) {
   const empty = !dayKeys.length && !svcs.length;
   return (
     <Sheet p={p} uses={uses} cls={n <= 3 ? 'few' : ''}>
-      {dayKeys.map((d) => <div key={d} className="pl-day"><h3>{cap(T.fmtDate(d, 'wdlong'))}</h3>{byDay[d].map((x, k) => <div key={k} className="pl-row"><span className="pl-time">{range(x)}</span><span className="pl-what"><b>{T.title(x.course)}</b>{x.label ? <> <small className="inl">· {x.label}</small></> : null}<small>{x.course.audience}</small></span></div>)}</div>)}
-      {svcs.length ? <div className="pl-day pl-svc"><h3>{cap(T.fmtDate(sd.date, 'wdlong'))} · serviços gratuitos</h3>{svcs.map((s) => { const its = itemsAt(s, p); return <div key={s.id} className="pl-row"><SvcIcon s={s} /><span className="pl-what"><b>{s.title}</b><small>{its.length ? its.map((it) => T.itemText(it)).join(' · ') : s.summary}</small></span></div>; })}</div> : null}
+      {dayKeys.map((d) => <div key={d} className="pl-day"><h3>{cap(T.fmtDate(d, 'wdlong'))}</h3>{byDay[d].map((x, k) => <div key={k} className="pl-row"><span className="pl-time">{range(x)}</span><span className="pl-what"><b>{nb(T.title(x.course))}</b>{x.label ? <> <small className="inl">· {x.label}</small></> : null}<small>{x.course.audience}</small></span></div>)}</div>)}
+      {svcs.length ? <div className="pl-day pl-svc"><h3>{cap(T.fmtDate(sd.date, 'wdlong'))} · Serviços</h3>{svcs.map((s) => { const its = itemsAt(s, p); return <div key={s.id} className="pl-row"><SvcIcon s={s} /><span className="pl-what"><b>{nb(s.title)}</b><small>{its.length ? its.map((it) => T.itemText(it)).join(' · ') : s.summary}</small></span></div>; })}</div> : null}
       {empty ? <p className="pl-empty">Sem atividade cadastrada neste local.</p> : null}
     </Sheet>
   );
@@ -64,15 +66,15 @@ function Destaque({ p, uses }) {
     <>
       {Object.keys(byCourse).map((id) => { const xs = byCourse[id]; const c = xs[0].course; return (
         <Sheet key={`c-${id}`} p={p} uses={uses} cls="solo curso">
-          <div className="pl-label">Curso gratuito</div><h2 className="pl-big">{c.title}</h2>
+          <div className="pl-label">Curso gratuito</div><h2 className="pl-big">{nb(c.title)}</h2>
           <div className="pl-sessions">{xs.map((x, k) => <div key={k} className="pl-sess"><Icon name="calendar" /><span>{when(x)}</span>{x.label ? <small>{x.label}</small> : null}</div>)}</div>
           <p className="pl-aud"><b>Para:</b> {c.audience}</p>
           <p className="pl-meta">{c.hours}h de carga horária · {c.seats} vagas · inscrição pelo site da ESCON (curso {c.id})</p>
         </Sheet>); })}
       {svcs.map((s) => { const its = itemsAt(s, p); return (
         <Sheet key={`s-${s.id}`} p={p} uses={uses} cls="solo servico">
-          <div className="pl-label">Serviços gratuitos · {cap(T.fmtDate(sd.date, 'wdlong'))}</div>
-          <h2 className="pl-big"><SvcIcon s={s} />{s.title}</h2>
+          <div className="pl-label">Serviços · {cap(T.fmtDate(sd.date, 'wdlong'))}</div>
+          <h2 className="pl-big"><SvcIcon s={s} />{nb(s.title)}</h2>
           {its.length ? <ul className="pl-items">{its.map((it, k) => <li key={k}>{T.itemText(it)}</li>)}</ul> : <p className="pl-aud">{s.summary}</p>}
           <p className="pl-meta">Sem inscrição, por ordem de chegada · {s.partners.slice(0, 4).join(' · ')}</p>
         </Sheet>); })}
@@ -120,7 +122,8 @@ export default function Placas() {
       root.querySelectorAll('.pl-body').forEach((body) => {
         body.classList.remove('dense');
         const fits = () => body.scrollHeight <= body.clientHeight + 1 && body.scrollWidth <= body.clientWidth + 1;
-        let k = body.classList.contains('solo') ? 12 : 9;
+        // Ponto de partida: folhas com pouco conteúdo podem crescer mais (o laço reduz até caber).
+        let k = body.classList.contains('solo') ? 12 : body.classList.contains('few') ? 11 : 9.5;
         for (; k >= 3; k -= 0.25) { body.style.setProperty('--k', k); if (fits()) return; }
         body.classList.add('dense'); // ainda não coube: esconde o público
         for (k = 4; k >= 2.6; k -= 0.2) { body.style.setProperty('--k', k); if (fits()) return; }
