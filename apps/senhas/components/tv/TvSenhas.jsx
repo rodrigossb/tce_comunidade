@@ -13,7 +13,7 @@ import { TCE as T } from '@tce/core';
 import { TCEMap as M } from '@tce/core/map';
 import Icon from '@/components/Icon';
 import { selectQueues } from '@/lib/tv-grupos';
-import { pickVoice, voiceState, voiceLabel } from '@/lib/voz';
+import { pickVoice, voiceState, voiceLabel, clipsFor } from '@/lib/voz';
 
 const D = T.D;
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -52,6 +52,19 @@ function Board() {
   const [unlocked, setUnlocked] = useState(false);
   const [voiceErr, setVoiceErr] = useState('');
   const supported = typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+  // Áudios prontos (public/voz, gerados por scripts/gerar-voz.mjs): caminho preferido, funciona em TV sem speechSynthesis.
+  const [manifest, setManifest] = useState(null);
+  useEffect(() => { if (!voice) return; fetch(`${BP}/voz/manifest.json`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((m) => { if (m && m.numbers) setManifest(m); }).catch(() => {}); }, [voice]);
+  const player = useRef(null); // <audio> criado dentro do gesto que libera o som (reutilizado depois sem novo gesto)
+  const playing = useRef(false);
+  /** Toca os arquivos em sequência; rejeita se algum falhar (aí a TV cai para a síntese de voz). */
+  const playClips = useCallback((files) => new Promise((resolve, reject) => {
+    const a = player.current; if (!a || !files || !files.length) { reject(new Error('sem áudio')); return; }
+    let i = 0; playing.current = true;
+    const done = (err) => { playing.current = false; a.onended = a.onerror = null; if (err) reject(err); else resolve(); };
+    const step = () => { if (i >= files.length) { done(); return; } a.src = `${BP}/voz/${files[i++]}`; a.onended = step; a.onerror = () => done(new Error('áudio falhou')); a.play().catch(done); };
+    step();
+  }), []);
   const audio = useRef(null); // AudioContext da campainha (criado no gesto que libera o som)
   const unlockedRef = useRef(false);
   const [banner, setBanner] = useState(''); // aviso grande e temporário com o estado do som (legível na TV)
@@ -83,21 +96,26 @@ function Board() {
   const unlock = useCallback(() => {
     if (!voice || unlockedRef.current) return;
     unlockedRef.current = true; setUnlocked(true); setVoiceErr('');
-    chime(); if (supported) speak('Som ativado. As senhas serão anunciadas.');
-    setTimeout(() => { const vs = supported ? window.speechSynthesis.getVoices() : []; showBanner(`Som ativado (campainha) · ${voiceLabel(voiceState({ wanted: true, supported, voices: vs, unlocked: true, lastError: '' }), pickVoice(vs))}`); }, 1500);
-  }, [voice, supported, chime, speak, showBanner]);
+    chime();
+    if (manifest) { // o primeiro play() precisa acontecer dentro do gesto; depois o mesmo elemento toca sem novo gesto
+      try { player.current = new Audio(); player.current.preload = 'auto'; } catch { player.current = null; }
+      if (player.current) playClips(['x-som.mp3']).catch((e) => { console.warn('[tv] áudio pronto falhou:', e.message); player.current = null; if (supported) speak('Som ativado. As senhas serão anunciadas.'); });
+      else if (supported) speak('Som ativado. As senhas serão anunciadas.');
+    } else if (supported) speak('Som ativado. As senhas serão anunciadas.');
+    setTimeout(() => { const vs = supported ? window.speechSynthesis.getVoices() : []; showBanner(`Som ativado · ${voiceLabel(voiceState({ wanted: true, supported, voices: vs, unlocked: true, lastError: '', clips: !!player.current }), pickVoice(vs))}`); }, 1800);
+  }, [voice, supported, manifest, chime, speak, playClips, showBanner]);
   useEffect(() => {
     if (!voice) return;
     const load = () => setVoices(supported ? window.speechSynthesis.getVoices() : []);
     load(); if (supported) window.speechSynthesis.addEventListener('voiceschanged', load);
     // Já houve interação nesta página (ex.: tecla F para tela cheia)? Então o som já está liberado.
     if (navigator.userActivation && navigator.userActivation.hasBeenActive) { unlockedRef.current = true; setUnlocked(true); }
-    else showBanner(supported ? 'Som: aperte OK no controle (ou toque na tela) para ativar os anúncios' : 'Este navegador não tem síntese de voz: só a campainha vai tocar. Aperte OK no controle para ativar o som', 12000);
+    else showBanner('Som: aperte OK no controle (ou toque na tela) para ativar os anúncios das senhas', 12000);
     const gesture = () => unlock();
     window.addEventListener('pointerdown', gesture); window.addEventListener('keydown', gesture);
     return () => { if (supported) window.speechSynthesis.removeEventListener('voiceschanged', load); window.removeEventListener('pointerdown', gesture); window.removeEventListener('keydown', gesture); };
   }, [voice, supported, unlock, showBanner]);
-  const vState = voiceState({ wanted: voice, supported, voices, unlocked, lastError: voiceErr });
+  const vState = voiceState({ wanted: voice, supported, voices, unlocked, lastError: voiceErr, clips: unlocked && !!player.current });
   const vLabel = voiceLabel(vState, voices ? pickVoice(voices) : null);
   const [zoom, setZoom] = useState(() => Math.min(1.6, Math.max(0.6, asScale(sp.get('zoom')) || 1)));
   const pageSecs = Math.min(60, Math.max(4, Number(sp.get('pagina')) || PAGE_SECS_DEFAULT));
@@ -166,14 +184,19 @@ function Board() {
   const timer = useRef(null);
   const next = useCallback(() => {
     // Só avança quando a anterior saiu da tela e a voz terminou de falar.
-    if (supported && voice && window.speechSynthesis.speaking) { timer.current = setTimeout(next, 300); return; }
+    if (voice && (playing.current || (supported && window.speechSynthesis.speaking))) { timer.current = setTimeout(next, 300); return; }
     const c = queue.current.shift();
     if (!c) { showing.current = false; setFlash(null); return; }
     showing.current = true;
     setFlash({ id: `${c.id}:${c.again ? Date.now() : 0}`, ticket: c.ticket, place: c.place, service: c.service, again: c.again, until: Date.now() + FLASH_MS });
-    if (voice) { chime(); if (c.place) setTimeout(() => speak(`Senha ${c.ticket}. ${c.place.num ? `${svcName(c.place)}, ${speakable(c.place)}` : svcName(c.place)}.`), 700); } // campainha e, depois dela, a voz
+    if (voice) { // campainha e, depois dela, a voz: áudios prontos; se não houver (senha > 300, sala nova, falha), síntese do navegador
+      chime();
+      const text = c.place ? `Senha ${c.ticket}. ${c.place.num ? `${svcName(c.place)}, ${speakable(c.place)}` : svcName(c.place)}.` : `Senha ${c.ticket}.`;
+      const files = clipsFor({ ticket: c.ticket, placeId: c.place && c.place.id, again: c.again }, manifest);
+      setTimeout(() => { if (files && player.current) playClips(files).catch(() => speak(text)); else speak(text); }, 700);
+    }
     timer.current = setTimeout(() => { setFlash(null); timer.current = setTimeout(next, 400); }, FLASH_MS);
-  }, [voice, speak, chime, supported]);
+  }, [voice, speak, chime, supported, manifest, playClips]);
   useEffect(() => () => { clearTimeout(timer.current); clearTimeout(bannerT.current); }, []);
   useEffect(() => {
     if (!data) return;

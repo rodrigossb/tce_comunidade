@@ -1,7 +1,7 @@
 // Voz da TV: escolha da voz pt-BR e diagnóstico do estado (bloqueada até o gesto, sem voz, pronta).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pickVoice, voiceState, voiceLabel } from '../lib/voz.js';
+import { pickVoice, voiceState, voiceLabel, numeroExtenso, cleanSpoken, placePhrase, ticketPhrase, clipsFor, CLIP_MAX } from '../lib/voz.js';
 
 const V = (name, lang, localService = true) => ({ name, lang, localService });
 
@@ -15,7 +15,9 @@ test('pickVoice prefere Google/Microsoft pt-BR, depois qualquer pt-BR, depois pt
 
 test('voiceState: off sem ?voz=1; locked até o gesto; novoice/fallback/ready conforme as vozes; erro prevalece', () => {
   assert.equal(voiceState({ wanted: false, supported: true, voices: [], unlocked: false }), 'off');
-  assert.equal(voiceState({ wanted: true, supported: false }), 'unsupported');
+  assert.equal(voiceState({ wanted: true, supported: false, unlocked: true }), 'unsupported');
+  assert.equal(voiceState({ wanted: true, supported: false, unlocked: true, clips: true }), 'clips', 'áudios prontos valem mesmo sem speechSynthesis');
+  assert.equal(voiceState({ wanted: true, supported: false, unlocked: false, clips: true }), 'locked', 'mas só depois do gesto');
   assert.equal(voiceState({ wanted: true, supported: true, voices: null, unlocked: false }), 'locked');
   assert.equal(voiceState({ wanted: true, supported: true, voices: [], unlocked: true }), 'novoice');
   assert.equal(voiceState({ wanted: true, supported: true, voices: [V('Samantha', 'en-US')], unlocked: true }), 'fallback');
@@ -29,4 +31,23 @@ test('voiceLabel explica o que fazer', () => {
   assert.match(voiceLabel('novoice'), /pacote de voz/);
   assert.equal(voiceLabel('ready', V('Luciana', 'pt-BR')), 'voz ativa · Luciana');
   assert.equal(voiceLabel('off'), '');
+});
+
+test('números por extenso e frases dos áudios prontos', () => {
+  assert.equal(numeroExtenso(1), 'um'); assert.equal(numeroExtenso(16), 'dezesseis'); assert.equal(numeroExtenso(21), 'vinte e um');
+  assert.equal(numeroExtenso(100), 'cem'); assert.equal(numeroExtenso(101), 'cento e um'); assert.equal(numeroExtenso(250), 'duzentos e cinquenta'); assert.equal(numeroExtenso(999), 'novecentos e noventa e nove');
+  assert.equal(ticketPhrase(42), 'Senha quarenta e dois.');
+  assert.equal(cleanSpoken('Odontologia + Sorriso'), 'Odontologia e Sorriso');
+  assert.equal(cleanSpoken('SEJUSP e MPC'), 'sejúspi e ême pê cê');
+  assert.equal(placePhrase({ kind: 'sala', num: '04', name: 'Laboratório (exames)' }), 'Laboratório, exames, sala quatro.');
+  assert.equal(placePhrase({ kind: 'tenda', num: '4', name: 'Tenda Pet' }), 'Tenda Pet, tenda quatro.');
+});
+
+test('clipsFor monta a sequência de arquivos e devolve null fora do que foi gerado', () => {
+  const m = { numbers: CLIP_MAX, places: ['jn-r04'] };
+  assert.deepEqual(clipsFor({ ticket: 7, placeId: 'jn-r04' }, m), ['n-7.mp3', 'p-jn-r04.mp3']);
+  assert.deepEqual(clipsFor({ ticket: 7, placeId: 'jn-r04', again: true }, m), ['x-novamente.mp3', 'n-7.mp3', 'p-jn-r04.mp3']);
+  assert.deepEqual(clipsFor({ ticket: 7, placeId: 'xx' }, m), ['n-7.mp3'], 'sala sem áudio: só a senha');
+  assert.equal(clipsFor({ ticket: CLIP_MAX + 1, placeId: 'jn-r04' }, m), null);
+  assert.equal(clipsFor({ ticket: 7, placeId: 'jn-r04' }, null), null);
 });
