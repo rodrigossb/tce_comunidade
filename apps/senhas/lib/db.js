@@ -90,8 +90,9 @@ export function call(b) {
   if (!isDay(day) || !venue || !s || !p || (ticket != null && (!Number.isInteger(ticket) || ticket < 0 || ticket > 100000))) throw err(400, 'dados');
   const { q } = conn(); const now = Date.now();
   const status = ['served', 'absent'].includes(b.status) ? b.status : null;
-  // Chamar a próxima encerra o atendimento em curso nesta sala (quem entrou antes já saiu).
-  for (const o of q.openServed.all(day, venue, s, p)) q.callEnd.run(now, o.id);
+  // Chamar a próxima NÃO encerra quem está em atendimento: a chamada fica aguardando na porta da sala.
+  // Só o "entrou" (status served, aqui ou em setStatus) encerra o atendimento anterior da mesma sala.
+  if (status === 'served') for (const o of q.openServed.all(day, venue, s, p)) q.callEnd.run(now, o.id);
   const r = q.callInsert.run(day, venue, s, p, ticket, now, clean(b.device, 40));
   const id = Number(r.lastInsertRowid);
   if (status) q.callStatus.run(status, now, id);
@@ -116,8 +117,11 @@ export function tvBoard(day, venue) {
   const c = ctx(day, venue); const { q } = conn(); const now = Date.now();
   const issued = rows(q.issuedLatest.all(c.day, c.venue)); const calls = rows(q.callsDay.all(c.day, c.venue));
   const st = summarize(issued, calls, now);
+  // Quem está em atendimento agora em cada sala (entrou e ainda não saiu), além da última chamada (que pode estar na porta).
+  const serving = {};
+  for (const c of calls) if (c.status === 'served' && !c.ended_at) { const k = c.place_id; if (!serving[k] || c.status_at > serving[k].status_at) serving[k] = { id: c.id, ticket: c.ticket, status_at: c.status_at }; }
   const places = [];
-  for (const s of st.services) for (const p of s.places) places.push({ service_id: s.service_id, place_id: p.place_id, issued: p.issued || 0, called: p.called || 0, waiting: p.not_called || 0, in_service: p.in_service || 0, current: p.current || null });
+  for (const s of st.services) for (const p of s.places) places.push({ service_id: s.service_id, place_id: p.place_id, issued: p.issued || 0, called: p.called || 0, waiting: p.not_called || 0, in_service: p.in_service || 0, current: p.current || null, serving: serving[p.place_id] && (!p.current || serving[p.place_id].id !== p.current.id) ? serving[p.place_id] : null });
   const recent = calls.slice().sort((a, b) => b.called_at - a.called_at || b.id - a.id).slice(0, 60)
     .map((x) => ({ id: x.id, ticket: x.ticket, service_id: x.service_id, place_id: x.place_id, status: x.status, called_at: x.called_at, status_at: x.status_at, ended_at: x.ended_at }));
   return { day: c.day, venue: c.venue, now, places, recent, total: { issued: st.total.issued, called: st.total.called, waiting: st.total.not_called, in_service: st.total.in_service } };

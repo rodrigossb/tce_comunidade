@@ -25,14 +25,17 @@ test('triagem: vale a última contagem por sala', async () => {
   assert.equal(st.issued.length, 1); assert.equal(st.issued[0].count, 10); assert.equal(st.stats.total.issued, 10);
   assert.equal(db.stats(DAY, V).issued_history.length, 2);
 });
-test('chamadas: próxima encerra a anterior; entrou/faltou/desfazer/finalizar', async () => {
+test('chamadas: a próxima espera na porta (não encerra quem está em atendimento); entrou encerra; faltou/desfazer/finalizar', async () => {
   const c1 = db.call({ day: DAY, venue: V, service_id: S, place_id: P, ticket: 1, status: 'served', device: 'a' });
   assert.equal(c1.status, 'served'); await sleep(2);
   const c2 = db.call({ day: DAY, venue: V, service_id: S, place_id: P, ticket: 2, device: 'a' });
   assert.equal(c2.status, 'called');
   let q = db.queue(DAY, V, S, P);
   assert.equal(q.calls[0].id, c2.id); assert.equal(q.last_ticket, 2); assert.equal(q.issued.count, 10);
-  assert.ok(q.calls.find((x) => x.id === c1.id).ended_at, 'chamar a próxima encerra o atendimento anterior');
+  assert.equal(q.calls.find((x) => x.id === c1.id).ended_at, null, 'chamar a próxima não encerra quem está em atendimento');
+  assert.deepEqual(q.open, [c1.id]);
+  const tv = db.tvBoard(DAY, V); const pl = tv.places.find((x) => x.place_id === P); assert.equal(pl.current.ticket, 2); assert.equal(pl.serving.ticket, 1);
+  db.setStatus(c2.id, 'served'); q = db.queue(DAY, V, S, P); assert.ok(q.calls.find((x) => x.id === c1.id).ended_at, 'entrou encerra o atendimento anterior'); assert.deepEqual(q.open, [c2.id]);
   db.setStatus(c2.id, 'absent'); q = db.queue(DAY, V, S, P); assert.equal(q.calls[0].status, 'absent');
   db.setStatus(c2.id, 'called'); q = db.queue(DAY, V, S, P); assert.equal(q.calls[0].status, 'called'); assert.equal(q.calls[0].status_at, null);
   db.setStatus(c2.id, 'served'); q = db.queue(DAY, V, S, P); assert.deepEqual(q.open, [c2.id]);

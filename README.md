@@ -98,8 +98,7 @@ no mapa; o texto cresce até o maior tamanho que cabe (`--k` em mm). Imprimir em
 ## Controle de senhas (`apps/senhas`)
 Uso interno da equipe, com PIN (4 dígitos = equipe; 6 dígitos = gestão, que também exporta CSV).
 Filas por sala/instituição (`queuesOf(venue)` do core), três funções por aparelho: **Triagem** (+1 por senha
-entregue ou digitar o total), **Porta da sala** ("Entrou · senha N" / "Não veio · senha N", outro número,
-finalizar, desfazer, histórico) e **Painel** (entregues, chamadas, atendidas, faltas, espera estimada, tempo
+entregue ou digitar o total), **Porta da sala** ("Chamar a senha N" → a chamada aparece na TV e a pessoa aguarda na porta; "Entrou"/"Não veio" registra o resultado **e já chama a próxima** automaticamente, enquanto a senha anterior continua "em atendimento" até a próxima entrar ou "finalizar"; outro número, desfazer) e **Painel** (entregues, chamadas, atendidas, faltas, espera estimada, tempo
 médio, senha atual, chamadas por hora). Fila offline no aparelho, reenviada quando a rede volta.
 
 **TV das senhas** (`/tce-senhas/tv`, pública, 16:9, sem login): cabeçalho "TCE NA COMUNIDADE" + relógio, quadro
