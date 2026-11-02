@@ -1,22 +1,14 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { TCE as T } from '@tce/core';
 import { TCEMap as M } from '@tce/core/map';
 import Icon from '@/components/Icon';
 import { useMounted } from '@/lib/hooks';
-import { parseAny, groupsOf, groupKey, numbersOf } from '@/lib/inscritos';
+import { groupsOf, groupKey, numbersOf } from '@/lib/inscritos';
 import { VENUE_ORDER, cap, sameSet, venueFilter } from '@/lib/resumo-util';
-import { LS_DATA, loadLS as load, saveLS as save } from '@/lib/useInscritos';
+import { useInscritos, inscritosSourceLabel } from '@/lib/useInscritos';
 
 const D = T.D;
-const PANEL = 'https://servicos.tce.ap.gov.br/escon/admin/painel/oiapoque';
-const PANEL_API = 'https://servicos.tce.ap.gov.br/escon/admin/api/public/painel/oiapoque'; // JSON (mesma chave ?k=)
-const LS_KEY = 'tce_painel_k';
-const API = () => (T.params.get('api') || D.event.apiUrl || '').replace(/\/$/, '');
-const USERSCRIPT = 'coletor-inscritos.user.js';
-// Bookmarklet: na página do painel, lê os cartões e envia para a API (pede o token na primeira vez e guarda no navegador).
-const BOOKMARKLET = `javascript:(()=>{const A='${'https://dev.gerenciahub.com.br/tce-senhas/api/inscritos'}';let t=localStorage.getItem('tce_inscritos_token')||prompt('Token do coletor de inscritos:');if(!t)return;localStorage.setItem('tce_inscritos_token',t);const post=(b)=>fetch(A,{method:'POST',headers:{'Content-Type':'application/json','X-Token':t},body:JSON.stringify(b)}).then(r=>r.json().then(j=>{if(!r.ok){if(/token/.test(j.error||''))localStorage.removeItem('tce_inscritos_token');throw new Error(j.error||r.status);}alert('Inscritos enviados: '+j.cursos+' turmas (painel '+(j.painelInfo||'?')+').'+(j.semCorrespondencia&&j.semCorrespondencia.length?' Sem correspondência: '+j.semCorrespondencia.join(' | '):''));}));const viaApi=()=>fetch('/escon/admin/api/public/painel/oiapoque'+location.search,{credentials:'include',headers:{Accept:'application/json'}}).then(r=>{if(!r.ok)throw new Error('api '+r.status);return r.text();}).then(x=>{JSON.parse(x);return post({json:x,source:'bookmarklet-api'});});if(/\\/api\\/public\\/painel\\//.test(location.pathname)){post({json:document.body.innerText,source:'bookmarklet-api'}).catch(e=>alert('Falha: '+e.message));return;}const c=[...document.querySelectorAll('li.po-cartao')].map(l=>({title:(l.querySelector('h3')||{}).textContent||'',date:(l.querySelector('.po-data')||{}).textContent||'',inscritos:Number(((l.querySelector('.po-inscritos strong')||{}).textContent||'').replace(/\\D/g,''))})).filter(x=>x.title);const m=document.body.innerText.match(/N[úu]meros de (\\d{1,2}) de (\\w+),? [àa]s (\\d{1,2}:\\d{2})/i);const pi=m?m[1].padStart(2,'0')+'/'+({novembro:'11',dezembro:'12',outubro:'10'}[m[2].toLowerCase()]||m[2])+' '+m[3]:'';viaApi().catch(()=>post({cards:c,painelInfo:pi,source:'bookmarklet'})).catch(e=>alert('Falha: '+e.message));})();`;
-
 // ---------- página ----------
 /** variant: undefined = resumo de cursos (por dia, A–Z, totais, atenção); 'total' = resumo total (totais e turmas por local). */
 export default function ResumoCursos({ variant }) {
@@ -26,14 +18,7 @@ export default function ResumoCursos({ variant }) {
 
 function Doc({ variant }) {
   const total = variant === 'total'; const page = total ? 'resumo-total.html' : 'resumo-cursos.html';
-  const [enr, setEnr] = useState(() => load(LS_DATA, null));
-  const [key, setKey] = useState(() => T.params.get('k') || load(LS_KEY, ''));
-  const [paste, setPaste] = useState('');
-  const [msg, setMsg] = useState('');
-  const [busy, setBusy] = useState(false);
-  // O React recusa href="javascript:" no render; o favorito recebe o endereço depois de montar.
-  const bmRef = useRef(null);
-  useEffect(() => { if (bmRef.current) bmRef.current.setAttribute('href', BOOKMARKLET); }, []);
+  const [enr] = useInscritos(); // API do tce-senhas (coletor dentro da rede do TCE) → inscritos.json publicado → cópia local
   // ?local=jn | manga | sebrae | auditorio | iaparra (vários com vírgula; "oiapoque" = todos os locais de Oiapoque, "manga" inclui a escola do Manga).
   const sel = useMemo(() => venueFilter(T.params.get('local')), []);
   const inSel = (x) => !sel || sel.has(x.venue);
@@ -42,40 +27,6 @@ function Doc({ variant }) {
   const courses = useMemo(() => D.courses.filter((c) => c.sessions.some(inSel)), [sel]); // eslint-disable-line react-hooks/exhaustive-deps
   const selLabel = sel ? VENUE_ORDER.filter((v) => sel.has(v)).map((v) => D.venues[v].name).join(' e ') : '';
   const today = T.fmtDate(T.now().date, 'wdlong') + ' ' + T.now().time;
-
-  const apply = (byId, source) => {
-    const n = Object.keys(byId).length;
-    if (!n) { setMsg('Não reconheci nenhum curso nesse conteúdo. Confira se copiou a tabela do painel inteira (nome ou código do curso e os números).'); return false; }
-    const data = { byId, updatedAt: Date.now(), source }; save(LS_DATA, data); setEnr(data);
-    setMsg(`${n} curso${n > 1 ? 's' : ''} com dados de inscrição (${source === 'painel' ? 'lidos do painel' : 'colados'}).`); return true;
-  };
-  async function fetchPanel(k) {
-    const kk = String(k || '').trim(); if (!kk) { setMsg('Informe a chave do painel (o trecho depois de ?k= no endereço).'); return; }
-    setBusy(true); setMsg('Lendo o painel da ESCON…');
-    try {
-      const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 12000); // sem resposta em 12 s: desiste e orienta a colar
-      // Primeiro a API pública (JSON); se ela falhar, a página HTML do painel.
-      let res; let text;
-      try { res = await fetch(`${PANEL_API}?k=${encodeURIComponent(kk)}`, { cache: 'no-store', signal: ctl.signal, headers: { Accept: 'application/json' } }); text = await res.text(); if (!res.ok || !/^\s*[[{]/.test(text)) throw new Error('api'); }
-      catch (e1) { if (e1.name === 'AbortError') throw e1; res = await fetch(`${PANEL}?k=${encodeURIComponent(kk)}`, { cache: 'no-store', signal: ctl.signal }); text = await res.text(); }
-      clearTimeout(timer);
-      if (!res.ok) throw new Error(`painel respondeu ${res.status}`);
-      save(LS_KEY, kk);
-      if (apply(parseAny(text), 'painel')) history.replaceState(null, '', location.pathname); // tira a chave do endereço
-    } catch (e) {
-      const why = e.name === 'AbortError' ? 'sem resposta em 12 s' : /Failed to fetch|NetworkError|Load failed/i.test(e.message || '') ? 'bloqueado pelo navegador (CORS) ou sem acesso à rede do TCE' : e.message;
-      setMsg(`Não consegui ler o painel direto daqui (${why}). Abra o painel em outra aba, selecione tudo (Ctrl+A), copie (Ctrl+C) e cole no campo abaixo.`);
-    } finally { setBusy(false); }
-  }
-  useEffect(() => {
-    // 1º: inscritos.json publicado com o site (gerado no servidor a partir do painel); 2º: chave para ler o painel direto.
-    const take = (pub, source) => { if (pub && pub.byId && Object.keys(pub.byId).length) setEnr((cur) => { if (cur && cur.updatedAt >= pub.updatedAt) return cur; const data = { byId: pub.byId, updatedAt: pub.updatedAt, source, painelInfo: pub.painelInfo || '' }; save(LS_DATA, data); return data; }); };
-    // a) API do tce-senhas (alimentada pelo coletor dentro da rede do TCE, ao vivo); b) inscritos.json publicado com o site.
-    if (API()) fetch(`${API()}/api/inscritos`, { cache: 'no-store', signal: AbortSignal.timeout(8000) }).then((r) => (r.ok ? r.json() : null)).then((pub) => take(pub, 'coletor')).catch(() => {});
-    fetch('inscritos.json?t=' + Date.now(), { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((pub) => take(pub, 'publicado')).catch(() => {});
-    if (key) fetchPanel(key);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const byId = (enr && enr.byId) || {};
   /** Números de um curso (todas as turmas) ou de uma turma (sess): vagas, inscritos, restantes, % e se há dado.
@@ -160,7 +111,7 @@ function Doc({ variant }) {
 
       <section className="sec" id="alerta">
         <h2><span className="n">{days.length + 3}.</span> Atenção</h2>
-        {!enr ? <p className="lead">Sem dados de inscrição ainda. Leia o painel (chave) ou cole o conteúdo na capa para ver cursos lotados, quase lotados e com poucas inscrições.</p> : (
+        {!enr ? <p className="lead">Sem dados de inscrição ainda: o coletor dentro da rede do TCE ainda não enviou o painel. Com os dados, aqui aparecem os cursos lotados, quase lotados e com poucas inscrições.</p> : (
           <>
             <Alerta title="Lotados" list={courses.filter((c) => info(c).has && info(c).restantes <= 0)} info={info} empty="Nenhum curso lotado." />
             <Alerta title="Quase lotados (até 3 vagas)" list={courses.filter((c) => { const i = info(c); return i.has && i.restantes > 0 && i.restantes <= 3; })} info={info} empty="Nenhum." />
@@ -225,25 +176,7 @@ function Doc({ variant }) {
           <div className="kpi"><small>Ocupação</small><b>{tot.pct != null ? `${tot.pct}%` : '—'}</b><em>inscritos ÷ vagas (cursos com dado)</em></div>
           <div className="kpi"><small>Painel ESCON</small><b style={{ fontSize: '1rem' }}>{enr ? `${T.fmtDate(T.partsOf(new Date(enr.updatedAt)).date, 'wd')} ${T.partsOf(new Date(enr.updatedAt)).time}` : 'não lido'}</b><em>{enr ? `${enr.painelInfo ? `painel de ${enr.painelInfo} · ` : ''}${enr.source === 'coletor' ? 'via coletor (ao vivo)' : enr.source === 'publicado' ? 'publicado com o site' : enr.source === 'painel' ? 'lido do painel' : 'colado'}` : 'sem leitura'}</em></div>
         </div>
-        <div className={`src ${enr ? 'ok' : 'warn'}`}>
-          <Icon name={enr ? 'check' : 'info'} />
-          <input type="password" placeholder="Chave do painel (?k=…)" value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
-          <button disabled={busy} onClick={() => fetchPanel(key)}>{busy ? 'Lendo…' : 'Atualizar do painel'}</button>
-          <a className="ghost" href={`${PANEL}${key ? `?k=${encodeURIComponent(key)}` : ''}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '.85rem' }}>Abrir o painel <Icon name="external" /></a>
-          {msg ? <p className="msg">{msg}</p> : <p className="msg">Os inscritos são lidos pelo seu navegador no painel administrativo da ESCON; a chave fica só neste aparelho. Se o navegador bloquear a leitura, copie o conteúdo do painel e cole abaixo.</p>}
-          <details><summary>Atualização automática (coletor)</summary>
-            <p className="msg">O painel da ESCON só abre de dentro da rede do TCE, então a coleta roda do lado de quem tem acesso e envia para a API do controle de senhas; esta página lê de lá ao vivo. Duas opções:</p>
-            <ol className="msg" style={{ paddingLeft: '1.2rem', display: 'grid', gap: '.3rem' }}>
-              <li><b>Favorito “Enviar inscritos”</b>: arraste este botão para a barra de favoritos → <a ref={bmRef} href="#enviar-inscritos" onClick={(e) => e.preventDefault()} style={{ fontWeight: 700, border: '1px solid var(--navy)', borderRadius: 8, padding: '.15rem .5rem', textDecoration: 'none', color: 'var(--navy)' }}>Enviar inscritos</a>. Com o painel aberto, clique no favorito: ele pede o token uma vez e envia os números na hora.</li>
-              <li><b>Automático a cada 30 min</b>: instale a extensão Tampermonkey e abra <a href={USERSCRIPT}>{USERSCRIPT}</a> para instalar o script; deixe uma aba do painel aberta (ex.: no computador da TV) e ele envia sozinho ao abrir e a cada 30 minutos.</li>
-              <li><b>Servidor dentro do TCE</b>: <code>node apps/senhas/scripts/inscritos-coletor.mjs</code> (ver README).</li>
-            </ol>
-          </details>
-          <details open={!enr}><summary>Colar o conteúdo do painel</summary>
-            <textarea value={paste} onChange={(e) => setPaste(e.target.value)} placeholder="Abra o painel, Ctrl+A, Ctrl+C e cole aqui (tabela, texto ou HTML)." />
-            <div style={{ marginTop: '.4rem', display: 'flex', gap: '.5rem' }}><button onClick={() => { if (apply(parseAny(paste), 'colado')) setPaste(''); }}>Usar dados colados</button>{enr ? <button className="ghost" onClick={() => { localStorage.removeItem(LS_DATA); setEnr(null); setMsg('Dados de inscrição apagados deste aparelho.'); }}>Limpar</button> : null}</div>
-          </details>
-        </div>
+        {!enr ? <p className="warn-box"><Icon name="alert" /> Ainda sem leitura do painel de inscrições: o coletor dentro da rede do TCE ainda não enviou dados (ver README, "Coletor de inscritos").</p> : null}
         <p className="version">Versão gerada em {today} · dados dos cursos do site · inscrições do painel ESCON{enr ? ` (${T.partsOf(new Date(enr.updatedAt)).time})` : ''} · www.tce.ap.gov.br/tce-na-comunidade</p>
       </section>
 

@@ -1,7 +1,7 @@
 // Lanches por local, dia e turno: um lanche por aluno em cada turno; sem dado do painel, as vagas (estimado).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { lanchesBoard, lanchesOfSession, withMargin } from '../src/lanches.js';
+import { lanchesBoard, lanchesOfSession } from '../src/lanches.js';
 import { allSessions, SHIFT_ORDER } from '../src/shared.js';
 import { groupsOf, numbersOf } from '../src/inscritos.js';
 import { TCE_DATA as D } from '../src/data.js';
@@ -18,17 +18,15 @@ test('numbersOf: inscritos da turma, vagas do site; sem dado, só vagas', () => 
 
 test('aula com dado do painel conta os inscritos; sem dado conta as vagas e fica marcada como estimada', () => {
   const sess = cuidadorManga(); const key = groupsOf(sess.course).find((g) => g.venue === 'manga').key;
-  const com = lanchesOfSession({ [key]: { inscritos: 49 } }, sess, 0);
+  const com = lanchesOfSession({ [key]: { inscritos: 49 } }, sess);
   assert.equal(com.lanches, 49); assert.equal(com.estimado, false);
-  const sem = lanchesOfSession({}, sess, 0);
+  const sem = lanchesOfSession({}, sess);
   assert.equal(sem.lanches, sess.course.seats); assert.equal(sem.estimado, true);
-  assert.equal(withMargin(49, 10), 54, 'margem arredonda para cima');
-  assert.equal(lanchesOfSession({ [key]: { inscritos: 49 } }, sess, 10).comMargem, 54);
 });
 
 test('quadro: célula local × dia × turno soma as turmas; totais por dia, local e turno batem com o total geral', () => {
   const sess = cuidadorManga(); const key = groupsOf(sess.course).find((g) => g.venue === 'manga').key;
-  const b = lanchesBoard({ byId: { [key]: { inscritos: 49 } }, margem: 10 });
+  const b = lanchesBoard({ byId: { [key]: { inscritos: 49 } } });
   const cell = b.cellOf('manga', '2026-11-03', 'manha');
   assert.ok(cell && cell.rows.some((r) => r.course.id === 116), 'Cuidador no Manga, 03/11 de manhã');
   assert.equal(cell.start, '08:00');
@@ -39,7 +37,6 @@ test('quadro: célula local × dia × turno soma as turmas; totais por dia, loca
   const sumShifts = SHIFT_ORDER.reduce((a, s) => a + b.byShift[s].lanches, 0);
   assert.equal(sumDays, b.total.lanches); assert.equal(sumVenues, b.total.lanches); assert.equal(sumShifts, b.total.lanches);
   assert.equal(b.byVenueDay['manga|2026-11-03'].shifts.manha.lanches, cell.lanches);
-  assert.ok(b.total.comMargem >= b.total.lanches);
   assert.deepEqual(b.days, [...new Set(allSessions().map((s) => s.date))].sort());
 });
 

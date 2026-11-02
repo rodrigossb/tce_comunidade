@@ -44,3 +44,7 @@
 .rs .t6 .c-quando{width:8rem}
 .rs .when{display:block;white-space:nowrap;font-size:.85rem}
 @media print{.rs .venue-sec{break-inside:auto}.rs .venue-sec h2{break-after:avoid}}
+/* aviso quando o coletor ainda não enviou o painel */
+.rs .warn-box{display:flex;gap:.5rem;align-items:flex-start;border:1px solid #fcd34d;background:#fffbeb;border-radius:10px;padding:.6rem .8rem;font-size:.88rem;margin:.6rem 0 1rem}
+.rs .warn-box .ico{flex:none;width:1.2em;height:1.2em;color:#b45309;margin-top:.1em}
+@media print{.rs .warn-box{display:none}}

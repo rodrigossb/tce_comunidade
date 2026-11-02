@@ -1,12 +1,19 @@
-/* Painel de lanches (sobre resumo.css): quadro local × dia × turno com números grandes, detalhe das turmas, A4 retrato. */
-.rs.lk{max-width:1000px}
-.rs .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(8rem,1fr));gap:.6rem;margin:1rem 0}
+/* Dashboard de lanches (sobre resumo.css): cabeçalho compacto, KPIs, quadro local × dia e uma tabela por local
+   agrupada por dia e turno. A4 retrato na impressão. */
+.rs.lk{max-width:1040px}
+.rs .head{display:flex;gap:1.2rem;align-items:center;padding:.6rem 0 1rem;border-bottom:1px solid var(--line)}
+.rs .head img{height:2.6rem;width:auto;flex:none}
+.rs .head .kicker{margin:0 0 .15rem;text-transform:uppercase;letter-spacing:.14em;font-size:.72rem;font-weight:700;color:var(--mut)}
+.rs .head h1{font-size:1.7rem;line-height:1.1}.rs .head h1 span{color:var(--primary);font-size:.8em}
+.rs .head .sub{margin:.25rem 0 0;font-size:.92rem;color:var(--mut)}
+.rs .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(8rem,1fr));gap:.6rem;margin:1rem 0 .4rem}
 .rs .kpi{border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem;background:var(--soft)}
 .rs .kpi.main{background:var(--navy);color:#fff;border-color:var(--navy)}
 .rs .kpi.main small,.rs .kpi.main em{color:#cbd5e1}.rs .kpi.main b{color:var(--gold)}
 .rs .kpi small{display:block;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
 .rs .kpi small .muted{font-weight:500;text-transform:none;letter-spacing:0}
-.rs .kpi b{display:block;font-family:var(--font-display);font-size:1.6rem;line-height:1.1;margin-top:.1rem}
+.rs .kpi b{display:block;font-family:var(--font-display);font-size:1.7rem;line-height:1.1;margin-top:.1rem}
+.rs .kpi b.sm{font-size:1.05rem;margin-top:.3rem}
 .rs .kpi em{display:block;font-style:normal;font-size:.78rem;color:var(--mut)}
 .rs .warn-box{display:flex;gap:.5rem;align-items:flex-start;border:1px solid #fcd34d;background:#fffbeb;border-radius:10px;padding:.6rem .8rem;font-size:.88rem;margin:.4rem 0 0}
 .rs .warn-box .ico{flex:none;width:1.2em;height:1.2em;color:#b45309;margin-top:.1em}
@@ -16,42 +23,44 @@
 .rs td.n,.rs th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .rs th.n small{display:block;font-weight:500;letter-spacing:0;text-transform:none;font-size:.68rem}
 .rs tr.tot td{font-weight:700;border-top:2px solid var(--navy);background:var(--soft)}
-/* quadro de entregas */
-.rs .qd{font-size:1rem}
-.rs .qd td{padding:.65rem .8rem .65rem 0;vertical-align:middle}
-.rs .qd td.n b{font-size:1.25rem;font-family:var(--font-display)}
-.rs .qd td.n b.big,.rs .qd .tot-cell b{font-size:1.5rem;color:var(--navy)}
-.rs .qd .tot-cell{background:var(--soft);padding-left:.8rem}
-.rs .qd tr.last td{border-bottom:2px solid var(--navy)}
-.rs .qd .venue-cell{vertical-align:top;width:15rem;border-bottom:2px solid var(--navy)}
-.rs .qd .venue-cell b{display:block;font-size:1.05rem}.rs .qd .venue-cell .tiny{display:block}
-.rs .qd .venue-cell .vt{display:block;margin-top:.6rem;font-size:.85rem;color:var(--mut)}.rs .qd .venue-cell .vt b{display:inline;font-size:1.2rem;color:var(--navy);font-family:var(--font-display)}
-.rs .qd .day-cell{white-space:nowrap;font-weight:600;width:9rem}
-.rs .pd .day-cell{width:11rem}
-.rs .mg{display:block;font-size:.72rem;font-weight:600;color:#9a3412;white-space:nowrap}
 .rs .est{color:#b45309;font-weight:800;margin-left:.1rem}
-.rs .nd{color:#b45309;font-size:.78rem}
-/* detalhe */
+/* quadro local × dia */
+.rs .ovl{margin-top:1rem;font-size:1rem}
+.rs .ovl th.n{min-width:6.2rem}
+.rs .ovl td{padding:.6rem .7rem .6rem 0;vertical-align:middle}
+.rs .ovl td.n b{font-size:1.2rem;font-family:var(--font-display)}
+.rs .ovl td.n b.big{font-size:1.45rem;color:var(--navy)}
+.rs .ovl td.n small{display:block;font-size:.68rem;color:var(--mut);font-weight:500}
+.rs .ovl .tot-col{background:var(--soft);padding-left:.8rem}
+.rs .ovl tfoot td{border-bottom:2px solid var(--navy)}
+.rs .legend{margin:-.4rem 0 1rem}
+/* tabela por local */
+.rs .venue-sec h2{margin-top:2.2rem;font-size:1.3rem;align-items:center}
+.rs .venue-sec h2 small{font-family:var(--font-body,inherit);font-size:.85rem;font-weight:500;color:var(--mut)}
+.rs .h2tot{margin-left:auto;display:flex;align-items:baseline;gap:.35rem}
+.rs .h2tot b.big{font-size:1.5rem;color:var(--navy)}.rs .h2tot em{font-style:normal;font-size:.8rem;font-weight:500;color:var(--mut)}
 .rs .dt{table-layout:fixed;font-size:.88rem}
-.rs .dt .c-hora{width:5.4rem}.rs .dt .c-id{width:3rem}.rs .dt .c-num{width:4.6rem}.rs .dt .c-sala{width:9rem}
-.rs .dt tr.shift td{background:var(--soft);text-transform:none;letter-spacing:0;font-size:.8rem;padding:.5rem .6rem .5rem .4rem}
-.rs .dt tr.shift td b{font-size:1rem;color:var(--navy)}
+.rs .dt .c-hora{width:5.4rem}.rs .dt .c-id{width:3rem}.rs .dt .c-num{width:5rem}.rs .dt .c-sala{width:9rem}
+.rs .dt tr.day td{background:var(--navy);color:#fff;font-weight:700;font-size:.95rem;padding:.5rem .6rem .5rem .5rem;border-bottom:0}
+.rs .dt tr.day td .muted{color:#cbd5e1;font-weight:500;font-size:.8rem}
+.rs .dt tr.day td.n b{font-size:1.25rem;font-family:var(--font-display);color:var(--gold)}
+.rs .dt tr.day td.n.muted{color:#cbd5e1;font-weight:500}
+.rs .dt tr.shift td{background:var(--soft);text-transform:none;letter-spacing:0;font-size:.8rem;font-weight:700;color:var(--navy);padding:.45rem .6rem .45rem .5rem}
+.rs .dt tr.shift td.n b{font-size:1rem}
 .rs .dt td.n b{font-size:1rem}
-.rs .venue h3{margin-top:1.6rem}
-.rs code{font-size:.85em;background:var(--soft);padding:.05rem .35rem;border-radius:4px}
+.rs .dt tr.tot td.n b.big{font-size:1.3rem;color:var(--navy)}
+.rs .version{margin-top:1rem}
 @media print{
   @page{size:A4 portrait;margin:12mm 11mm 14mm}
   .rs.lk{max-width:none;padding:0;font-size:12px}
   .rs-tools,.rs .warn-box{display:none}
-  .rs .cover{min-height:0;padding:0 0 4mm;break-after:auto}
-  .rs .cover img{height:12mm;margin-bottom:5mm}
-  .rs .cover h1{font-size:1.8rem}
-  .rs .kpis{grid-template-columns:repeat(7,1fr);gap:.35rem;margin:.5rem 0}
-  .rs .kpi{padding:.35rem .5rem}.rs .kpi b{font-size:1.1rem}.rs .kpi small{font-size:.58rem}.rs .kpi em{font-size:.66rem}
-  .rs .kpi.main{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .rs h2{margin-top:1.6rem;font-size:1.2rem}
-  .rs .qd{font-size:.9rem}.rs .qd td{padding:.4rem .6rem .4rem 0}.rs .qd td.n b{font-size:1.05rem}.rs .qd .tot-cell b,.rs .qd td.n b.big{font-size:1.25rem}
-  .rs #detalhe{break-before:page}
-  .rs .venue{break-inside:avoid}
+  .rs .head{padding:0 0 3mm}.rs .head img{height:11mm}.rs .head h1{font-size:1.4rem}
+  .rs .kpis{grid-template-columns:repeat(6,1fr);gap:.35rem;margin:.5rem 0 .3rem}
+  .rs .kpi{padding:.35rem .5rem}.rs .kpi b{font-size:1.1rem}.rs .kpi b.sm{font-size:.85rem}.rs .kpi small{font-size:.58rem}.rs .kpi em{font-size:.66rem}
+  .rs .kpi.main,.rs .dt tr.day td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .rs .ovl{font-size:.85rem}.rs .ovl td{padding:.35rem .5rem .35rem 0}.rs .ovl td.n b{font-size:1rem}.rs .ovl td.n b.big{font-size:1.2rem}
+  .rs .venue-sec{break-before:page}.rs .venue-sec:first-of-type{break-before:auto}
+  .rs .venue-sec h2{margin-top:.5rem}
   .rs .dt{font-size:.78rem}.rs .dt td{padding:.3rem .4rem .3rem 0}
+  .rs .dt tr.day,.rs .dt tr.shift{break-after:avoid}
 }

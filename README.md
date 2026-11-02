@@ -63,14 +63,14 @@ cidadão (`index.html`) não muda. O layout anterior do totem (telas próprias, 
 `totem-classico.html` com os mesmos parâmetros.
 
 ## Lanches (`lanches.html`)
-Painel para a fornecedora de alimentação: **alunos inscritos por local, dia e turno** (um lanche por aluno em cada turno
-em que tem aula; cursos de vários dias contam em cada dia). Quadro de entregas local × dia × turno com totais por local,
-dia e turno; produção por dia (todos os locais); detalhe das turmas (turno, horário, curso, sala, inscritos, vagas,
-lanches) e critérios. Inscritos vêm do painel da ESCON (API do tce-senhas, `inscritos.json` ou o que já foi lido neste
-aparelho em `resumo-cursos.html`); turma sem dado entra com as vagas (teto) e aparece com `*`. Filtros `?local=`
-(como nos resumos), `?dia=04` (ou `04/11`, `2026-11-04`) e `?margem=10` (folga de 10%, arredondada para cima).
-Botão **Copiar texto** gera a versão em texto puro para WhatsApp/e-mail; impressão em A4 retrato. Regra e agregação
-em `packages/core/src/lanches.js` (`lanchesBoard`), testada em `packages/core/tests/lanches.test.mjs`.
+Dashboard único para a fornecedora de alimentação: **alunos inscritos por local, dia e turno** (um lanche por aluno em
+cada turno em que tem aula; cursos de vários dias contam em cada dia). No topo, KPIs (total, por turno, turmas com dado,
+última leitura do painel) e o quadro local × dia (com M/T/N em cada célula, totais por local e por dia); abaixo, uma
+tabela por local agrupada por dia → turno → turmas (horário, curso, sala, inscritos, vagas), com a hora da primeira aula
+de cada turno. Turma ainda sem dado no painel entra com as vagas (teto) e aparece com `*`. Filtros `?local=` (como nos
+resumos) e `?dia=04` (ou `04/11`, `2026-11-04`). Botão **Copiar texto** gera a versão em texto puro para WhatsApp/e-mail;
+impressão em A4 retrato. Regra e agregação em `packages/core/src/lanches.js` (`lanchesBoard`), testada em
+`packages/core/tests/lanches.test.mjs`.
 
 ## Resumo da organização (`resumo.html`)
 Documento imprimível (A4) para a coordenação: visão geral dias × locais, cada dia por local (cursos e
@@ -92,16 +92,24 @@ Direito das Mulheres, Videomaker e Cidadania Conectada têm mais de uma turma).
 Desde 02/11 a ESCON expõe também a **API pública do painel** (`/escon/admin/api/public/painel/oiapoque?k=…`, JSON, mesma
 chave), igualmente só de dentro da rede do TCE. Todos os caminhos aceitam esse JSON (`apiCards` em
 `packages/core/src/inscritos.js`: leitura tolerante de título/período/inscritos/vagas/id; um `id` igual ao id da ESCON
-casa a turma direto). Fontes da página, em ordem: (1) **API ao vivo** `GET /tce-senhas/api/inscritos` (CORS liberado),
-alimentada por um coletor que roda do lado de quem tem acesso ao painel e faz `POST` com `X-Token: INSCRITOS_TOKEN` (do
-`apps/senhas/.env`; corpo `{ json }`, `{ html }`, `{ text }` ou `{ cards }`); envios parciais fundem com o último retrato; (2) `apps/site/public/inscritos.json` publicado com o site, gerado por
-`node apps/site/scripts/inscritos.mjs <painel salvo .html>`; (3) chave `?k=` (a página tenta a API JSON e depois o HTML do painel) ou conteúdo colado na capa (só no aparelho).
-Coletores: **favorito "Enviar inscritos"** (bookmarklet na própria página do painel ou da API; busca a API na mesma
-origem e cai para os cartões; pede o token uma vez), **userscript**
-`public/coletor-inscritos.user.js` (Tampermonkey; envia ao abrir e a cada 30 min enquanto a aba do painel ficar aberta) e
-**Node** `apps/senhas/scripts/inscritos-coletor.mjs` (servidor/PC dentro do TCE; `PANEL_URL` = URL da API JSON ou do painel, `INSCRITOS_TOKEN`, `INTERVAL_MIN`;
-`pm2 start … --name inscritos-coletor`). O workflow `inscritos.yml` fica só sob demanda (segredo `ESCON_PANEL_URL`), para
-o caso de o painel um dia ficar acessível de fora.
+casa a turma direto). As páginas (resumo-cursos, resumo-total, lanches) **não têm mais atualização manual**: leem, em
+ordem, (1) a **API ao vivo** `GET /tce-senhas/api/inscritos` (CORS liberado), (2) `apps/site/public/inscritos.json`
+publicado com o site e (3) a cópia guardada no aparelho (a mais nova vence); hook `apps/site/lib/useInscritos.js`.
+
+### Coletor de inscritos (roda em segundo plano, dentro da rede do TCE)
+A API da ESCON **recusa conexão de fora** (`ECONNREFUSED` deste servidor, de buscadores externos e dos runners do GitHub), então
+o coletor precisa rodar numa máquina do TCE e faz `POST /tce-senhas/api/inscritos` com `X-Token: INSCRITOS_TOKEN` (do
+`apps/senhas/.env`; corpo `{ json }`, `{ html }`, `{ text }` ou `{ cards }`; envios parciais fundem com o último retrato). Opções:
+- **Windows, sem instalar nada**: `public/coletor-inscritos.ps1` (`https://www.tce.ap.gov.br/tce-na-comunidade/coletor-inscritos.ps1`).
+  Botão direito → "Executar com o PowerShell"; na primeira vez pede o endereço da API (com `?k=`) e o token, guarda em
+  `%APPDATA%\tce-coletor\config.json` e repete a cada 15 min (`-IntervaloMin`, `-Once`, `-Reconfigurar`). Para subir sozinho ao
+  ligar o PC: Agendador de Tarefas, ação `powershell -WindowStyle Hidden -ExecutionPolicy Bypass -File C:\tce\coletor-inscritos.ps1`.
+- **Node** `apps/senhas/scripts/inscritos-coletor.mjs` (servidor/PC dentro do TCE; `PANEL_URL` = URL da API JSON ou do painel,
+  `INSCRITOS_TOKEN`, `INTERVAL_MIN`; `pm2 start … --name inscritos-coletor`).
+- **Navegador**: userscript `public/coletor-inscritos.user.js` (Tampermonkey; envia ao abrir e a cada 30 min enquanto a aba do
+  painel ficar aberta, ex.: no computador da TV).
+`node apps/site/scripts/inscritos.mjs <painel.html|api.json>` gera o `inscritos.json` publicado. O workflow `inscritos.yml` fica só sob
+demanda (segredo `ESCON_PANEL_URL`), para o caso de o painel um dia ficar acessível de fora.
 
 ## Placas de porta (`placas.html`)
 Folhas A4 paisagem, duas versões: **consolidada** (uma folha por sala/tenda/ambiente, 57) e **por curso /
