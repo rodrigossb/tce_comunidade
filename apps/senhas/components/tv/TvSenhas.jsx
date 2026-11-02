@@ -4,7 +4,8 @@
    mas o quadro é de SALAS × SENHAS: um cartão por sala com a senha atual em destaque máximo, o serviço,
    o estado (chamando / em atendimento) e quantas pessoas aguardam; à direita, as últimas chamadas.
    Nova chamada: sobreposição grande por alguns segundos (+ voz com ?voz=1).
-   Parâmetros: ?local=jn ?grupo=entrada|fundos ?salas=03,04 ?servicos=pilar-1 ?voz=1 ?zoom=1.1 ?pagina=10 ?t=&d=
+   Parâmetros: ?local=jn ?dia=AAAA-MM-DD ?grupo=entrada|fundos ?salas=03,04 ?servicos=pilar-1 ?voz=1 ?zoom=1.1 ?pagina=10 ?t=&d=
+   Dia mostrado = o do app de atendimento (dia de serviços de hoje, senão o próximo). Atualização em tempo real por SSE.
    Teclas: F tela cheia · +/-/0 escala. Recarrega às 4h e se ficar sem resposta por muito tempo. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TCE as T } from '@tce/core';
@@ -36,7 +37,9 @@ function Board() {
   const sp = useMemo(() => new URLSearchParams(location.search), []);
   const [clock, setClock] = useState(() => T.now());
   useEffect(() => { const id = setInterval(() => setClock(T.now()), 1000); return () => clearInterval(id); }, []);
-  const sel = useMemo(() => selectQueues(sp, clock.date), [sp, clock.date]);
+  // Dia mostrado = o mesmo do app de atendimento: o dia de serviços de hoje; senão o próximo (?dia= força outro).
+  const day = useMemo(() => { const q = sp.get('dia'); if (q && T.serviceDayOf(q)) return q; const d = T.serviceDayOf(clock.date) || T.nextServiceDay(clock.date) || T.serviceDays()[T.serviceDays().length - 1]; return d ? d.date : clock.date; }, [sp, clock.date]);
+  const sel = useMemo(() => selectQueues(sp, day), [sp, day]);
   const venue = sel.venue; const venueName = D.venues[venue] ? D.venues[venue].name : venue;
   const voice = sp.get('voz') === '1';
   const [zoom, setZoom] = useState(() => Math.min(1.6, Math.max(0.6, asScale(sp.get('zoom')) || 1)));
@@ -48,15 +51,25 @@ function Board() {
   const [data, setData] = useState(null);
   const [offline, setOffline] = useState(false);
   const lastOk = useRef(Date.now());
+  const take = useCallback((j) => { lastOk.current = Date.now(); setOffline(false); setData((prev) => (prev && JSON.stringify(prev.places) === JSON.stringify(j.places) && JSON.stringify(prev.recent) === JSON.stringify(j.recent) ? Object.assign(prev, { now: j.now }) : j)); }, []);
   const refresh = useCallback(async () => {
     try {
-      const r = await fetch(`${BP}/api/tv?local=${encodeURIComponent(venue)}&dia=${clock.date}`, { cache: 'no-store', signal: AbortSignal.timeout(6000) });
+      const r = await fetch(`${BP}/api/tv?local=${encodeURIComponent(venue)}&dia=${day}`, { cache: 'no-store', signal: AbortSignal.timeout(6000) });
       if (!r.ok) throw new Error(String(r.status));
-      const j = await r.json(); lastOk.current = Date.now(); setOffline(false);
-      setData((prev) => (prev && JSON.stringify(prev.places) === JSON.stringify(j.places) && JSON.stringify(prev.recent) === JSON.stringify(j.recent) ? Object.assign(prev, { now: j.now }) : j));
+      take(await r.json());
     } catch { setOffline(true); }
-  }, [venue, clock.date]);
-  useEffect(() => { refresh(); const id = setInterval(refresh, POLL_MS); return () => clearInterval(id); }, [refresh]);
+  }, [venue, day, take]);
+  // Tempo real: SSE empurra o quadro a cada mudança; o polling fica como rede de segurança (e cobre proxies sem SSE).
+  useEffect(() => {
+    refresh(); const id = setInterval(refresh, POLL_MS);
+    let es = null;
+    try {
+      es = new EventSource(`${BP}/api/tv/stream?local=${encodeURIComponent(venue)}&dia=${day}`);
+      es.addEventListener('board', (e) => { try { take(JSON.parse(e.data)); } catch { /* ignora */ } });
+      es.addEventListener('ping', () => { lastOk.current = Date.now(); });
+    } catch { /* navegador sem EventSource: só polling */ }
+    return () => { clearInterval(id); if (es) es.close(); };
+  }, [refresh, take, venue, day]);
 
   // ---- vigília: recarga de madrugada, travamento, teclas ----
   useEffect(() => {
@@ -115,8 +128,8 @@ function Board() {
   const fs = Math.round(Math.min(1.5, Math.max(0.9, 2.8 / rowsN)) * 100) / 100;
 
   const sd = T.serviceDayOf(clock.date);
-  const subtitle = [D.event.edition, venueName, sd ? 'Serviços gratuitos · hoje' : 'Serviços gratuitos'].join(' · ');
-  const qr = useMemo(() => T.qrSvg(T.appUrl(`servicos${sd ? `?dia=${sd.date}` : ''}`), { margin: 1 }), [sd]);
+  const subtitle = [D.event.edition, venueName, sd ? 'Serviços gratuitos · hoje' : day !== clock.date ? `Serviços gratuitos · ${T.fmtDate(day, 'wd')}` : 'Serviços gratuitos'].join(' · ');
+  const qr = useMemo(() => T.qrSvg(T.appUrl(`servicos?dia=${day}`), { margin: 1 }), [day]);
   const stateOf = (r) => {
     const c = r.stat && r.stat.current; if (!c || c.ticket == null) return { k: 'idle', label: r.stat && r.stat.called ? 'sem senha' : 'aguardando início' };
     if (c.status === 'called') return { k: 'calling', label: 'chamando' };

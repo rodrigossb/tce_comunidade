@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { summarize } from '@tce/core/stats';
+import { notify } from './bus.js';
 
 export class ApiError extends Error { constructor(status, message) { super(message); this.status = status; } }
 export const err = (status, msg) => new ApiError(status, msg);
@@ -82,7 +83,7 @@ export function issued(b) {
   const count = Number(b.count);
   if (!isDay(b.day) || !clean(b.venue, 16) || !clean(b.service_id, 32) || !Number.isInteger(count) || count < 0 || count > 100000) throw err(400, 'dados');
   const ts = Date.now(); conn().q.issuedInsert.run(b.day, clean(b.venue, 16), clean(b.service_id, 32), clean(b.place_id, 32), count, clean(b.device, 40), ts);
-  return { ok: true, ts };
+  notify(b.day, clean(b.venue, 16)); return { ok: true, ts };
 }
 export function call(b) {
   const day = b.day; const venue = clean(b.venue, 16); const s = clean(b.service_id, 32); const p = clean(b.place_id, 32); const ticket = b.ticket == null ? null : Number(b.ticket);
@@ -94,21 +95,21 @@ export function call(b) {
   const r = q.callInsert.run(day, venue, s, p, ticket, now, clean(b.device, 40));
   const id = Number(r.lastInsertRowid);
   if (status) q.callStatus.run(status, now, id);
-  return { ok: true, id, called_at: now, status: status || 'called' };
+  notify(day, venue); return { ok: true, id, called_at: now, status: status || 'called' };
 }
 export function setStatus(idRaw, status) {
   const id = Number(idRaw); const { q } = conn(); const c = q.callGet.get(id); if (!c) throw err(404, 'chamada não encontrada');
   const now = Date.now();
-  if (status === 'undo') { q.callDelete.run(id); return { ok: true, deleted: true }; }
-  if (status === 'called') { q.callStatus.run('called', null, id); q.callEnd.run(null, id); return { ok: true }; }
+  if (status === 'undo') { q.callDelete.run(id); notify(c.day, c.venue); return { ok: true, deleted: true }; }
+  if (status === 'called') { q.callStatus.run('called', null, id); q.callEnd.run(null, id); notify(c.day, c.venue); return { ok: true }; }
   if (!['served', 'absent'].includes(status)) throw err(400, 'status');
   if (status === 'served') for (const o of q.openServed.all(c.day, c.venue, c.service_id, c.place_id)) if (num(o.id) !== id) q.callEnd.run(now, o.id);
   q.callStatus.run(status, now, id); if (status === 'absent') q.callEnd.run(null, id);
-  return { ok: true, status_at: now };
+  notify(c.day, c.venue); return { ok: true, status_at: now };
 }
 export function endCall(idRaw) {
-  const id = Number(idRaw); const { q } = conn(); if (!q.callGet.get(id)) throw err(404, 'chamada não encontrada');
-  const now = Date.now(); q.callEnd.run(now, id); return { ok: true, ended_at: now };
+  const id = Number(idRaw); const { q } = conn(); const c = q.callGet.get(id); if (!c) throw err(404, 'chamada não encontrada');
+  const now = Date.now(); q.callEnd.run(now, id); notify(c.day, c.venue); return { ok: true, ended_at: now };
 }
 /** Quadro da TV (público, só leitura): situação de cada sala (senha atual, aguardando) e as últimas chamadas do dia. */
 export function tvBoard(day, venue) {

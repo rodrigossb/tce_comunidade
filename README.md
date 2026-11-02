@@ -105,8 +105,12 @@ médio, senha atual, chamadas por hora). Fila offline no aparelho, reenviada qua
 **TV das senhas** (`/tce-senhas/tv`, pública, 16:9, sem login): cabeçalho "TCE NA COMUNIDADE" + relógio, quadro
 de salas × senhas (um cartão por sala com a senha atual em destaque, serviço, "chamando"/"em atendimento" e quantas
 aguardam), coluna "Últimas chamadas", QR do app e rodapé; nova chamada abre uma sobreposição grande por 9 s
-(`?voz=1` também anuncia por voz). Atualiza a cada 4 s pelo `GET /api/tv?local=&dia=` (só leitura). Cada TV escolhe o
-que mostra pela URL: `?local=jn|manga`; `?grupo=entrada|fundos` (agrupamento por localização, deduzido da planta em
+(`?voz=1` também anuncia por voz); no canto inferior direito, o painel "Senha atual" (a última chamada, enorme) e acima
+as chamadas anteriores. **Tempo real**: cada gravação de senha (emitir, chamar, entrou, não compareceu) avisa
+`lib/bus.js`, e a TV recebe o quadro na hora por SSE (`GET /api/tv/stream?local=&dia=`); o polling de 4 s em
+`GET /api/tv?local=&dia=` fica como rede de segurança. O **dia mostrado é o mesmo do app de atendimento**: o dia de
+serviços de hoje ou, fora dele, o próximo (ex.: em 02/11 a TV mostra 04/11 · Manga, onde a equipe já está registrando);
+`?dia=AAAA-MM-DD` força outro. Cada TV escolhe o que mostra pela URL: `?local=jn|manga`; `?grupo=entrada|fundos` (agrupamento por localização, deduzido da planta em
 `apps/senhas/lib/tv-grupos.js`: ambientes na metade de baixo da planta, junto ao acesso principal, são "entrada";
 os da metade de cima, "fundos" — na Joaquim Nabuco: entrada = salas 01–05, 07–12, tenda 6 e quadra; fundos = salas
 13–24, triagem, escovódromo e tendas 2–5; edite `CUSTOM` ou `Y_SPLIT` para ajustar ou criar grupos por tema);
