@@ -30,7 +30,8 @@ jobs:
           [ "$code" != "000" ] || exit 1
       - name: Baixar o painel
         if: ${{ !inputs.teste_conexao }}
-        env: { PANEL: ${{ secrets.ESCON_PANEL_URL }} }
+        env:
+          PANEL: ${{ secrets.ESCON_PANEL_URL }}
         run: |
           if [ -z "$PANEL" ]; then echo "segredo ESCON_PANEL_URL não definido"; exit 1; fi
           code=$(curl -sS -m 40 -L -A "Mozilla/5.0 (tce-na-comunidade/inscritos)" -o painel.html -w "%{http_code}" "$PANEL" || echo 000)
@@ -38,7 +39,9 @@ jobs:
           [ "$code" = "200" ] || { echo "painel indisponível a partir do GitHub (HTTP $code)"; exit 1; }
       - uses: actions/setup-node@v4
         if: ${{ !inputs.teste_conexao }}
-        with: { node-version: 22, cache: npm }
+        with:
+          node-version: 22
+          cache: npm
       - run: npm ci
         if: ${{ !inputs.teste_conexao }}
       - name: Gerar inscritos.json
