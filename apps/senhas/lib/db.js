@@ -110,6 +110,17 @@ export function endCall(idRaw) {
   const id = Number(idRaw); const { q } = conn(); if (!q.callGet.get(id)) throw err(404, 'chamada não encontrada');
   const now = Date.now(); q.callEnd.run(now, id); return { ok: true, ended_at: now };
 }
+/** Quadro da TV (público, só leitura): situação de cada sala (senha atual, aguardando) e as últimas chamadas do dia. */
+export function tvBoard(day, venue) {
+  const c = ctx(day, venue); const { q } = conn(); const now = Date.now();
+  const issued = rows(q.issuedLatest.all(c.day, c.venue)); const calls = rows(q.callsDay.all(c.day, c.venue));
+  const st = summarize(issued, calls, now);
+  const places = [];
+  for (const s of st.services) for (const p of s.places) places.push({ service_id: s.service_id, place_id: p.place_id, issued: p.issued || 0, called: p.called || 0, waiting: p.not_called || 0, in_service: p.in_service || 0, current: p.current || null });
+  const recent = calls.slice().sort((a, b) => b.called_at - a.called_at || b.id - a.id).slice(0, 60)
+    .map((x) => ({ id: x.id, ticket: x.ticket, service_id: x.service_id, place_id: x.place_id, status: x.status, called_at: x.called_at, status_at: x.status_at, ended_at: x.ended_at }));
+  return { day: c.day, venue: c.venue, now, places, recent, total: { issued: st.total.issued, called: st.total.called, waiting: st.total.not_called, in_service: st.total.in_service } };
+}
 export function exportCsv(day) {
   if (!isDay(day)) throw err(400, 'day');
   const list = rows(conn().q.exportDay.all(day)); const iso = (t) => (t ? new Date(t).toISOString() : '');

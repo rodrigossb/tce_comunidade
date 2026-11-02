@@ -6,7 +6,7 @@ Superfícies digitais do evento, em um monorepo **Next.js** (JavaScript, sem Typ
 | --- | --- | --- |
 | `packages/core` (`@tce/core`) | Dados (`src/data.js`), regras (`src/shared.js`), ícones, plantas e rotas (`src/map.js`), DE→PARA das salas (`src/salas-cursos.js`), agregações de senhas (`src/stats.js`) e o CSS compartilhado (`css/`). Sem dependências. | Importado pelos dois apps; testes em `tests/` |
 | `apps/site` | Site público: **app** (`index.html`), **TV** (`tv.html`), **totem** (`totem.html`), **resumo da organização** (`resumo.html`) e **placas de porta** (`placas.html`) | `next build` exporta HTML estático em `apps/site/out/`, publicado no GitHub Pages |
-| `apps/senhas` | **Controle de senhas** da equipe (triagem, porta da sala, painel): Next com **server actions** e SQLite embutido (`node:sqlite`) | Servidor Node no pm2 (`tce-senhas`, porta 3015) atrás do nginx em `/tce-senhas/` |
+| `apps/senhas` | **Controle de senhas** da equipe (triagem, porta da sala, painel) e **TV das senhas** (`/tce-senhas/tv`): Next com **server actions** e SQLite embutido (`node:sqlite`) | Servidor Node no pm2 (`tce-senhas`, porta 3015) atrás do nginx em `/tce-senhas/` |
 
 Requisito único: **Node 22.5+** (o `node:sqlite` é embutido; não há addon nativo nem Python).
 
@@ -99,9 +99,22 @@ entregue ou digitar o total), **Porta da sala** ("Entrou · senha N" / "Não vei
 finalizar, desfazer, histórico) e **Painel** (entregues, chamadas, atendidas, faltas, espera estimada, tempo
 médio, senha atual, chamadas por hora). Fila offline no aparelho, reenviada quando a rede volta.
 
+**TV das senhas** (`/tce-senhas/tv`, pública, 16:9, sem login): cabeçalho "TCE NA COMUNIDADE" + relógio, quadro
+de salas × senhas (um cartão por sala com a senha atual em destaque, serviço, "chamando"/"em atendimento" e quantas
+aguardam), coluna "Últimas chamadas", QR do app e rodapé; nova chamada abre uma sobreposição grande por 9 s
+(`?voz=1` também anuncia por voz). Atualiza a cada 4 s pelo `GET /api/tv?local=&dia=` (só leitura). Cada TV escolhe o
+que mostra pela URL: `?local=jn|manga`; `?grupo=entrada|fundos` (agrupamento por localização, deduzido da planta em
+`apps/senhas/lib/tv-grupos.js`: ambientes na metade de baixo da planta, junto ao acesso principal, são "entrada";
+os da metade de cima, "fundos" — na Joaquim Nabuco: entrada = salas 01–05, 07–12, tenda 6 e quadra; fundos = salas
+13–24, triagem, escovódromo e tendas 2–5; edite `CUSTOM` ou `Y_SPLIT` para ajustar ou criar grupos por tema);
+`?salas=03,04,t2` (números ou ids da planta) e `?servicos=pilar-1,pilar-2` (filtra por pilar). `salas` e `grupo`
+somam; `servicos` filtra. Mais de 16 salas: páginas alternando a cada 10 s (`?pagina=`). `?zoom=1.1`, tecla F
+(tela cheia), `?t=`/`?d=` (simulação). Ex.: TV da entrada `…/tce-senhas/tv?local=jn&grupo=entrada&voz=1`;
+TV do fundo `…/tce-senhas/tv?local=jn&grupo=fundos`.
+
 Arquitetura: `app/actions.js` (server actions: login por PIN em cookie httpOnly, estado, fila, estatísticas,
 lançamentos), `lib/db.js` (SQLite em `data/senhas.db`, mesmo esquema de antes: `issued_log` e `calls`),
-`app/api/export.csv` (download, gestão) e `app/api/health`. Configuração em `apps/senhas/.env` (copie de
+`app/api/export.csv` (download, gestão), `app/api/tv` (quadro da TV) e `app/api/health`. Configuração em `apps/senhas/.env` (copie de
 `.env.example`; **nunca commitar**): `PIN_OPERADOR`, `PIN_GESTOR`, `PORT`, `HOST`, `BASE_PATH`,
 `ALLOWED_ORIGINS`, `DB_PATH`, `BACKUP_DIR`.
 
