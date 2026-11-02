@@ -84,7 +84,8 @@ export default function Atendimento() {
   useEffect(() => { const on = () => refresh(); window.addEventListener('online', on); return () => window.removeEventListener('online', on); }, [refresh]);
 
   // ---------- tela atual e atualização periódica ----------
-  const screen = !st ? 'loading' : !st.role ? 'pin' : !st.mode ? 'role' : st.mode === 'triagem' ? 'triagem' : st.mode === 'painel' ? 'painel' : (!st.service || !st.place) ? 'porta-setup' : 'porta';
+  // Primeiro passo depois do PIN: em que local o aparelho está (cada local tem o seu dia de serviços).
+  const screen = !st ? 'loading' : !st.role ? 'pin' : !st.local ? 'local' : !st.mode ? 'role' : st.mode === 'triagem' ? 'triagem' : st.mode === 'painel' ? 'painel' : (!st.service || !st.place) ? 'porta-setup' : 'porta';
   const pollKey = st ? `${screen}|${st.day}|${st.service}|${st.place}` : '';
   useEffect(() => {
     if (!['triagem', 'painel', 'porta'].includes(screen)) return undefined;
@@ -122,8 +123,11 @@ export default function Atendimento() {
   }
   const act = {
     home: () => setSt({ mode: null }),
-    logout: () => { run(async () => { await A.logout(); }); setSt({ role: null, mode: null }); setPinBuf(''); },
-    day: (day) => { setSt({ day }); setData(null); setQueue(null); },
+    logout: () => { run(async () => { await A.logout(); }); setSt({ role: null, local: null, mode: null, place: null, service: null }); setPinBuf(''); },
+    day: (day) => { const d = T.serviceDays().find((x) => x.date === day); setSt({ day, local: d ? d.venue : null }); setData(null); setQueue(null); },
+    // Local do aparelho = dia de serviços daquele local; escolher outro zera sala/serviço (são de outro local).
+    local: (venue) => { const d = T.serviceDays().find((x) => x.venue === venue); if (!d) return; setSt({ local: venue, day: d.date, mode: null, place: null, service: null }); setData(null); setQueue(null); },
+    localClear: () => setSt({ local: null, mode: null, place: null, service: null }),
     mode: (mode) => setSt({ mode }),
     placeClear: () => setSt({ place: null, service: null }),
     place: (id, s) => setSt({ place: id, service: s }),
@@ -163,12 +167,27 @@ export default function Atendimento() {
       </div>
     );
   }
+  function viewLocal() {
+    return (
+      <>
+        {top(`Olá, ${st.role === 'gestor' ? 'gestão' : 'equipe'}`, 'Em que local você está?')}
+        <h2 style={{ margin: '.8em 0 .2em' }}>Escolha o local</h2>
+        <p className="page-lead">Tudo o que você lançar (senhas entregues e chamadas) vale para o local e o dia de serviços escolhidos aqui.</p>
+        <div className="roles">
+          {T.serviceDays().map((d) => { const v = D.venues[d.venue]; const today = clock && d.date === clock.date; return (
+            <button key={d.date} className="role" style={{ '--c': today ? '#16a34a' : '#1f3b9a' }} data-act="local" data-id={d.venue} onClick={() => act.local(d.venue)}><i>{I('pin')}</i><span><b>{v ? v.name : d.place}</b><small>{d.placeLong && d.placeLong !== d.place ? `${d.placeLong} · ` : ''}{T.fmtDate(d.date, 'wdlong')}{today ? ' · hoje' : ''}</small></span>{I('right')}</button>
+          ); })}
+        </div>
+        <p className="tiny muted">Aparelho {st.device} · <button className="link" data-act="logout" onClick={act.logout}>sair</button></p>
+      </>
+    );
+  }
   function viewRole() {
     const c = ctxOf(st);
     return (
       <>
         {top(`Olá, ${st.role === 'gestor' ? 'gestão' : 'equipe'}`, `${c.place} · ${T.fmtDate(c.day, 'wdlong')}`)}
-        <div className="chips">{dayChips(c)}</div>
+        <div className="local-line"><span>{I('pin')}<b>{D.venues[c.venue] ? D.venues[c.venue].name : c.place}</b> · {T.fmtDate(c.day, 'wd')}</span><button className="btn btn-ghost sm" data-act="local-clear" onClick={act.localClear}>Trocar local</button></div>
         <h2 style={{ margin: '.8em 0 .2em' }}>O que você vai fazer?</h2>
         <div className="roles">
           <button className="role" style={{ '--c': '#fbbf24' }} data-mode="triagem" onClick={() => act.mode('triagem')}><i>{I('ticket')}</i><span><b>Triagem · entrega de senhas</b><small>Informe quantas senhas de cada serviço já foram entregues</small></span>{I('right')}</button>
@@ -328,7 +347,7 @@ export default function Atendimento() {
   }
 
   if (!st || !clock) return <div id="app" className="app at"><div className="app-loading">Carregando…</div></div>;
-  const body = { pin: viewPin, role: viewRole, triagem: viewTriagem, painel: viewPainel, 'porta-setup': viewPortaSetup, porta: viewPorta }[screen]();
+  const body = { pin: viewPin, local: viewLocal, role: viewRole, triagem: viewTriagem, painel: viewPainel, 'porta-setup': viewPortaSetup, porta: viewPorta }[screen]();
   return (
     <div id="app" className="app at">
       <header className="app-head">

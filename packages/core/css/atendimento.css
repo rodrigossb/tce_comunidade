@@ -153,3 +153,9 @@
 .door-serving .link{font-weight:700}
 .door-serving.muted{border-left-color:var(--line)}.door-serving.muted .lbl{color:var(--mut)}
 @media (prefers-reduced-motion:reduce){.door-now.door-call{animation:none}}
+/* linha do local escolhido (primeiro passo depois do PIN) */
+.local-line{display:flex;align-items:center;justify-content:space-between;gap:.6em;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:.55em .8em;margin:.2em 0 .4em}
+.local-line>span{display:inline-flex;align-items:center;gap:.4em;min-width:0;font-size:.95em;color:var(--mut)}
+.local-line>span b{color:var(--ink)}
+.local-line .ico{width:1.1em;height:1.1em;color:var(--primary)}
+.local-line .btn.sm{padding:.4em .7em;font-size:.85em;white-space:nowrap}

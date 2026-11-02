@@ -96,7 +96,9 @@ com a arte do evento (`public/img/arte-topo.jpg`, `arte-marca.png`), número da 
 no mapa; o texto cresce até o maior tamanho que cabe (`--k` em mm). Imprimir em cores, sem margens.
 
 ## Controle de senhas (`apps/senhas`)
-Uso interno da equipe, com PIN (4 dígitos = equipe; 6 dígitos = gestão, que também exporta CSV).
+Uso interno da equipe, com PIN (4 dígitos = equipe; 6 dígitos = gestão, que também exporta CSV). Depois do PIN, o
+**primeiro passo é escolher o local** (Distrito do Manga 04/11 ou Escola Joaquim Nabuco 07/11); tudo o que o aparelho
+lança vale para esse local/dia, lembrado até "Trocar local" ou sair.
 Filas por sala/instituição (`queuesOf(venue)` do core), três funções por aparelho: **Triagem** (+1 por senha
 entregue ou digitar o total), **Porta da sala** ("Chamar a senha N" → a chamada aparece na TV e a pessoa aguarda na porta; "Entrou"/"Não veio" registra o resultado **e já chama a próxima** automaticamente, enquanto a senha anterior continua "em atendimento" até a próxima entrar ou "finalizar"; outro número, desfazer) e **Painel** (entregues, chamadas, atendidas, faltas, espera estimada, tempo
 médio, senha atual, chamadas por hora). Fila offline no aparelho, reenviada quando a rede volta.
