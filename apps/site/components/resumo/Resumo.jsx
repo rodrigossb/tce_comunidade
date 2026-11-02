@@ -76,7 +76,7 @@ function SessionsTable({ list }) {
     rows.push(<tr key={`s-${k}`} className="shift"><td colSpan={4}>{T.SHIFTS[k].label}</td></tr>);
     for (const x of l) {
       const pl = T.courseRoomPlace(x);
-      rows.push(<tr key={`${k}-${x.course.id}-${x.date}-${x.time}-${x.room}`}><td className="num">{T.fmtTime(x.time)}–{T.fmtTime(T.sessionEnd(x))}</td><td><b>{T.title(x.course)}</b>{x.label ? <> <span className="muted">· {x.label}</span></> : null}<span className="aud">{x.course.audience}</span></td><td className="sala">{pl ? <Chip p={pl} /> : <span className="room none">—</span>}{x.room ? <span className="prog">{x.room}</span> : null}</td><td className="num">{x.course.seats}</td></tr>);
+      rows.push(<tr key={`${k}-${x.course.id}-${x.date}-${x.time}-${x.room}`}><td className="num">{T.fmtTime(x.time)}–{T.fmtTime(T.sessionEnd(x))}</td><td><b>{T.title(x.course)}</b>{x.label ? <> <span className="muted">· {x.label}</span></> : null}<span className="aud">{x.course.audience}</span></td><td className="sala">{pl ? <Chip p={pl} /> : <span className="room none">—</span>}{x.room && !(pl && M.placeLabel(pl) === x.room) ? <span className="prog">{x.room}</span> : null}</td><td className="num">{x.course.seats}</td></tr>);
     }
   }
   return <table className="t1"><thead><tr><th>Horário</th><th>Curso · público</th><th>Sala</th><th>Vagas</th></tr></thead><tbody>{rows}</tbody></table>;

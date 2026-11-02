@@ -33,3 +33,10 @@
   .rs .bar{width:4rem;height:.4rem}
   .rs #az{break-before:page}.rs #alerta{break-before:page}
 }
+/* filtro por local (?local=) e seção de totais */
+.rs .rs-locais{justify-content:flex-start;align-items:center;margin-top:-.5rem}
+.rs .rs-locais a.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.rs .tot-grid{display:grid;grid-template-columns:1fr;gap:1rem}
+.rs .tt{table-layout:auto}.rs .tt th:first-child{width:auto}.rs .tt tr.tot td{font-weight:800}
+
+@media print{.rs .rs-locais{display:none}.rs .tot-grid{gap:.6rem}}

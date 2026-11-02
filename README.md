@@ -53,8 +53,10 @@ Documento imprimível (A4) para a coordenação: visão geral dias × locais, ca
 serviços com sala), plantas com o uso de cada sala, cursos A–Z e pendências. Fora da navegação pública.
 
 ## Resumo de cursos e inscrições (`resumo-cursos.html`)
-Cursos por dia e local e de A a Z com vagas, inscritos e vagas restantes por turma, mais alertas (lotados, quase lotados,
-baixa procura). Os inscritos vêm do painel administrativo da ESCON ("Próximas ações em Oiapoque": um cartão por curso da
+Cursos por dia e local e de A a Z com vagas, inscritos e vagas restantes por turma, totais por tabela, seção "Totais"
+(por local e por dia, com total geral) e alertas (lotados, quase lotados, baixa procura). `?local=` filtra o documento
+inteiro por local: `jn`, `manga`, `sebrae`, `auditorio`, `iaparra` (vários com vírgula) ou as cidades `oiapoque` e `manga`
+(ex.: `resumo-cursos.html?local=jn`); a barra "Local" no topo da página troca o filtro. Os inscritos vêm do painel administrativo da ESCON ("Próximas ações em Oiapoque": um cartão por curso da
 ESCON, sem código nem vagas), que **só é acessível de dentro da rede do TCE** (este servidor, buscadores externos e os
 servidores do GitHub não o alcançam). O leitor (`packages/core/src/inscritos.js`) casa cada cartão com uma turma pelo nome,
 pelo prefixo de local ("Manga -", "(Oiapoque)") e pelos dias; a chave é `curso@local@idESCON` (Cuidador, Tecnologia e
