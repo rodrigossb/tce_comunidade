@@ -5,14 +5,14 @@ CONF=/etc/nginx/conf.d/gerenciahub.conf
 SNIP="$(dirname "$0")/nginx-tce-senhas.conf"
 if grep -q "location /tce-senhas/" "$CONF"; then echo "bloco já existe em $CONF"; else
   cp "$CONF" "$CONF.bak-tce-senhas-$(date +%Y%m%d-%H%M%S)"
-  python3 - "$CONF" "$SNIP" <<'EOF'
-import sys
-conf, snip = sys.argv[1], sys.argv[2]
-s = open(conf).read(); block = open(snip).read()
-marker = "    # Block access to sensitive files"
-assert marker in s, "marcador não encontrado"
-open(conf, "w").write(s.replace(marker, block + "\n" + marker, 1))
-print("bloco adicionado")
+  node - "$CONF" "$SNIP" <<'EOF'
+const fs = require('fs');
+const [conf, snip] = process.argv.slice(2);
+const s = fs.readFileSync(conf, 'utf8'), block = fs.readFileSync(snip, 'utf8');
+const marker = '    # Block access to sensitive files';
+if (!s.includes(marker)) { console.error('marcador não encontrado'); process.exit(1); }
+fs.writeFileSync(conf, s.replace(marker, () => block + '\n' + marker));
+console.log('bloco adicionado');
 EOF
 fi
 nginx -t && systemctl reload nginx && echo "nginx recarregado"
