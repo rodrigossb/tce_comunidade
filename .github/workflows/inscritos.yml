@@ -1,0 +1,54 @@
+# Busca os inscritos no painel da ESCON e publica apps/site/public/inscritos.json (o push dispara a publicação do site).
+# Roda a cada 30 min nos dias do evento (horário de Brasília = UTC−3) e sob demanda. A URL completa do painel
+# (com a chave ?k=) fica no segredo ESCON_PANEL_URL do repositório; nunca entra no código.
+name: Atualizar inscritos (painel ESCON)
+on:
+  schedule:
+    - cron: '*/30 10-23 2-7 11 *'   # 07h–20h30 de Brasília, 02 a 07/11
+    - cron: '0,30 0-1 3-8 11 *'     # 21h–22h30 de Brasília
+  workflow_dispatch:
+    inputs:
+      teste_conexao:
+        description: 'Só testar se o GitHub alcança servicos.tce.ap.gov.br (sem chave)'
+        type: boolean
+        default: false
+permissions:
+  contents: write
+concurrency:
+  group: inscritos
+  cancel-in-progress: false
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Teste de conexão (sem chave)
+        if: ${{ inputs.teste_conexao }}
+        run: |
+          code=$(curl -sS -m 40 -o /dev/null -w "%{http_code}" https://servicos.tce.ap.gov.br/escon/cursos/ || echo 000)
+          echo "servicos.tce.ap.gov.br a partir do GitHub → HTTP $code"
+          [ "$code" != "000" ] || exit 1
+      - name: Baixar o painel
+        if: ${{ !inputs.teste_conexao }}
+        env: { PANEL: ${{ secrets.ESCON_PANEL_URL }} }
+        run: |
+          if [ -z "$PANEL" ]; then echo "segredo ESCON_PANEL_URL não definido"; exit 1; fi
+          code=$(curl -sS -m 40 -L -A "Mozilla/5.0 (tce-na-comunidade/inscritos)" -o painel.html -w "%{http_code}" "$PANEL" || echo 000)
+          echo "HTTP $code · $(wc -c < painel.html 2>/dev/null || echo 0) bytes"
+          [ "$code" = "200" ] || { echo "painel indisponível a partir do GitHub (HTTP $code)"; exit 1; }
+      - uses: actions/setup-node@v4
+        if: ${{ !inputs.teste_conexao }}
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+        if: ${{ !inputs.teste_conexao }}
+      - name: Gerar inscritos.json
+        if: ${{ !inputs.teste_conexao }}
+        run: node apps/site/scripts/inscritos.mjs painel.html
+      - name: Publicar se mudou
+        if: ${{ !inputs.teste_conexao }}
+        run: |
+          if git diff --quiet -- apps/site/public/inscritos.json; then echo "sem mudança nos números"; exit 0; fi
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/site/public/inscritos.json
+          git commit -m "chore: update enrollment numbers from ESCON panel"
+          git push
