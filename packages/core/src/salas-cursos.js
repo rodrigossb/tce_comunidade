@@ -15,7 +15,7 @@ export const TCE_COURSE_ROOMS = {
   },
   manga: { // Escola Estadual Indígena Jorge Iaparrá · Aldeia do Manga
     'Laboratório I': 'mg-r12',  // Laboratório de informática = 12
-    'Sala I': 'mg-r13',         // Sala 1 = 13
+    'Sala 13': 'mg-r13',        // a programação já usa o número da planta (confirmado em 02/11)
   },
   // sebrae e auditorio: locais sem planta.
 };

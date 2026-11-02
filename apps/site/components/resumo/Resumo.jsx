@@ -181,7 +181,6 @@ function IndexAZ({ all }) {
 const PEND = [
   ['Cursos', 'Curso 109 (Brinquedistas): a tabela oficial traz link administrativo; o site usa escon/cursos/109.'],
   ['Salas', 'Laboratório II – Joaquim Nabuco (Sala 02), 05/11 às 14h: em 02/11 o Videomaker (145) saiu do Laboratório I e foi para o Laboratório II, onde no mesmo horário está o Rios do Saber (156, até 100 participantes). Confirmar a divisão do laboratório.'],
-  ['Salas', 'Formação de Cuidador, 03/11 de manhã: a tabela diz só "Manga", sem sala.'],
   ['Cursos', 'Cidadania Conectada: duas turmas com links diferentes (154 em 05/11 e 158 em 07/11).'],
   ['Cursos', 'Extensão de Cílios (127): cabeçalho diz 05 e 06/11, tabela lista 04, 05 e 06/11 (mantidos os três).'],
   ['Salas', 'Gestão Financeira nas Escolas (112): na Escola Jorge Iaparrá (Manga), sem sala definida; cabeçalho diz 1 ocorrência, tabela lista 8h e 14h.'],

@@ -18,7 +18,7 @@ const range = (x) => `${T.fmtTime(x.time)}–${T.fmtTime(T.sessionEnd(x))}`;
 
 // ---- partes comuns ----
 function Side({ p, uses }) {
-  const progNames = [...new Set(uses.map((x) => x.room).filter(Boolean))];
+  const progNames = [...new Set(uses.map((x) => x.room).filter((r) => r && r !== `Sala ${p.num}`))];
   const bigNum = p.num || '';
   const kind = p.kind === 'area' && !p.num ? '' : KIND[p.kind];
   // Nome no lugar do número: nunca quebra no meio da palavra; palavras longas ("Escovódromo") entram menores.

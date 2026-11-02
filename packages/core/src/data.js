@@ -43,7 +43,7 @@ const venues = {
   jn: { id: 'jn', name: 'Escola Joaquim Nabuco', short: 'Joaquim Nabuco', city: 'Oiapoque',
     rooms: ['Sala I', 'Sala II', 'Sala III', 'Sala IV', 'Sala V', 'Laboratório I', 'Laboratório II'] },
   manga: { id: 'manga', name: 'Distrito do Manga', short: 'Manga', city: 'Distrito do Manga',
-    rooms: ['Sala I', 'Laboratório I'] },
+    rooms: ['Sala 13', 'Laboratório I'] },
   sebrae: { id: 'sebrae', name: 'SEBRAE', short: 'SEBRAE', city: 'Oiapoque', rooms: [] },
   auditorio: { id: 'auditorio', name: 'Auditório Joaquim Caetano', short: 'Aud. Joaquim Caetano', city: 'Oiapoque', rooms: [] },
   // Nome lido do PDF "Programação por Curso" (texto da célula saiu embaralhado): conferir com a organização.
@@ -65,14 +65,14 @@ const tags = {
 const s = (date, time, venue, room, extra) => Object.assign({ date: '2026-11-' + date, time, venue, room: room || '' }, extra || {});
 
 const courses = [
-  { id: 116, title: 'Formação de Cuidador', hours: 20,
+  { id: 116, title: 'Formação de Cuidador', hours: 20, // Manga: Sala 13 em todos os dias (informado pela organização em 02/11)
     audience: 'Educadores, cuidadores e comunidade', seats: 50,
     link: ESCON + '116/manga-formacao-de-cuidadores', tags: ['educacao', 'saude'],
     sessions: [
-      s('03', '08:00', 'manga', ''), s('03', '18:00', 'jn', 'Sala I'),
-      s('04', '08:00', 'manga', 'Sala I'), s('04', '18:00', 'jn', 'Sala I'),
-      s('05', '08:00', 'manga', 'Sala I'), s('05', '18:00', 'jn', 'Sala I'),
-      s('06', '08:00', 'manga', 'Sala I'), s('06', '18:00', 'jn', 'Sala I'),
+      s('03', '08:00', 'manga', 'Sala 13'), s('03', '18:00', 'jn', 'Sala I'),
+      s('04', '08:00', 'manga', 'Sala 13'), s('04', '18:00', 'jn', 'Sala I'),
+      s('05', '08:00', 'manga', 'Sala 13'), s('05', '18:00', 'jn', 'Sala I'),
+      s('06', '08:00', 'manga', 'Sala 13'), s('06', '18:00', 'jn', 'Sala I'),
     ] },
   { id: 109, title: 'Formação de Brinquedistas', hours: 20,
     audience: 'Educadores infantis, profissionais do PCF e ESF e Projeto Superar', seats: 50,

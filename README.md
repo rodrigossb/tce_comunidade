@@ -142,7 +142,7 @@ cursos), toque em uma sala ou resultado traça o caminho ali mesmo (com "Voltar 
 dos serviços ao lado do mapa (toque filtra), botão flutuante "Mapa e busca" nas demais telas.
 Salas dos cursos na planta: `packages/core/src/salas-cursos.js` (DE → PARA **validado em 31/10**: Joaquim Nabuco
 Lab I = 01, Lab II = 02, Sala I = 08, Sala II = 09, Sala III = 11, Sala IV = 13, Sala V = 20, Sala VI = 24;
-Manga Lab I = 12, Sala I = 13). App e totem mostram a etiqueta "Sala 08" em cada aula e, no detalhe do
+Manga Lab I = 12; a Sala 13 do Manga já usa o número da planta). App e totem mostram a etiqueta "Sala 08" em cada aula e, no detalhe do
 curso, "Onde fica" com o caminho no mapa (o destino recebe o nome do curso, não o do serviço de 07/11).
 
 `resumo.html` (uso da organização, fora da navegação pública, imprimível): cursos por dia e A–Z com sala
@@ -152,7 +152,6 @@ uso de cada sala (serviços em 04/07 e cursos nos outros dias), DE → PARA e pe
 Pontos a conferir com a organização:
 - Curso 109 (Brinquedistas): a tabela traz um link administrativo; usamos `escon/cursos/109`.
 - Laboratório I – Joaquim Nabuco, 05/11 às 14h: a tabela trazia dois cursos (125 e 145); em 02/11 a organização moveu o Videomaker (145) para o Laboratório II (sala 02), onde no mesmo horário está o Rios do Saber (156).
-- Formação de Cuidador, 03/11 de manhã: a tabela diz só "Manga", sem sala.
 - Cidadania Conectada: duas turmas com links diferentes (154 em 05/11 e 158 em 07/11).
 - Extensão de Cílios (127): o cabeçalho diz "2 ocorrências, 05 e 06/11", mas a tabela lista 04, 05 e 06/11; mantivemos os três dias.
 - Gestão Financeira nas Escolas (112): o nome da escola saiu embaralhado no PDF; lemos como "Escola Estadual Indígena Jorge Iaparrá, Aldeia do Manga" (local `iaparra`). O PDF diz "1 ocorrência" mas lista 8h e 14h; mantivemos as duas.
