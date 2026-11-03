@@ -174,10 +174,11 @@ const placeInfo = (id) => { for (const m of Object.values(D.maps || {})) { const
 /** Filas que distribuem senha no local (configuração D.senhas): usado pela triagem, pela porta da sala e pela TV. */
 function ticketQueuesOf(venue) {
   const cfg = D.senhas || {}; const allow = cfg.services ? new Set(cfg.services) : null; const deny = new Set(cfg.excludePlaces || []);
+  const denyKinds = new Set((cfg.excludeKinds && cfg.excludeKinds[venue]) || []);
   const out = [];
   for (const g of queuesOf(venue)) {
     if (allow && !allow.has(g.service.id)) continue;
-    const places = g.places.filter((p) => p.kind !== 'area' && !deny.has(p.id));
+    const places = g.places.filter((p) => p.kind !== 'area' && !deny.has(p.id) && !denyKinds.has(p.kind));
     if (places.length) out.push({ service: g.service, places });
   }
   return out;

@@ -392,10 +392,12 @@ const maps = {
 
 // Controle de senhas: só os atendimentos que distribuem senha entram na triagem, na porta da sala e na TV.
 // `services` = pilares com fila; `excludePlaces` = ambientes desses pilares que mesmo assim não têm senha;
+// `excludeKinds` = por local, tipos de ambiente sem senha (no Manga, 04/11, as tendas atendem por ordem de chegada);
 // áreas abertas (kind 'area') nunca têm fila. Acolhida, Cursos (inscrição), Crianças e Famílias e Feiras e Cultura ficam fora.
 const senhas = {
   services: ['pilar-1', 'pilar-2', 'pilar-3', 'pilar-5', 'pilar-6'],
   excludePlaces: [],
+  excludeKinds: { manga: ['tenda'] },
 };
 // Geolocalização dos locais do evento (mapa-eventos.html: pinos e rota pelo Google Maps/Waze). WGS84.
 // Fontes (03/11/2026): OpenStreetMap/Nominatim para as escolas (ponto do prédio) e endereços públicos para os demais;

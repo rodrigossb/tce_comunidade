@@ -12,3 +12,10 @@ test('ticketQueuesOf deixa só os pilares configurados e nenhuma área aberta', 
     assert.ok(ids.length < T.queuesOf(v).flatMap((g) => g.places).length);
   }
 });
+
+test('no Manga nenhuma tenda distribui senha (excludeKinds); na Joaquim Nabuco as tendas continuam', () => {
+  const mg = T.ticketQueuesOf('manga').flatMap((g) => g.places);
+  assert.ok(mg.length >= 8, 'manga ainda tem salas com senha');
+  for (const p of mg) assert.notEqual(p.kind, 'tenda', `${p.id} é tenda`);
+  assert.ok(T.ticketQueuesOf('jn').flatMap((g) => g.places).some((p) => p.kind === 'tenda'), 'jn mantém tendas');
+});
