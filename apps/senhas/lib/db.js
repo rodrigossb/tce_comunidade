@@ -110,6 +110,20 @@ export function setStatus(idRaw, status) {
   q.callStatus.run(status, now, id); if (status === 'absent') q.callEnd.run(null, id);
   notify(c.day, c.venue); return { ok: true, status_at: now };
 }
+/** Fluxo "chamada = entra na sala": resolve a senha que estava na sala (entrou, contando o tempo desde a chamada; ou não
+    veio) e chama a próxima numa só gravação (uma ida ao servidor, um item na fila offline). Se a anterior já estava
+    resolvida, só chama a próxima. */
+export function advance(b) {
+  const prevId = Number(b.prev_id); const { q } = conn(); const prev = prevId ? q.callGet.get(prevId) : null; const now = Date.now();
+  if (prev && prev.status === 'called') {
+    if (b.prev_status === 'absent') { q.callStatus.run('absent', now, prevId); q.callEnd.run(null, prevId); }
+    else { // entrou quando foi chamada e sai agora: o tempo de atendimento é o intervalo entre as chamadas
+      for (const o of q.openServed.all(prev.day, prev.venue, prev.service_id, prev.place_id)) if (num(o.id) !== prevId) q.callEnd.run(now, o.id);
+      q.callStatus.run('served', prev.called_at, prevId); q.callEnd.run(now, prevId);
+    }
+  }
+  return call(Object.assign({}, b, { status: undefined }));
+}
 /** Chamar novamente: a senha continua a mesma (sem nova chamada no histórico), mas a TV volta a anunciá-la. Só para senha ainda chamando. */
 export function recall(idRaw) {
   const id = Number(idRaw); const { q } = conn(); const c = q.callGet.get(id); if (!c) throw err(404, 'chamada não encontrada');

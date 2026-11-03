@@ -61,3 +61,18 @@ test('chamar novamente: marca recalled_at na senha que está chamando, aparece n
   assert.throws(() => db.recall(c.id), (e) => e.status === 409);
   assert.throws(() => db.recall(999999), (e) => e.status === 404);
 });
+
+test('chamar a próxima (advance): a anterior sai como atendida contando desde a chamada, ou como falta; e a próxima é chamada', async () => {
+  const P2 = 'jn-r12';
+  const a = db.call({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 1, device: 'a' }); await sleep(5);
+  const r = db.advance({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 2, device: 'a', prev_id: a.id, prev_status: 'served' });
+  assert.equal(r.status, 'called');
+  let q = db.queue(DAY, V, S, P2); const pa = q.calls.find((x) => x.id === a.id);
+  assert.equal(pa.status, 'served'); assert.equal(pa.status_at, pa.called_at, 'entrou quando foi chamada'); assert.ok(pa.ended_at >= pa.called_at + 5, 'saiu ao chamar a próxima');
+  assert.equal(q.calls[0].id, r.id); assert.equal(q.calls[0].status, 'called'); assert.deepEqual(q.open, []);
+  const r2 = db.advance({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 3, device: 'a', prev_id: r.id, prev_status: 'absent' });
+  q = db.queue(DAY, V, S, P2); assert.equal(q.calls.find((x) => x.id === r.id).status, 'absent'); assert.equal(q.calls[0].id, r2.id); assert.equal(q.last_ticket, 3);
+  // anterior já resolvida: só chama a próxima
+  db.setStatus(r2.id, 'served'); const r3 = db.advance({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 4, device: 'a', prev_id: r2.id, prev_status: 'absent' });
+  q = db.queue(DAY, V, S, P2); assert.equal(q.calls.find((x) => x.id === r2.id).status, 'served'); assert.equal(q.calls[0].id, r3.id);
+});

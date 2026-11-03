@@ -13,7 +13,7 @@ const D = T.D;
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const LS = 'tce_at';
 const VER = '2.0';
-const ACTIONS = { setIssued: A.setIssued, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall };
+const ACTIONS = { setIssued: A.setIssued, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall, advance: A.advance };
 const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch { return d; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem storage */ } };
 const fmtT = (ms) => T.partsOf(new Date(ms)).time;
@@ -134,9 +134,8 @@ export default function Atendimento() {
     call: (ticket, status) => { const c = ctxOf(st); setBusy(true); run(async () => { try { await post('call', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket, status: status || undefined, device: st.device }); await refresh(); } finally { setBusy(false); } }); },
     callOther: () => askNumber('Qual senha você vai chamar?', (queue && queue.last_ticket != null ? queue.last_ticket + 1 : 1), (v) => { const c = ctxOf(st); run(async () => { await post('call', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket: v, device: st.device }); await refresh(); }); }),
     status: (id, status) => { setBusy(true); run(async () => { try { await post('setStatus', id, status); await refresh(); } finally { setBusy(false); } }); },
-    // Resultado da senha que estava na porta (entrou/não veio) e, em seguida, chamada automática da próxima,
-    // para a próxima pessoa já ficar aguardando na entrada da sala (a TV mostra "chamando").
-    resolve: (id, status, nextTicket) => { const c = ctxOf(st); setBusy(true); run(async () => { try { await post('setStatus', id, status); if (nextTicket != null) await post('call', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket: nextTicket, device: st.device }); await refresh(); } finally { setBusy(false); } }); },
+    // "Chamar a próxima": a senha que estava na sala sai (entrou, ou não veio) e a próxima é chamada, numa só gravação.
+    resolve: (id, status, nextTicket) => { const c = ctxOf(st); setBusy(true); run(async () => { try { await post('advance', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket: nextTicket, device: st.device, prev_id: id, prev_status: status }); await refresh(); } finally { setBusy(false); } }); },
     end: (id) => run(async () => { await post('endCall', id); await refresh(); }),
     recall: (id) => { if (busy) return; setBusy(true); run(async () => { try { const r = await post('recall', id); if (r) toast('Chamada repetida na TV', 'megaphone'); await refresh(); } finally { setBusy(false); } }); },
     undo: (id) => { if (!confirm('Desfazer a última chamada?')) return; run(async () => { await post('setStatus', id, 'undo'); await refresh(); }); },
@@ -249,9 +248,9 @@ export default function Atendimento() {
     // Quem está em atendimento agora (entrou e não saiu), mesmo que a última chamada seja outra senha na porta.
     const serving = calls.find((x) => x.status === 'served' && !x.ended_at) || null;
     const atDoor = cur && cur.status === 'called' ? cur : null;
-    // Depois de entrou/não veio, a próxima senha é chamada SEMPRE (a contagem da triagem pode estar atrasada; se a senha
-    // não existir, basta marcar "Não veio" ou "Desfazer").
-    const canAuto = true;
+    // Fluxo da porta: a chamada já é a entrada na sala. "Chamar a próxima" dá a anterior como atendida; se a pessoa não
+    // veio, "Chamar de novo" (a TV reanuncia) ou "Não veio" (registra a falta e chama a próxima). A próxima é chamada
+    // SEMPRE (a contagem da triagem pode estar atrasada; se a senha não existir, "Não veio" ou "Desfazer").
     const svcStat = data && data.stats.services.find((x) => x.service_id === s.id);
     const plStat = svcStat ? svcStat.places.find((p) => p.place_id === st.place) : null;
     const called = plStat ? plStat.called : calls.length;
@@ -261,16 +260,16 @@ export default function Atendimento() {
         <div className="door">
           {atDoor ? (
             <>
-              <div className="door-now door-call"><small>{I('megaphone')}Chamando · próxima a entrar</small><button type="button" className="door-num" data-act="recall" disabled={busy} onClick={() => act.recall(atDoor.id)} title="Chamar novamente na TV"><b>{atDoor.ticket ?? '—'}</b><em>{I('megaphone')}toque para chamar de novo</em></button>
-                <span className="st called">chamada às {fmtT(atDoor.called_at)}{atDoor.recalled_at ? ` · repetida às ${fmtT(atDoor.recalled_at)}` : ''} · aguardando na porta</span></div>
-              <p className="door-hint">A senha <b>{atDoor.ticket ?? '—'}</b>…</p>
-              <div className="door-res big"><button className="ok" data-act="resolve" data-status="served" disabled={busy} onClick={() => act.resolve(atDoor.id, 'served', canAuto ? next : null)}>{I('check')}<span>Entrou{canAuto ? <small>chama a senha {next}</small> : null}</span></button><button className="no" data-act="resolve" data-status="absent" disabled={busy} onClick={() => act.resolve(atDoor.id, 'absent', canAuto ? next : null)}>{I('x')}<span>Não veio{canAuto ? <small>chama a senha {next}</small> : null}</span></button></div>
+              <div className="door-now door-call"><small>{I('megaphone')}Senha chamada · na sala</small><button type="button" className="door-num" data-act="recall" disabled={busy} onClick={() => act.recall(atDoor.id)} title="Chamar novamente na TV"><b>{atDoor.ticket ?? '—'}</b><em>{I('megaphone')}toque para chamar de novo</em></button>
+                <span className="st called">chamada às {fmtT(atDoor.called_at)}{atDoor.recalled_at ? ` · repetida às ${fmtT(atDoor.recalled_at)}` : ''}</span></div>
+              <button className="door-next" data-act="advance" disabled={busy} onClick={() => act.resolve(atDoor.id, 'served', next)}>{I('megaphone')}<span><b>Chamar a próxima · senha {next}</b><small>a senha {atDoor.ticket ?? '—'} foi atendida</small></span></button>
+              <div className="door-res"><button className="ghost" data-act="recall" disabled={busy} onClick={() => act.recall(atDoor.id)}>{I('megaphone')}<span>Chamar de novo<small>a TV anuncia a senha {atDoor.ticket ?? '—'} outra vez</small></span></button><button className="no" data-act="resolve" data-status="absent" disabled={busy} onClick={() => act.resolve(atDoor.id, 'absent', next)}>{I('x')}<span>Não veio<small>registra a falta e chama a senha {next}</small></span></button></div>
             </>
           ) : (
             <>
               <div className="door-now idle"><small>{cur ? 'Nenhuma senha aguardando na porta' : 'Nenhuma senha chamada ainda'}</small><b>—</b></div>
               <button className="door-next" data-act="call" disabled={busy} onClick={() => act.call(next)}>{I('megaphone')}Chamar a senha {next}</button>
-              <p className="door-hint">A chamada aparece na TV e a pessoa vem aguardar na porta. Depois, cada "Entrou" já chama a seguinte.{issued != null && next > issued ? ' (A triagem registrou menos senhas entregues do que isso.)' : ''}</p>
+              <p className="door-hint">A chamada aparece na TV (e por voz) e a pessoa entra na sala. Ao terminar, toque em "Chamar a próxima".{issued != null && next > issued ? ' (A triagem registrou menos senhas entregues do que isso.)' : ''}</p>
             </>
           )}
           {serving ? (

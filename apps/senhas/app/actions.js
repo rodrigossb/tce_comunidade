@@ -29,3 +29,4 @@ export async function call(body) { return guard(ANY, async () => db.call(body ||
 export async function setStatus(id, status) { return guard(ANY, async () => db.setStatus(id, status)); }
 export async function endCall(id) { return guard(ANY, async () => db.endCall(id)); }
 export async function recall(id) { return guard(ANY, async () => db.recall(id)); }
+export async function advance(body) { return guard(ANY, async () => db.advance(body || {})); }
