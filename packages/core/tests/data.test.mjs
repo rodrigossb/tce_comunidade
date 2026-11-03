@@ -19,7 +19,9 @@ test('sessões dentro do período, em locais e salas cadastrados, com turno coer
     assert.ok(x.date >= D.event.start && x.date <= D.event.end, `${x.course.id} fora do período: ${x.date}`);
     const v = D.venues[x.venue]; assert.ok(v, `local desconhecido ${x.venue}`);
     if (x.room) assert.ok(v.rooms.includes(x.room), `sala ${x.room} não cadastrada em ${v.name}`);
-    assert.ok(['08:00', '14:00', '18:00'].includes(x.time), `horário fora dos turnos: ${x.time}`);
+    // Turnos padrão 8h/14h/18h; remarcações (ex.: 119 às 17h em 03/11) ficam entre 7h e 20h e, se avançam o turno, trazem `end`.
+    assert.ok(/^\d{2}:\d{2}$/.test(x.time) && T.toMin(x.time) >= 7 * 60 && T.toMin(x.time) <= 20 * 60, `horário fora do dia: ${x.time}`);
+    if (!['08:00', '14:00', '18:00'].includes(x.time)) assert.ok(x.end, `${x.course.id}: horário fora do padrão (${x.time}) precisa de end`);
     assert.equal(x.shift, T.shiftOf(x.time));
   }
 });

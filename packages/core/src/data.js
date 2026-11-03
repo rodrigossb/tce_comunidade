@@ -83,10 +83,10 @@ const courses = [
     audience: 'Empreendedores da economia de circulação interessados', seats: 20,
     link: ESCON + '110/oiapoque-oficina-de-reciclagem-e-reutilizacao-de-materiais-residuos-solidos', tags: ['meio-ambiente', 'empreendedorismo'],
     sessions: [s('03', '18:00', 'jn', 'Sala II'), s('04', '18:00', 'jn', 'Sala II'), s('06', '14:00', 'jn', 'Sala III'), s('06', '18:00', 'jn', 'Sala II')] },
-  { id: 119, title: 'Introdução a IA x Transparência', hours: 4,
+  { id: 119, title: 'Introdução a IA x Transparência', hours: 4, // adiado em 03/11: era 8h, passou para 17h (até 21h)
     audience: 'Alunos do Ensino Médio', seats: 20,
     link: ESCON + '119/oiapoque-introducao-a-ia-x-transparencia', tags: ['tecnologia', 'gestao-publica'],
-    sessions: [s('03', '08:00', 'jn', 'Laboratório I')] },
+    sessions: [s('03', '17:00', 'jn', 'Laboratório I', { end: '21:00' })] },
   { id: 121, title: 'Primeiros Socorros no Esporte', hours: 8, // encontro de 03/11 à tarde retirado pela organização em 02/11
     audience: 'Atletas', seats: 20,
     link: ESCON + '121/primeiros-socorros-no-esporte', tags: ['saude'],
