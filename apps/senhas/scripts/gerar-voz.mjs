@@ -38,8 +38,11 @@ async function one(it) {
   const mp3 = path.join(OUT, `${it.file}.mp3`);
   if (!force && fs.existsSync(mp3)) { skipped++; return; }
   const wav = path.join(tmp, `${it.file}.wav`);
-  await run(PIPER, ['-m', MODEL, '-f', wav, '--length-scale', '1.05'], it.text + '\n');
-  await run(FFMPEG, ['-hide_banner', '-loglevel', 'error', '-y', '-i', wav, '-codec:a', 'libmp3lame', '-b:a', '40k', '-ac', '1', '-ar', '22050', mp3]);
+  // Fala um pouco mais lenta e com menos "ruído" de síntese (mais clara em alto-falante de TV).
+  await run(PIPER, ['-m', MODEL, '-f', wav, '--length-scale', '1.15', '--noise-scale', '0.5', '--noise-w', '0.6', '--sentence-silence', '0.2'], it.text + '\n');
+  // 0,4 s de silêncio antes e 0,3 s depois (TVs cortam o começo de um áudio recém-iniciado), volume normalizado
+  // (compressor leve + loudnorm -12 LUFS, pico -1 dB) e MP3 de 64 kb/s para não "embolar" a voz.
+  await run(FFMPEG, ['-hide_banner', '-loglevel', 'error', '-y', '-i', wav, '-af', 'adelay=400,apad=pad_dur=0.3,acompressor=threshold=-18dB:ratio=3:attack=5:release=80:makeup=4,loudnorm=I=-12:TP=-1:LRA=7', '-codec:a', 'libmp3lame', '-b:a', '64k', '-ac', '1', '-ar', '22050', mp3]);
   fs.rmSync(wav, { force: true }); done++;
   if (done % 25 === 0) console.log(`${done} gerados… (${Math.round((Date.now() - t0) / 1000)} s)`);
 }

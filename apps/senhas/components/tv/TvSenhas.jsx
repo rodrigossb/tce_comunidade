@@ -3,8 +3,12 @@
    (cabeçalho com marca + relógio, quadro fixo em tela cheia no visual do "horários full" e rodapé),
    mas o quadro é de SALAS × SENHAS: um cartão por sala com a senha atual em destaque máximo, o serviço,
    o estado (chamando / em atendimento) e quantas pessoas aguardam; à direita, as últimas chamadas.
-   Nova chamada: sobreposição grande por alguns segundos (+ voz com ?voz=1; o Chrome só fala depois de um toque/tecla na
+   Nova chamada: sobreposição grande por alguns segundos (+ voz com ?voz=1; o Chrome só toca som depois de um toque/tecla na
    página, por isso aparece o botão "Ativar som" até a primeira interação; estado da voz no rodapé).
+   Som: campainha e áudios prontos (public/voz) passam pelo MESMO AudioContext, com um ruído inaudível em loop que mantém a
+   saída de áudio da TV acordada — TVs/soundbars silenciam os primeiros ~0,5 s de um fluxo de áudio novo, o que cortava o
+   começo de "Senha vinte e três" quando cada arquivo tocava num <audio> separado. Sem Web Audio, cai para <audio> e depois
+   para a síntese de voz do navegador.
    Parâmetros: ?local=jn ?dia=AAAA-MM-DD ?grupo=entrada|fundos ?salas=03,04 ?servicos=pilar-1 ?voz=1 ?zoom=1.1 ?pagina=10 ?t=&d=
    Dia mostrado = o do app de atendimento (dia de serviços de hoje, senão o próximo). Atualização em tempo real por SSE.
    Teclas: F tela cheia · +/-/0 escala. Recarrega às 4h (só sem voz) e se ficar sem resposta por muito tempo. */
@@ -55,31 +59,60 @@ function Board() {
   // Áudios prontos (public/voz, gerados por scripts/gerar-voz.mjs): caminho preferido, funciona em TV sem speechSynthesis.
   const [manifest, setManifest] = useState(null);
   useEffect(() => { if (!voice) return; fetch(`${BP}/voz/manifest.json`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((m) => { if (m && m.numbers) setManifest(m); }).catch(() => {}); }, [voice]);
-  const player = useRef(null); // <audio> criado dentro do gesto que libera o som (reutilizado depois sem novo gesto)
+  const player = useRef(null); // <audio> de reserva (quando não há Web Audio ou a decodificação falha)
   const playing = useRef(false);
-  /** Toca os arquivos em sequência; rejeita se algum falhar (aí a TV cai para a síntese de voz). */
-  const playClips = useCallback((files) => new Promise((resolve, reject) => {
-    const a = player.current; if (!a || !files || !files.length) { reject(new Error('sem áudio')); return; }
-    let i = 0; playing.current = true;
-    const done = (err) => { playing.current = false; a.onended = a.onerror = null; if (err) reject(err); else resolve(); };
-    const step = () => { if (i >= files.length) { done(); return; } a.src = `${BP}/voz/${files[i++]}`; a.onended = step; a.onerror = () => done(new Error('áudio falhou')); a.play().catch(done); };
-    step();
-  }), []);
-  const audio = useRef(null); // AudioContext da campainha (criado no gesto que libera o som)
+  const audio = useRef(null); // AudioContext único: campainha + áudios prontos (criado no gesto que libera o som)
+  const bufs = useRef(new Map()); // arquivo -> AudioBuffer decodificado
+  const keep = useRef(null); // fonte em loop que mantém a saída de áudio da TV aberta
+  const ensureCtx = useCallback(() => {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx) return null;
+      if (!audio.current) audio.current = new Ctx();
+      const ctx = audio.current; if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      if (!keep.current) { // ruído a -80 dB em loop: inaudível, mas impede a TV de "dormir" a saída entre um anúncio e outro
+        const b = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * 1e-4;
+        const src = ctx.createBufferSource(); src.buffer = b; src.loop = true; src.connect(ctx.destination); src.start(); keep.current = src;
+      }
+      return ctx;
+    } catch (e) { console.warn('[tv] Web Audio indisponível:', e); return null; }
+  }, []);
+  /** Campainha de dois tons: toca mesmo em aparelho sem motor de voz; precisa do mesmo gesto inicial. */
+  const chime = useCallback((at) => {
+    const ctx = ensureCtx(); if (!ctx) return 0;
+    const t = at || ctx.currentTime;
+    [[880, 0], [1175, 0.22]].forEach(([f, dt]) => { const o = ctx.createOscillator(); const g = ctx.createGain(); o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t + dt); g.gain.exponentialRampToValueAtTime(0.45, t + dt + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dt + 0.5); o.connect(g); g.connect(ctx.destination); o.start(t + dt); o.stop(t + dt + 0.55); });
+    return t;
+  }, [ensureCtx]);
+  /** Baixa e decodifica um áudio pronto (com cache). */
+  const loadBuf = useCallback(async (file) => {
+    const ctx = audio.current; if (bufs.current.has(file)) return bufs.current.get(file);
+    const r = await fetch(`${BP}/voz/${file}`); if (!r.ok) throw new Error(`${file}: ${r.status}`);
+    const ab = await r.arrayBuffer();
+    const buf = await new Promise((res, rej) => { try { const pr = ctx.decodeAudioData(ab, res, rej); if (pr && pr.then) pr.then(res, rej); } catch (e) { rej(e); } });
+    if (bufs.current.size > 150) bufs.current.delete(bufs.current.keys().next().value);
+    bufs.current.set(file, buf); return buf;
+  }, []);
+  /** Toca os arquivos em sequência no AudioContext, começando em `at` (tempo do contexto); resolve quando o último termina. */
+  const playViaCtx = useCallback(async (files, at) => {
+    const ctx = ensureCtx(); if (!ctx) throw new Error('sem Web Audio');
+    const list = await Promise.all(files.map(loadBuf));
+    let t = Math.max(ctx.currentTime + 0.05, at || 0);
+    for (const b of list) { const src = ctx.createBufferSource(); src.buffer = b; src.connect(ctx.destination); src.start(t); t += b.duration + 0.1; }
+    await new Promise((res) => setTimeout(res, Math.max(0, (t - ctx.currentTime) * 1000) + 80));
+  }, [ensureCtx, loadBuf]);
   const unlockedRef = useRef(false);
   const [banner, setBanner] = useState(''); // aviso grande e temporário com o estado do som (legível na TV)
   const bannerT = useRef(null);
   const showBanner = useCallback((text, ms = 8000) => { setBanner(text); clearTimeout(bannerT.current); bannerT.current = setTimeout(() => setBanner(''), ms); }, []);
-  /** Campainha de dois tons (WebAudio): toca mesmo em aparelho sem motor de voz; precisa do mesmo gesto inicial. */
-  const chime = useCallback(() => {
-    try {
-      const Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx) return;
-      if (!audio.current) audio.current = new Ctx();
-      const ctx = audio.current; if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-      const t = ctx.currentTime;
-      [[880, 0], [1175, 0.22]].forEach(([f, dt]) => { const o = ctx.createOscillator(); const g = ctx.createGain(); o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t + dt); g.gain.exponentialRampToValueAtTime(0.5, t + dt + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dt + 0.5); o.connect(g); g.connect(ctx.destination); o.start(t + dt); o.stop(t + dt + 0.55); });
-    } catch (e) { console.warn('[tv] campainha indisponível:', e); }
-  }, []);
+  /** Reserva: <audio> tocando um arquivo após o outro; rejeita se algum falhar. */
+  const playViaElement = useCallback((files) => new Promise((resolve, reject) => {
+    if (!player.current) { try { player.current = new Audio(); player.current.preload = 'auto'; } catch { player.current = null; } }
+    const a = player.current; if (!a || !files || !files.length) { reject(new Error('sem áudio')); return; }
+    let i = 0;
+    const done = (err) => { a.onended = a.onerror = null; if (err) reject(err); else resolve(); };
+    const step = () => { if (i >= files.length) { done(); return; } a.src = `${BP}/voz/${files[i++]}`; a.onended = step; a.onerror = () => done(new Error('áudio falhou')); a.play().catch(done); };
+    step();
+  }), []);
   const speak = useCallback((text) => {
     if (!supported) return;
     try {
@@ -92,18 +125,28 @@ function Board() {
       if (synth.speaking || synth.pending) { synth.cancel(); setTimeout(() => synth.speak(u), 250); } else synth.speak(u);
     } catch (e) { console.warn('[tv] voz indisponível:', e); setVoiceErr('exception'); }
   }, [supported, showBanner]);
+  /** Anúncio completo: campainha e, 0,8 s depois, os áudios prontos (ou a síntese de voz com `text` se não houver/falhar). */
+  const announce = useCallback(async (files, text) => {
+    playing.current = true;
+    try {
+      const t0 = chime();
+      if (files && audio.current) { try { await playViaCtx(files, t0 + 0.8); return; } catch (e) { console.warn('[tv] Web Audio falhou, usando <audio>:', e.message); } }
+      await new Promise((res) => setTimeout(res, 700));
+      if (files) { try { await playViaElement(files); return; } catch (e) { console.warn('[tv] áudio pronto falhou:', e.message); } }
+      if (text) speak(text);
+    } finally { playing.current = false; }
+  }, [chime, playViaCtx, playViaElement, speak]);
   // Libera o som: precisa rodar de forma síncrona dentro do gesto (toque/tecla), por isso usa ref e não o estado.
   const unlock = useCallback(() => {
     if (!voice || unlockedRef.current) return;
     unlockedRef.current = true; setUnlocked(true); setVoiceErr('');
-    chime();
-    if (manifest) { // o primeiro play() precisa acontecer dentro do gesto; depois o mesmo elemento toca sem novo gesto
-      try { player.current = new Audio(); player.current.preload = 'auto'; } catch { player.current = null; }
-      if (player.current) playClips(['x-som.mp3']).catch((e) => { console.warn('[tv] áudio pronto falhou:', e.message); player.current = null; if (supported) speak('Som ativado. As senhas serão anunciadas.'); });
-      else if (supported) speak('Som ativado. As senhas serão anunciadas.');
-    } else if (supported) speak('Som ativado. As senhas serão anunciadas.');
-    setTimeout(() => { const vs = supported ? window.speechSynthesis.getVoices() : []; showBanner(`Som ativado · ${voiceLabel(voiceState({ wanted: true, supported, voices: vs, unlocked: true, lastError: '', clips: !!player.current }), pickVoice(vs))}`); }, 1800);
-  }, [voice, supported, manifest, chime, speak, playClips, showBanner]);
+    ensureCtx(); // dentro do gesto: cria/resume o AudioContext e liga o loop que mantém a saída de áudio da TV acordada
+    try { player.current = new Audio(); player.current.preload = 'auto'; } catch { player.current = null; }
+    announce(manifest ? ['x-som.mp3'] : null, 'Som ativado. As senhas serão anunciadas.');
+    // Pré-carrega as frases das salas desta TV e os avisos, para o anúncio não esperar download/decodificação.
+    if (manifest && audio.current) { const pre = ['x-novamente.mp3', ...sel.queues.map((q) => `p-${q.place.id}.mp3`).filter((f) => manifest.places && manifest.places.includes(f.slice(2, -4)))]; pre.forEach((f) => loadBuf(f).catch(() => {})); }
+    setTimeout(() => { const vs = supported ? window.speechSynthesis.getVoices() : []; showBanner(`Som ativado · ${voiceLabel(voiceState({ wanted: true, supported, voices: vs, unlocked: true, lastError: '', clips: !!manifest }), pickVoice(vs))}`); }, 2500);
+  }, [voice, supported, manifest, sel, ensureCtx, announce, loadBuf, showBanner]);
   useEffect(() => {
     if (!voice) return;
     const load = () => setVoices(supported ? window.speechSynthesis.getVoices() : []);
@@ -115,7 +158,7 @@ function Board() {
     window.addEventListener('pointerdown', gesture); window.addEventListener('keydown', gesture);
     return () => { if (supported) window.speechSynthesis.removeEventListener('voiceschanged', load); window.removeEventListener('pointerdown', gesture); window.removeEventListener('keydown', gesture); };
   }, [voice, supported, unlock, showBanner]);
-  const vState = voiceState({ wanted: voice, supported, voices, unlocked, lastError: voiceErr, clips: unlocked && !!player.current });
+  const vState = voiceState({ wanted: voice, supported, voices, unlocked, lastError: voiceErr, clips: unlocked && !!manifest });
   const vLabel = voiceLabel(vState, voices ? pickVoice(voices) : null);
   const [zoom, setZoom] = useState(() => Math.min(1.6, Math.max(0.6, asScale(sp.get('zoom')) || 1)));
   const pageSecs = Math.min(60, Math.max(4, Number(sp.get('pagina')) || PAGE_SECS_DEFAULT));
@@ -190,13 +233,11 @@ function Board() {
     showing.current = true;
     setFlash({ id: `${c.id}:${c.again ? Date.now() : 0}`, ticket: c.ticket, place: c.place, service: c.service, again: c.again, until: Date.now() + FLASH_MS });
     if (voice) { // campainha e, depois dela, a voz: áudios prontos; se não houver (senha > 300, sala nova, falha), síntese do navegador
-      chime();
       const text = c.place ? `Senha ${c.ticket}. ${c.place.num ? `${svcName(c.place)}, ${speakable(c.place)}` : svcName(c.place)}.` : `Senha ${c.ticket}.`;
-      const files = clipsFor({ ticket: c.ticket, placeId: c.place && c.place.id, again: c.again }, manifest);
-      setTimeout(() => { if (files && player.current) playClips(files).catch(() => speak(text)); else speak(text); }, 700);
+      announce(clipsFor({ ticket: c.ticket, placeId: c.place && c.place.id, again: c.again }, manifest), text);
     }
     timer.current = setTimeout(() => { setFlash(null); timer.current = setTimeout(next, 400); }, FLASH_MS);
-  }, [voice, speak, chime, supported, manifest, playClips]);
+  }, [voice, supported, manifest, announce]);
   useEffect(() => () => { clearTimeout(timer.current); clearTimeout(bannerT.current); }, []);
   useEffect(() => {
     if (!data) return;
@@ -262,7 +303,7 @@ function Board() {
                   <div key={r.key} className={`sq-card ${st.k} ${isLatest ? 'latest' : ''}`} style={{ '--c': r.service.color }}>
                     <div className="sq-top"><span className="sq-svc" title={`${svcName(r.place)} · ${r.service.title}`}><span>{svcName(r.place)}</span></span></div>
                     <div className="sq-mid"><b className="sq-num">{c && c.ticket != null ? c.ticket : '—'}</b></div>
-                    <div className="sq-bot"><div className="sq-line"><b className="sq-roomname">{roomLine(r.place)}</b><small className="sq-place"><Icon name={r.service.icon} />{r.service.short}</small>{r.stat && r.stat.issued ? <span className="sq-wait">{r.stat.waiting} aguardando</span> : null}</div><span className="sq-tags"><span className={`sq-state ${st.k}`}>{st.k === 'calling' ? <Icon name="megaphone" /> : st.k === 'serving' ? <Icon name="check" /> : null}{st.label}{c && st.k !== 'idle' ? <em> · {fmtT(c.status_at || c.called_at)}</em> : null}</span>{r.stat && r.stat.serving ? <span className="sq-state serving soft" title="em atendimento"><Icon name="check" />{r.stat.serving.ticket}<em> em atendimento</em></span> : null}</span></div>
+                    <div className="sq-bot"><div className="sq-line"><b className="sq-roomname">{roomLine(r.place)}</b><small className="sq-place" title={r.service.title}>{r.service.short}</small>{r.stat && r.stat.issued ? <span className="sq-wait">{r.stat.waiting} aguardando</span> : null}</div><span className="sq-tags"><span className={`sq-state ${st.k}`}>{st.k === 'calling' ? <Icon name="megaphone" /> : st.k === 'serving' ? <Icon name="check" /> : null}{st.label}{c && st.k !== 'idle' ? <em> · {fmtT(c.status_at || c.called_at)}</em> : null}</span>{r.stat && r.stat.serving ? <span className="sq-state serving soft" title="em atendimento"><Icon name="check" />{r.stat.serving.ticket}<em> em atendimento</em></span> : null}</span></div>
                   </div>
                 ); })}
             </div>
@@ -306,7 +347,11 @@ function Board() {
         <div className="sq-flash" role="alert" key={flash.id} style={{ '--c': flash.service ? flash.service.color : '#fbbf24' }}>
           <div className="sq-flash-box">
             <small><Icon name="megaphone" />{flash.again ? 'Chamando novamente' : 'Chamando agora'}</small>
-            <div className="sq-flash-row"><span className="sq-flash-num"><em>senha</em><b>{flash.ticket}</b></span><Icon name="right" className="sq-flash-arrow" /><span className="sq-flash-room"><b>{flash.place ? svcName(flash.place) : flash.place_id}</b><small>{flash.place ? roomLine(flash.place) : ''}{flash.service ? ` · ${flash.service.short}` : ''}</small></span></div>
+            <div className="sq-flash-row">
+              <span className="sq-flash-col num"><em>senha</em><b>{flash.ticket}</b></span>
+              {(() => { const name = flash.place ? svcName(flash.place) : flash.place_id; const L = String(name).length; return <span className="sq-flash-col svc" style={{ '--svcfs': L > 30 ? '2.8em' : L > 20 ? '3.4em' : '4em' }}><em>serviço</em><b>{name}</b></span>; })()}
+              {flash.place && flash.place.num ? <span className="sq-flash-col room"><em>{roomWord(flash.place)}</em><b>{flash.place.num}</b></span> : null}
+            </div>
           </div>
         </div>
       ) : null}
