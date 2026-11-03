@@ -7,6 +7,7 @@ import { useMounted } from '@/lib/hooks';
 import { groupsOf, groupKey, numbersOf } from '@/lib/inscritos';
 import { VENUE_ORDER, cap, sameSet, venueFilter } from '@/lib/resumo-util';
 import { useInscritos, inscritosSourceLabel } from '@/lib/useInscritos';
+import SyncInscritos from './SyncInscritos';
 
 const D = T.D;
 // ---------- página ----------
@@ -18,7 +19,7 @@ export default function ResumoCursos({ variant }) {
 
 function Doc({ variant }) {
   const total = variant === 'total'; const page = total ? 'resumo-total.html' : 'resumo-cursos.html';
-  const [enr] = useInscritos(); // API do tce-senhas (coletor dentro da rede do TCE) → inscritos.json publicado → cópia local
+  const [enr, setEnr] = useInscritos(); // API do tce-senhas (coletor dentro da rede do TCE) → inscritos.json publicado → cópia local
   // ?local=jn | manga | sebrae | auditorio | iaparra (vários com vírgula; "oiapoque" = todos os locais de Oiapoque, "manga" inclui a escola do Manga).
   const sel = useMemo(() => venueFilter(T.params.get('local')), []);
   const inSel = (x) => !sel || sel.has(x.venue);
@@ -162,6 +163,7 @@ function Doc({ variant }) {
   return (
     <>
       <div className="rs-tools"><button onClick={() => window.print()}><Icon name="download" />Imprimir / PDF</button><a href="resumo.html"><Icon name="list" />Resumo geral</a>{total ? <a href="resumo-cursos.html"><Icon name="graduation" />Resumo de cursos</a> : <a href="resumo-total.html"><Icon name="layers" />Resumo total</a>}<a href="lanches.html"><Icon name="store" />Lanches</a><a href="index.html"><Icon name="phone" />App</a></div>
+      <SyncInscritos onData={setEnr} />
       <div className="rs-tools rs-locais"><span className="muted tiny">Local:</span><a href={page} className={sel ? '' : 'on'}>Todos</a>{VENUE_ORDER.filter((v) => T.allSessions().some((x) => x.venue === v)).map((v) => <a key={v} href={`${page}?local=${v}`} className={sameSet(sel, venueFilter(v)) ? 'on' : ''}>{D.venues[v].short}</a>)}</div>
       <section className="cover">
         <img src="img/tce-logo.png" alt="Tribunal de Contas do Estado do Amapá" />

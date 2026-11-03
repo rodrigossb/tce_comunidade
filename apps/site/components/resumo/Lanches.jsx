@@ -5,6 +5,7 @@ import { lanchesBoard } from '@tce/core/lanches';
 import Icon from '@/components/Icon';
 import { useMounted } from '@/lib/hooks';
 import { useInscritos, inscritosSourceLabel } from '@/lib/useInscritos';
+import SyncInscritos from './SyncInscritos';
 import { VENUE_ORDER, cap, sameSet, venueFilter, venuesLabel, dayFilter } from '@/lib/resumo-util';
 
 const D = T.D;
@@ -20,7 +21,7 @@ export default function Lanches() {
 }
 
 function Doc() {
-  const [enr] = useInscritos(); // API do tce-senhas (coletor dentro da rede do TCE) → inscritos.json publicado → cópia local
+  const [enr, setEnr] = useInscritos(); // API do tce-senhas (coletor dentro da rede do TCE) → inscritos.json publicado → cópia local
   const [copied, setCopied] = useState('');
   // ?local= (jn, manga, sebrae, auditorio, iaparra, oiapoque; vários com vírgula) · ?dia=04 (ou 04/11, 2026-11-04)
   const sel = useMemo(() => venueFilter(T.params.get('local')), []);
@@ -54,6 +55,7 @@ function Doc() {
   return (
     <>
       <div className="rs-tools"><button onClick={() => window.print()}><Icon name="download" />Imprimir / PDF</button><button onClick={copyText}><Icon name="copy" />Copiar texto</button><a href="resumo-total.html"><Icon name="layers" />Resumo total</a><a href="resumo-cursos.html"><Icon name="graduation" />Cursos e inscritos</a><a href="index.html"><Icon name="phone" />App</a></div>
+      <SyncInscritos onData={setEnr} />
       <div className="rs-tools rs-locais"><span className="muted tiny">Local:</span><a href={qs({ local: '' })} className={sel ? '' : 'on'}>Todos</a>{VENUE_ORDER.filter((v) => T.allSessions().some((x) => x.venue === v)).map((v) => <a key={v} href={qs({ local: v })} className={sameSet(sel, venueFilter(v)) ? 'on' : ''}>{D.venues[v].short}</a>)}</div>
       <div className="rs-tools rs-locais"><span className="muted tiny">Dia:</span><a href={qs({ dia: '' })} className={dsel ? '' : 'on'}>Todos</a>{allDays.map((d) => <a key={d} href={qs({ dia: d.slice(8) })} className={dsel && dsel.size === 1 && dsel.has(d) ? 'on' : ''}>{cap(T.fmtDate(d, 'wd'))}</a>)}{copied ? <span className="tiny ok">{copied}</span> : null}</div>
 

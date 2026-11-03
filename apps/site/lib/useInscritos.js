@@ -25,6 +25,6 @@ export function useInscritos() {
 export function inscritosSourceLabel(enr) {
   if (!enr) return 'sem leitura do painel';
   const p = T.partsOf(new Date(enr.updatedAt));
-  const how = enr.source === 'coletor' ? 'via coletor (ao vivo)' : enr.source === 'publicado' ? 'publicado com o site' : enr.source === 'painel' ? 'lido do painel' : 'colado';
+  const how = enr.source === 'coletor' ? 'via coletor (ao vivo)' : enr.source === 'sincronizado' ? 'sincronizado nesta página' : enr.source === 'publicado' ? 'publicado com o site' : enr.source === 'painel' ? 'lido do painel' : 'colado';
   return `${T.fmtDate(p.date, 'wd')} ${p.time}${enr.painelInfo ? ` · painel de ${enr.painelInfo}` : ''} · ${how}`;
 }

@@ -5,6 +5,7 @@ import { TCEMap as M } from '@tce/core/map';
 import { TCE_COURSE_ROOMS as ROOMS } from '@tce/core/salas-cursos';
 import Icon from '@/components/Icon';
 import PlanMap from '@/components/PlanMap';
+import SyncInscritos from './SyncInscritos';
 
 const D = T.D;
 const MemoMap = memo(PlanMap);
@@ -202,6 +203,7 @@ export default function Resumo() {
   return (
     <>
       <div className="rs-tools"><button onClick={() => window.print()}><Icon name="download" />Imprimir / PDF</button><a href="resumo-cursos.html"><Icon name="graduation" />Cursos e inscritos</a><a href="lanches.html"><Icon name="store" />Lanches</a><a href="index.html"><Icon name="phone" />App</a><a href="totem.html?local=jn&descanso=0"><Icon name="map" />Totem</a><a href="placas.html"><Icon name="door" />Placas de porta</a></div>
+      <SyncInscritos />
       <Cover all={all} days={days} today={today} />
       <Overview all={all} days={days} />
       <DaySections all={all} days={days} />
