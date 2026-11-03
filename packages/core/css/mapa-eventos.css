@@ -1,0 +1,53 @@
+/* ===== Mapa dos locais do evento (mapa-eventos.html): cabeçalho, mapa Leaflet, cartões com rota. ===== */
+.me{max-width:1100px;margin:0 auto;padding:1rem 1rem 3rem;color:var(--ink)}
+.me-head{display:flex;gap:1rem;align-items:center;margin-bottom:.8rem}
+.me-head img{height:56px;width:auto;flex:none}
+.me-kicker{margin:0;font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--primary)}
+.me-kicker span{color:var(--tce-dourado-700);margin-right:.2em}
+.me h1{margin:.1rem 0 .2rem;font-family:var(--font-display);font-size:clamp(1.4rem,3.6vw,2rem);line-height:1.1;letter-spacing:-.02em}
+.me-sub{margin:0;color:var(--mut);font-size:.95rem}
+.me-tools{display:flex;gap:.45rem;flex-wrap:wrap;align-items:center;margin:.8rem 0}
+.me-tools a,.me-tools button{font:inherit;font-size:.86rem;font-weight:700;border:1px solid var(--line);background:#fff;border-radius:999px;padding:.4rem .85rem;color:var(--ink);text-decoration:none;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem}
+.me-tools .ico{width:1em;height:1em;color:var(--primary)}
+.me-tools .on{background:var(--primary);color:#fff;border-color:transparent}.me-tools .on .ico{color:#fff}
+.me-tools .me-locate{border-color:var(--primary);color:var(--primary)}
+.me-msg{font-size:.82rem;color:var(--mut)}
+.me-map{height:clamp(320px,55vh,620px);border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#e8edf5;position:relative;z-index:0}
+.me-loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--mut);font-weight:600}
+.me-pin-wrap{background:none;border:0}
+.me-pin{width:38px;height:38px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--primary);border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.35);display:grid;place-items:center}
+.me-pin b{transform:rotate(45deg);color:#fff;font-family:var(--font-display);font-size:1rem;font-weight:900}
+.me-pin.approx{background:var(--tce-dourado-500)}.me-pin.approx b{color:#1a1200}
+.me-here{width:22px;height:22px;border-radius:50%;background:rgba(37,99,235,.25);display:grid;place-items:center}
+.me-here i{width:12px;height:12px;border-radius:50%;background:#2563eb;border:2px solid #fff;box-shadow:0 0 0 1px #2563eb}
+.me-pop b{display:block;font-size:.95rem;margin-bottom:.15rem}.me-pop small{display:block;color:#475569;font-size:.78rem;line-height:1.3}
+.me-pop-btns{display:flex;gap:.4rem;margin-top:.5rem}
+.me-pop-btns a{flex:1;text-align:center;font-weight:700;font-size:.8rem;padding:.35rem .5rem;border-radius:8px;background:var(--primary);color:#fff!important;text-decoration:none}
+.me-pop-btns a:last-child{background:#0ea5e9}
+.leaflet-container{font-family:var(--font-text)}
+.me-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));gap:.9rem;margin-top:1rem}
+.me-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:.9rem 1rem;display:flex;flex-direction:column;gap:.6rem;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.me-card.on{border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 18%,transparent)}
+.me-card-head{display:flex;gap:.7rem;align-items:flex-start;text-align:left;font:inherit;background:none;border:0;padding:0;cursor:pointer;color:inherit;width:100%}
+.me-num{flex:none;width:2.1rem;height:2.1rem;border-radius:50%;background:var(--primary);color:#fff;display:grid;place-items:center;font-family:var(--font-display);font-weight:900;font-size:1.05rem}
+.me-num.approx{background:var(--tce-dourado-500);color:#1a1200}
+.me-card-t{min-width:0;flex:1}
+.me-card-t b{display:block;font-family:var(--font-display);font-size:1.08rem;line-height:1.15;letter-spacing:-.01em}
+.me-card-t small{display:flex;gap:.3rem;align-items:flex-start;color:var(--mut);font-size:.84rem;line-height:1.3;margin-top:.25rem}
+.me-card-t small .ico{width:1em;height:1em;flex:none;margin-top:.15em;color:var(--primary)}
+.me-dist{flex:none;text-align:right;font-weight:800;font-size:.95rem;color:var(--primary);display:flex;flex-direction:column;align-items:flex-end}
+.me-dist .ico{width:1em;height:1em;margin-right:.2rem;vertical-align:-.1em}.me-dist small{font-size:.68rem;font-weight:600;color:var(--mut)}
+.me-agenda{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.3rem;font-size:.88rem}
+.me-agenda li{display:flex;gap:.4rem;align-items:flex-start;line-height:1.3}
+.me-agenda .ico{width:1.05em;height:1.05em;flex:none;margin-top:.1em;color:var(--primary)}
+.me-agenda .note{color:var(--mut)}.me-agenda .warn{color:#92400e}.me-agenda .warn .ico{color:#d97706}
+.me-btns{display:grid;grid-template-columns:1fr 1fr;gap:.45rem;margin-top:auto}
+.me-btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;font-weight:800;font-size:.9rem;padding:.65rem .6rem;border-radius:10px;text-decoration:none;border:1px solid transparent;min-height:2.8rem;text-align:center}
+.me-btn .ico{width:1.1em;height:1.1em;flex:none}
+.me-btn.gm{background:#1a73e8;color:#fff}
+.me-btn.wz{background:#05c8f7;color:#062a3a}
+.me-btn.other{background:#fff;color:var(--ink);border-color:var(--line)}
+.me-btn.ghost{background:#fff;color:var(--primary);border-color:var(--line)}
+.me-foot{margin-top:1.4rem;color:var(--mut);font-size:.8rem;line-height:1.4}.me-foot p{margin:.3rem 0}
+@media (max-width:640px){.me-head{flex-direction:column;align-items:flex-start;gap:.5rem}.me-head img{height:40px}.me-sub{font-size:.9rem}.me-btn{font-size:.84rem;padding:.6rem .4rem}}
+@media print{.me-tools,.me-btns{display:none}.me-map{height:420px}}

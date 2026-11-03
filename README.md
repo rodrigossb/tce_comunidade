@@ -35,6 +35,15 @@ em andamento ganha espaço, o encerrado vira uma coluna estreita só com sala e 
 programação ("Sala IV") embaixo; os cartões crescem para preencher a coluna e não repetem "Agora"/"Encerrado"
 quando a coluna já diz isso. Lateral com 2 destaques ("agora" e "a seguir") e QR Code; faixa de serviços no rodapé.
 
+## Mapa dos locais (`mapa-eventos.html`)
+Um pino numerado por local do evento (Joaquim Nabuco, Aldeia do Manga/Jorge Iaparrá, SEBRAE, Auditório Joaquim Caetano),
+em Leaflet + OpenStreetMap, com endereço, o que acontece ali (dias com cursos, dia de serviços) e botões de rota: Google
+Maps (`maps/dir/?api=1&destination=`), Waze (`waze.com/ul?ll=…&navigate=yes`) e `geo:` para outro app. "Minha
+localização" mostra a distância em linha reta. `?local=jn|manga|sebrae|auditorio` abre focado. Coordenadas em `D.geo`
+(`packages/core/src/data.js`): escolas pelo prédio (OpenStreetMap); SEBRAE (Rua Santos Dumont, 228) e Auditório (Escola
+Joaquim Caetano da Silva, Av. Coaracy Nunes, 40) pelo ponto da rua, marcados `approx` e com aviso na página. Links para cá:
+ferramentas do resumo e botão "Como chegar" na folha de cada local do app.
+
 ## App (`index.html`)
 Rotas por hash, compartilháveis: `#programacao?d=2026-11-05&local=jn`, `#busca?q=vacina`,
 `#cursos?q=ia&tema=tecnologia&dia=…&turno=manha&local=jn&fav=1&ord=az`, `#curso/116`, `#servicos`,
