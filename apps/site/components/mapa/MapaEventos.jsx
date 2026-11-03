@@ -189,7 +189,7 @@ export default function MapaEventos() {
         <a href="index.html"><Icon name="phone" />App do evento</a>
         <button type="button" onClick={showAll} className={!filter ? 'on' : ''}><Icon name="map" />Todos</button>
         <button type="button" onClick={() => pickFilter('evento')} className={filter === 'evento' ? 'on' : ''}><Icon name="star" />Locais do evento</button>
-        {kindsPresent.map((k) => <button key={k} type="button" onClick={() => pickFilter(k)} className={filter === k ? 'on' : ''} style={{ '--k': PLACE_KINDS[k].color }}><Icon name={PLACE_KINDS[k].icon} />{PLACE_KINDS[k].label}{PLACE_KINDS[k].label.endsWith('a') || PLACE_KINDS[k].label.endsWith('e') ? 's' : k === 'hotel' ? 's' : ''}</button>)}
+        {kindsPresent.map((k) => <button key={k} type="button" onClick={() => pickFilter(k)} className={filter === k ? 'on' : ''} style={{ '--k': PLACE_KINDS[k].color }}><Icon name={PLACE_KINDS[k].icon} />{PLACE_KINDS[k].plural}</button>)}
         {cities.map((c) => <button key={c} type="button" onClick={() => showCity(c)}><Icon name="pin" />{c}</button>)}
         <button type="button" onClick={() => locate()} className="me-locate"><Icon name="compass" />Minha localização</button>
         <button type="button" onClick={() => (form ? closeForm() : openForm(null))} className="me-add"><Icon name={form ? 'x' : 'calendarplus'} />{form ? 'Fechar cadastro' : 'Cadastrar lugar'}</button>

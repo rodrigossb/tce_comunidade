@@ -1,11 +1,11 @@
 /* Lugares cadastrados pela equipe (mapa-eventos.html): tipos, limites geográficos e validação — usados pelo servidor
    (tce-senhas, api/lugares) e pelo formulário do site, para as duas pontas aceitarem a mesma coisa. */
 export const PLACE_KINDS = {
-  escola: { label: 'Escola', icon: 'graduation', color: '#1f3b9a' },
-  restaurante: { label: 'Restaurante', icon: 'store', color: '#ea580c' },
-  hotel: { label: 'Hotel', icon: 'building', color: '#7c3aed' },
-  saude: { label: 'Saúde', icon: 'heart', color: '#dc2626' },
-  outro: { label: 'Outro', icon: 'pin', color: '#0f766e' },
+  escola: { label: 'Escola', plural: 'Escolas', icon: 'graduation', color: '#1f3b9a' },
+  restaurante: { label: 'Restaurante', plural: 'Restaurantes', icon: 'store', color: '#ea580c' },
+  hotel: { label: 'Hotel', plural: 'Hotéis', icon: 'building', color: '#7c3aed' },
+  saude: { label: 'Saúde', plural: 'Saúde', icon: 'heart', color: '#dc2626' },
+  outro: { label: 'Outro', plural: 'Outros', icon: 'pin', color: '#0f766e' },
 };
 /** Caixa generosa em volta de Oiapoque (sede, Manga, Clevelândia, Vila Brasil e a BR-156 até a divisa). */
 export const PLACE_BOUNDS = { lat: [3.2, 4.6], lng: [-52.6, -51.0] };
