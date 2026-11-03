@@ -30,6 +30,18 @@
 .sync-setup label{display:grid;gap:.25rem;font-size:.85rem;font-weight:600}.sync-setup label small{font-weight:400;color:var(--mut)}
 .sync-setup input{font:inherit;font-size:.95rem;border:1px solid var(--line);border-radius:8px;padding:.5rem .6rem;width:100%}
 .sync-setup-act{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}.sync-setup-act small{color:var(--mut);font-size:.78rem}.sync-setup-act .sync-forget{margin-left:0}
+.sync-det{margin-top:.45rem}
+.sync-det-btn{display:inline-flex;align-items:center;gap:.3rem;font:inherit;font-size:.85rem;font-weight:700;color:var(--primary);background:none;border:0;padding:.2rem 0;cursor:pointer}
+.sync-det-btn .ico{width:1em;height:1em}.sync-det-btn small{font-weight:500;color:var(--mut)}
+.sync-det-body{margin-top:.4rem;padding:.6rem .8rem;border:1px solid var(--line);border-radius:10px;background:#fff;max-width:64rem}
+.sync-det-all{display:flex;align-items:center;gap:.4rem;font-size:.8rem;color:var(--mut);margin-bottom:.4rem}
+.sync-det-tbl{width:100%;border-collapse:collapse;font-size:.85rem}
+.sync-det-tbl th,.sync-det-tbl td{padding:.3rem .5rem;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.sync-det-tbl th{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
+.sync-det-tbl .n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sync-det-tbl .num{font-size:.78rem;color:var(--mut);font-variant-numeric:tabular-nums}
+.sync-det-tbl tr.up td.n b{color:#15803d}.sync-det-tbl tr.down td.n b{color:#b91c1c}
+.sync-det-tbl .tag{font-style:normal;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#1d4ed8;background:#dbeafe;border-radius:999px;padding:.1rem .5rem}
 @media print{.sync-box{display:none}}
 /* capa */
 .rs .cover{padding:2rem 0 2.5rem;border-bottom:1px solid var(--line)}

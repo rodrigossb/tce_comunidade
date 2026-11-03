@@ -100,9 +100,11 @@ ordem, (1) a **API ao vivo** `GET /tce-senhas/api/inscritos` (CORS liberado), (2
 publicado com o site e (3) a cópia guardada no aparelho (a mais nova vence); hook `apps/site/lib/useInscritos.js`.
 Elas têm ainda o botão **Sincronizar inscritos** (`components/resumo/SyncInscritos.jsx`): lê a API do painel direto do
 navegador (só funciona de dentro da rede do TCE), mostra "N turmas atualizadas (+X inscritos)", guarda no aparelho e envia
-ao tce-senhas para os outros. A URL da API (com `?k=`) e a chave de envio **não ficam no código** (o site é público): são
-pedidas uma vez e guardadas só naquele navegador (`?painel=<url codificada>` também grava a URL; "esquecer chave" limpa).
-Se o navegador bloquear a leitura direta (CORS), aparece um atalho para abrir a API e colar o JSON.
+ao tce-senhas para os outros. "Ver detalhes" abre a lista turma a turma (curso, local e dias, antes → agora, variação,
+turmas novas e cartões do painel sem turma correspondente; opção de mostrar também as sem mudança). A chave da API (`k=`,
+ou a URL completa) e a chave de envio **não ficam no código** (o site é público): são pedidas uma vez num formulário na
+página e guardadas só naquele navegador (`?painel=<url ou chave>` também grava; "esquecer chaves" limpa). Se o navegador
+bloquear a leitura direta (CORS), aparece um atalho para abrir a API e colar o JSON.
 
 ### Coletor de inscritos (roda em segundo plano, dentro da rede do TCE)
 A API da ESCON **recusa conexão de fora** (`ECONNREFUSED` deste servidor, de buscadores externos e dos runners do GitHub), então

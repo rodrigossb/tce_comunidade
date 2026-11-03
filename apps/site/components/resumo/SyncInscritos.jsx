@@ -8,7 +8,7 @@
    a API e colar o JSON aqui. */
 import { useRef, useState } from 'react';
 import { TCE as T } from '@tce/core';
-import { apiCards, panelInfoOf, fromPanelCards } from '@tce/core/inscritos';
+import { apiCards, panelInfoOf, fromPanelCards, groupsOf } from '@tce/core/inscritos';
 import Icon from '@/components/Icon';
 import { LS_DATA, loadLS, saveLS } from '@/lib/useInscritos';
 
@@ -19,12 +19,20 @@ const LS_TOKEN = 'tce_inscritos_chave'; // chave de envio (INSCRITOS_TOKEN) para
 const SEND_API = () => { const a = (T.params.get('api') || T.D.event.apiUrl || '').replace(/\/$/, ''); return a ? `${a}/api/inscritos` : ''; };
 const ls = { get: (k) => { try { return localStorage.getItem(k) || ''; } catch { return ''; } }, set: (k, v) => { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch { /* sem storage */ } } };
 
-/** Compara o retrato novo com o atual: turmas com número diferente e variação de inscritos. */
+/** Compara o retrato novo com o atual: turmas com número diferente, variação de inscritos e a lista turma a turma
+    (`items`: { key, before, after, delta, novo }) para o "ver detalhes". */
 export function diffInscritos(oldById, newById) {
-  const o = oldById || {}; let changed = 0; let delta = 0; let total = 0; let turmas = 0;
-  for (const [k, v] of Object.entries(newById || {})) { const n = Number(v.inscritos) || 0; total += n; turmas++; const prev = o[k] ? Number(o[k].inscritos) || 0 : null; if (prev !== n) { changed++; delta += n - (prev || 0); } }
-  return { changed, delta, total, turmas };
+  const o = oldById || {}; let changed = 0; let delta = 0; let total = 0; let turmas = 0; const items = [];
+  for (const [k, v] of Object.entries(newById || {})) {
+    const n = Number(v.inscritos) || 0; total += n; turmas++; const prev = o[k] ? Number(o[k].inscritos) || 0 : null;
+    const d = n - (prev || 0); if (prev !== n) { changed++; delta += d; }
+    items.push({ key: k, before: prev, after: n, delta: d, novo: prev == null, vagas: v.vagas });
+  }
+  return { changed, delta, total, turmas, items };
 }
+/** Turma (chave curso@local@id) → curso, local e dias, para nomear as linhas do detalhe. */
+const groupMap = () => { const m = {}; for (const c of T.D.courses) for (const g of groupsOf(c)) m[g.key] = g; return m; };
+const turmaLabel = (g) => (g ? `${T.D.venues[g.venue] ? T.D.venues[g.venue].short : g.venue} · dia${g.days.size > 1 ? 's' : ''} ${[...g.days].sort((a, b) => a - b).join(', ')}/11` : '');
 
 /** Normaliza o que a pessoa colou: URL completa, "?k=chave", "k=chave" ou só a chave → URL da API; '' se não serve. */
 export function panelUrlFrom(text) {
@@ -45,6 +53,8 @@ function savedPanelUrl() {
 export default function SyncInscritos({ onData }) {
   const [st, setSt] = useState({ busy: false, msg: '', kind: '', fallback: false });
   const [setup, setSetup] = useState(false); // formulário com as chaves aberto
+  const [details, setDetails] = useState(null); // { items, unmatched, when } da última sincronização
+  const [showDet, setShowDet] = useState(false); const [showAll, setShowAll] = useState(false);
   const [url, setUrl] = useState(() => (typeof window === 'undefined' ? '' : savedPanelUrl()));
   const paste = useRef(null); const keyIn = useRef(null); const tokIn = useRef(null);
   const apply = async (obj) => {
@@ -67,6 +77,7 @@ export default function SyncInscritos({ onData }) {
       } catch { sent = 'sem conexão com o tce-senhas: atualizado só neste aparelho'; }
     } else if (api) sent = 'atualizado só neste aparelho (sem chave de envio)';
     const when = T.partsOf(new Date()).time;
+    setDetails({ items: d.items, unmatched: unmatched.map((c) => `${c.title}${c.inscritos != null ? ` (${c.inscritos})` : ''}`), when }); setShowDet(false); setShowAll(false);
     const what = d.changed ? `${d.changed} turma${d.changed === 1 ? '' : 's'} atualizada${d.changed === 1 ? '' : 's'} (${d.delta >= 0 ? '+' : ''}${d.delta} inscrito${Math.abs(d.delta) === 1 ? '' : 's'})` : 'nenhuma mudança';
     setSt({ busy: false, kind: 'ok', fallback: false, msg: `Sincronizado às ${when} · ${what} · ${d.total} inscritos em ${d.turmas} turmas${painelInfo ? ` · painel de ${painelInfo}` : ''}${sent ? ` · ${sent}` : ''}${unmatched.length ? ` · ${unmatched.length} cartão(ões) sem turma correspondente` : ''}` });
   };
@@ -123,7 +134,41 @@ export default function SyncInscritos({ onData }) {
           </div>
         </form>
       ) : null}
+      {details ? <Details d={details} open={showDet} setOpen={setShowDet} all={showAll} setAll={setShowAll} /> : null}
       {st.fallback ? <div className="sync-paste"><textarea ref={paste} rows={3} placeholder="Cole aqui o conteúdo (JSON) que a API do painel mostrou" /><button type="button" className="sync-btn" onClick={fromPaste} disabled={st.busy}><Icon name="check" />Usar o que colei</button></div> : null}
+    </div>
+  );
+}
+
+/** "Ver detalhes" da sincronização: em quais cursos/turmas os inscritos mudaram (antes → agora), turmas novas e
+    cartões do painel sem turma correspondente. */
+function Details({ d, open, setOpen, all, setAll }) {
+  const groups = groupMap();
+  const rows = d.items.map((it) => ({ ...it, g: groups[it.key] })).filter((it) => all || it.delta !== 0 || it.novo)
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta) || (a.g && b.g ? T.title(a.g.course).localeCompare(T.title(b.g.course)) : 0));
+  const changed = d.items.filter((it) => it.delta !== 0 || it.novo).length;
+  return (
+    <div className="sync-det">
+      <button type="button" className="sync-det-btn" onClick={() => setOpen(!open)} aria-expanded={open}><Icon name={open ? 'down' : 'right'} />{open ? 'Ocultar detalhes' : 'Ver detalhes'}<small> · {changed ? `${changed} turma${changed === 1 ? '' : 's'} com mudança` : 'nenhuma turma mudou'} · {d.items.length} turmas lidas às {d.when}</small></button>
+      {open ? (
+        <div className="sync-det-body">
+          <label className="sync-det-all"><input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> mostrar também as turmas sem mudança</label>
+          {rows.length ? (
+            <table className="sync-det-tbl">
+              <thead><tr><th>Curso</th><th>Turma</th><th className="n">Antes</th><th className="n">Agora</th><th className="n">Variação</th></tr></thead>
+              <tbody>{rows.map((it) => (
+                <tr key={it.key} className={it.delta > 0 ? 'up' : it.delta < 0 ? 'down' : ''}>
+                  <td>{it.g ? <><span className="num">{it.g.course.id}</span> <b>{T.title(it.g.course)}</b></> : <span className="muted">{it.key}</span>}</td>
+                  <td className="muted">{turmaLabel(it.g)}{it.vagas ? ` · ${it.vagas} vagas` : ''}</td>
+                  <td className="n">{it.novo ? <span className="muted">—</span> : it.before}</td>
+                  <td className="n"><b>{it.after}</b></td>
+                  <td className="n">{it.novo ? <em className="tag">nova</em> : it.delta ? <b>{it.delta > 0 ? `+${it.delta}` : it.delta}</b> : <span className="muted">=</span>}</td>
+                </tr>))}</tbody>
+            </table>
+          ) : <p className="muted tiny">Nenhuma turma mudou desde a última leitura.</p>}
+          {d.unmatched.length ? <p className="tiny muted"><b>{d.unmatched.length} cartão(ões) do painel sem turma correspondente:</b> {d.unmatched.join(' · ')}</p> : null}
+        </div>
+      ) : null}
     </div>
   );
 }
