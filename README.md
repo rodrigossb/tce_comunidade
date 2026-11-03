@@ -44,7 +44,8 @@ localização" mostra a distância em linha reta. `?local=jn|manga|sebrae|audito
 Joaquim Caetano da Silva, Av. Coaracy Nunes, 40) pelo ponto da rua, marcados `approx` e com aviso na página. Links para cá:
 ferramentas do resumo e botão "Como chegar" na folha de cada local do app.
 
-**Cadastro de lugares** (escolas, restaurantes, hotéis, saúde, outro): botão "Cadastrar lugar" abre o formulário (nome,
+**Cadastro de lugares** (escolas, restaurantes, hotéis, saúde, outro; desligado na página desde 03/11 à tarde, aparece só
+com `?editar=1`): botão "Cadastrar lugar" abre o formulário (nome,
 tipo, endereço, telefone, latitude/longitude, observação). As coordenadas podem ser digitadas, preenchidas pelo GPS do
 celular, marcadas com um toque no mapa (pino "?" arrastável) ou buscadas pelo endereço no OpenStreetMap (Nominatim).
 Salvar exige o PIN da equipe (operador ou gestor do tce-senhas; fica só na sessão do navegador). Os lugares ficam no

@@ -50,6 +50,8 @@ export default function MapaEventos() {
   const [form, setForm] = useState(null); // null = fechado; { id?, name, kind, address, phone, lat, lng, note }
   const [formMsg, setFormMsg] = useState(''); const [saving, setSaving] = useState(false); const [picking, setPicking] = useState(false);
   const [pin, setPin] = useState('');
+  // Cadastro desligado por enquanto (pedido de 03/11): só aparece com ?editar=1. A API e os lugares já gravados continuam.
+  const canEdit = typeof window !== 'undefined' && T.params.get('editar') === '1';
   useEffect(() => { setExtra((ls.get(LS_LUGARES, { lugares: [] }) || {}).lugares || []); setPin(ss.get(SS_PIN)); }, []);
 
   const places = useMemo(() => D.geo.map((p) => Object.assign({ builtin: true }, p)).concat(extra.map(fromApi)), [extra]);
@@ -192,11 +194,11 @@ export default function MapaEventos() {
         {kindsPresent.map((k) => <button key={k} type="button" onClick={() => pickFilter(k)} className={filter === k ? 'on' : ''} style={{ '--k': PLACE_KINDS[k].color }}><Icon name={PLACE_KINDS[k].icon} />{PLACE_KINDS[k].plural}</button>)}
         {cities.map((c) => <button key={c} type="button" onClick={() => showCity(c)}><Icon name="pin" />{c}</button>)}
         <button type="button" onClick={() => locate()} className="me-locate"><Icon name="compass" />Minha localização</button>
-        <button type="button" onClick={() => (form ? closeForm() : openForm(null))} className="me-add"><Icon name={form ? 'x' : 'calendarplus'} />{form ? 'Fechar cadastro' : 'Cadastrar lugar'}</button>
+        {canEdit ? <button type="button" onClick={() => (form ? closeForm() : openForm(null))} className="me-add"><Icon name={form ? 'x' : 'calendarplus'} />{form ? 'Fechar cadastro' : 'Cadastrar lugar'}</button> : null}
         {geoMsg ? <span className="me-msg">{geoMsg}</span> : null}
       </nav>
       <div id="mapa" className={`me-map${picking ? ' picking' : ''}`} ref={mapEl} role="region" aria-label="Mapa com os locais do evento">{!ready ? <div className="me-loading">Carregando o mapa…</div> : null}{picking ? <div className="me-pickhint">Toque no mapa para marcar o lugar</div> : null}</div>
-      {form ? (
+      {form && canEdit ? (
         <form id="cadastro" className="me-form" onSubmit={save}>
           <h2><Icon name="calendarplus" />{form.id ? 'Editar lugar' : 'Cadastrar novo lugar'}</h2>
           <div className="me-grid">
@@ -241,10 +243,10 @@ export default function MapaEventos() {
               <a className="me-btn wz" href={waze(p)} target="_blank" rel="noopener noreferrer"><Icon name="next" />Rota no Waze</a>
               <a className="me-btn other" href={geoUri(p)}><Icon name="external" />Outro app de mapas</a>
               {p.builtin ? <a className="me-btn ghost" href={`index.html#local/${p.venues[0]}`}><Icon name="list" />Programação deste local</a>
-                : <span className="me-edit"><button type="button" onClick={() => openForm(p)}><Icon name="sliders" />Editar</button><button type="button" className="del" onClick={() => remove(p)}><Icon name="x" />Excluir</button></span>}
+                : canEdit ? <span className="me-edit"><button type="button" onClick={() => openForm(p)}><Icon name="sliders" />Editar</button><button type="button" className="del" onClick={() => remove(p)}><Icon name="x" />Excluir</button></span> : null}
             </div>
           </article>); })}
-        {!shown.length ? <p className="me-empty">Nenhum lugar deste tipo cadastrado ainda. Use "Cadastrar lugar".</p> : null}
+        {!shown.length ? <p className="me-empty">Nenhum lugar deste tipo cadastrado ainda.</p> : null}
       </section>
       <footer className="me-foot">
         <p>{D.event.organizer} · {D.event.tagline}. Mapa © colaboradores do OpenStreetMap. As coordenadas das escolas vêm do OpenStreetMap; SEBRAE e Auditório estão marcados pelo endereço da rua. {extra.length ? `${extra.length} lugar${extra.length === 1 ? '' : 'es'} cadastrado${extra.length === 1 ? '' : 's'} pela equipe` : 'Nenhum lugar extra cadastrado ainda'}{apiState === 'offline' ? ' · servidor do tce-senhas fora do ar: mostrando a última cópia deste aparelho' : ''}.</p>
