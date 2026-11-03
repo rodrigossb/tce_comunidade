@@ -263,7 +263,15 @@ export default function Atendimento() {
     const seq = plan && plan.has_prio ? (
       <div className="door-seq"><div><small>Comuns</small><b>{plan.normal.last ?? '—'}</b><em>última</em><b>{plan.normal.next ?? '—'}</b><em>próxima</em>{plan.normal.left != null ? <span>faltam {plan.normal.left} de {plan.normal.total}</span> : null}</div><div className="p"><small>{I('star')}Prioritárias</small><b>{plan.prio.last ?? '—'}</b><em>última</em><b>{plan.prio.next ?? '—'}</b><em>próxima</em><span>faltam {plan.prio.left} de {plan.prio.total}</span></div></div>
     ) : null;
-    const nextTag = plan && plan.has_prio ? <i className={`prio ${nxt.priority ? '' : 'n'}`}>{nxt.priority ? 'Prioridade' : 'comum'}</i> : null;
+    // Botão grande da próxima: número em destaque e o tipo (Normal/Prioridade) quando a sala tem prioritárias.
+    const nextBtn = (label, onClick, sub) => (
+      <button className="door-next big" data-act={label} disabled={busy} onClick={onClick}>
+        <span className="dn-top">{I('megaphone')}{label === 'advance' ? 'Chamar a próxima' : 'Chamar a senha'}</span>
+        <span className="dn-num">{next}</span>
+        {plan && plan.has_prio ? <span className={`dn-type ${nxt.priority ? 'p' : 'n'}`}>{nxt.priority ? I('star') : null}{nxt.priority ? 'Prioridade' : 'Normal'}</span> : null}
+        <small>{sub}{nxt.why ? ` · ${whyLabel(nxt.why)}` : ''}</small>
+      </button>
+    );
     // Senha da vez: chamada e ainda não encerrada (entra no ato; "chamada" pura só em registros antigos).
     const atDoor = cur && (cur.status === 'called' || (cur.status === 'served' && !cur.ended_at)) ? cur : null;
     // Alguém ainda em atendimento além da senha da vez (registros antigos / "entrou" pelo histórico).
@@ -280,16 +288,16 @@ export default function Atendimento() {
         <div className="door">
           {atDoor ? (
             <>
-              <div className="door-now door-call"><small>{I('megaphone')}Senha chamada · na sala{atDoor.priority ? <i className="prio">Prioridade</i> : null}</small><button type="button" className="door-num" data-act="recall" disabled={busy} onClick={() => act.recall(atDoor.id)} title="Chamar novamente na TV"><b>{atDoor.ticket ?? '—'}</b><em>{I('megaphone')}toque para chamar de novo</em></button>
+              <div className="door-now door-call compact"><small>{I('megaphone')}Na sala agora{atDoor.priority ? <i className="prio">Prioridade</i> : null}</small><button type="button" className="door-num" data-act="recall" disabled={busy} onClick={() => act.recall(atDoor.id)} title="Chamar novamente na TV"><b>{atDoor.ticket ?? '—'}</b><em>{I('megaphone')}toque para chamar de novo</em></button>
                 <span className="st called">entrou às {fmtT(atDoor.called_at)}{atDoor.recalled_at ? ` · repetida às ${fmtT(atDoor.recalled_at)}` : ''}</span></div>
-              <button className="door-next" data-act="advance" disabled={busy} onClick={() => act.resolve(atDoor.id, 'served', next)}>{I('megaphone')}<span><b>Chamar a próxima · senha {next}{nextTag}</b><small>a senha {atDoor.ticket ?? '—'} foi atendida{nxt.why ? ` · ${whyLabel(nxt.why)}` : ''}</small></span></button>
+              {nextBtn('advance', () => act.resolve(atDoor.id, 'served', next), `a senha ${atDoor.ticket ?? '—'} foi atendida`)}
               {seq}
               <div className="door-res"><button className="ghost" data-act="recall" disabled={busy} onClick={() => act.recall(atDoor.id)}>{I('megaphone')}<span>Chamar de novo<small>a TV anuncia a senha {atDoor.ticket ?? '—'} outra vez</small></span></button><button className="no" data-act="resolve" data-status="absent" disabled={busy} onClick={() => act.resolve(atDoor.id, 'absent', next)}>{I('x')}<span>Não veio<small>registra a falta e chama a senha {next}</small></span></button></div>
             </>
           ) : (
             <>
               <div className="door-now idle"><small>{cur ? 'Nenhuma senha aguardando na porta' : 'Nenhuma senha chamada ainda'}</small><b>—</b></div>
-              <button className="door-next" data-act="call" disabled={busy} onClick={() => act.call(next, 'served')}>{I('megaphone')}<span><b>Chamar a senha {next}{nextTag}</b><small>a chamada já registra a entrada na sala{nxt.why ? ` · ${whyLabel(nxt.why)}` : ''}</small></span></button>
+              {nextBtn('call', () => act.call(next, 'served'), 'a chamada já registra a entrada na sala')}
               {seq}
               <p className="door-hint">A chamada aparece na TV (e por voz) e a pessoa entra na sala. Ao terminar, toque em "Chamar a próxima".{issued != null && next > issued ? ' (A triagem registrou menos senhas entregues do que isso.)' : ''}</p>
             </>

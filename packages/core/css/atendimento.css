@@ -81,7 +81,17 @@
 .door-res .ghost{background:var(--card);color:var(--ink);border:1.5px solid var(--line);box-shadow:none}
 .hist li b .prio,.door-now small .prio,.door-next b .prio{display:inline-block;font-style:normal;font-family:var(--font-text);font-size:.6em;font-weight:800;background:#2563eb;color:#fff;border-radius:.35em;padding:.15em .4em;margin-left:.4em;vertical-align:middle;letter-spacing:.04em}
 .door-now small .prio{font-size:.85em;text-transform:none}
-.door-next b .prio{font-size:.62em;vertical-align:.15em}.door-next b .prio.n{background:rgba(255,255,255,.22)}
+/* porta: senha na sala compacta; a PRÓXIMA é o destaque (número grande + tipo) */
+.door-now.door-call.compact{display:grid;grid-template-columns:1fr auto;grid-template-areas:"k num" "st num";align-items:center;text-align:left;padding:.7em 1em;gap:.1em .8em}
+.door-now.door-call.compact small{grid-area:k}.door-now.door-call.compact .st{grid-area:st;justify-self:start;font-size:.8em;padding:.25em .7em}
+.door-now.door-call.compact .door-num{grid-area:num;display:flex;flex-direction:column;align-items:center;margin:0}
+.door-now.door-call.compact b{font-size:2.8em;margin:0}.door-now.door-call.compact .door-num em{font-size:.62em}
+.door-next.big{height:auto;flex-direction:column;align-items:center;gap:.05em;padding:.7em 1em .8em;text-align:center}
+.door-next.big .dn-top{display:inline-flex;align-items:center;gap:.4em;font-size:.85em;font-weight:800;text-transform:uppercase;letter-spacing:.1em;opacity:.9}
+.door-next.big .dn-num{font-family:var(--font-display);font-size:4.2em;line-height:1;font-weight:800;letter-spacing:-.03em}
+.door-next.big .dn-type{display:inline-flex;align-items:center;gap:.3em;margin-top:.25em;font-size:1em;font-weight:800;text-transform:uppercase;letter-spacing:.1em;border-radius:999px;padding:.3em 1.1em;background:#2563eb;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.door-next.big .dn-type.n{background:#fff;color:#14532d}.door-next.big .dn-type .ico{width:1.1em;height:1.1em}
+.door-next.big small{display:block;font-size:.72em;font-weight:700;opacity:.8;margin-top:.35em}
 /* triagem: senhas prioritárias da sala */
 .tri-prio{grid-column:1/-1;display:grid;grid-template-columns:auto 1fr;gap:.2em .6em;align-items:center;border-top:1px dashed var(--line);padding-top:.5em;margin-top:.1em}
 .tri-prio label{display:inline-flex;align-items:center;gap:.3em;font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#1d4ed8;white-space:nowrap}

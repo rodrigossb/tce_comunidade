@@ -92,9 +92,14 @@ Direito das Mulheres, Videomaker e Cidadania Conectada têm mais de uma turma).
 Desde 02/11 a ESCON expõe também a **API pública do painel** (`/escon/admin/api/public/painel/oiapoque?k=…`, JSON, mesma
 chave), igualmente só de dentro da rede do TCE. Todos os caminhos aceitam esse JSON (`apiCards` em
 `packages/core/src/inscritos.js`: leitura tolerante de título/período/inscritos/vagas/id; um `id` igual ao id da ESCON
-casa a turma direto). As páginas (resumo-cursos, resumo-total, lanches) **não têm mais atualização manual**: leem, em
+casa a turma direto). As páginas (resumo, resumo-cursos, resumo-total, lanches) leem, em
 ordem, (1) a **API ao vivo** `GET /tce-senhas/api/inscritos` (CORS liberado), (2) `apps/site/public/inscritos.json`
 publicado com o site e (3) a cópia guardada no aparelho (a mais nova vence); hook `apps/site/lib/useInscritos.js`.
+Elas têm ainda o botão **Sincronizar inscritos** (`components/resumo/SyncInscritos.jsx`): lê a API do painel direto do
+navegador (só funciona de dentro da rede do TCE), mostra "N turmas atualizadas (+X inscritos)", guarda no aparelho e envia
+ao tce-senhas para os outros. A URL da API (com `?k=`) e a chave de envio **não ficam no código** (o site é público): são
+pedidas uma vez e guardadas só naquele navegador (`?painel=<url codificada>` também grava a URL; "esquecer chave" limpa).
+Se o navegador bloquear a leitura direta (CORS), aparece um atalho para abrir a API e colar o JSON.
 
 ### Coletor de inscritos (roda em segundo plano, dentro da rede do TCE)
 A API da ESCON **recusa conexão de fora** (`ECONNREFUSED` deste servidor, de buscadores externos e dos runners do GitHub), então
