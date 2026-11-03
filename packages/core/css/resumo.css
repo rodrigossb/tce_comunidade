@@ -42,7 +42,9 @@
 .sync-det-tbl .num{font-size:.78rem;color:var(--mut);font-variant-numeric:tabular-nums}
 .sync-det-tbl tr.up td.n b{color:#15803d}.sync-det-tbl tr.down td.n b{color:#b91c1c}
 .sync-det-tbl .tag{font-style:normal;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#1d4ed8;background:#dbeafe;border-radius:999px;padding:.1rem .5rem}
-@media print{.sync-box{display:none}}
+.sync-last{display:flex;align-items:center;gap:.35rem;font-size:.82rem;color:var(--mut);margin:.35rem 0 0}
+.sync-last .ico{width:1em;height:1em;flex:none}.sync-last b{color:var(--ink,#0b1220)}
+@media print{.sync-box>*{display:none}.sync-box .sync-last{display:flex}}
 /* capa */
 .rs .cover{padding:2rem 0 2.5rem;border-bottom:1px solid var(--line)}
 .rs .cover img{height:3.2rem;width:auto;align-self:flex-start;object-fit:contain;margin-bottom:2rem}

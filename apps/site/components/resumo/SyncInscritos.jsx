@@ -6,11 +6,11 @@
    formulário na própria página e guardadas só neste navegador (ou vêm por ?painel=<url ou chave>). Aceita a chave
    sozinha, "k=…" ou a URL completa. Se o navegador bloquear a leitura direta (CORS/rede), aparece um atalho: abrir
    a API e colar o JSON aqui. */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TCE as T } from '@tce/core';
 import { apiCards, panelInfoOf, fromPanelCards, groupsOf } from '@tce/core/inscritos';
 import Icon from '@/components/Icon';
-import { LS_DATA, loadLS, saveLS } from '@/lib/useInscritos';
+import { LS_DATA, loadLS, saveLS, inscritosSourceLabel } from '@/lib/useInscritos';
 
 const PANEL_HOST = 'https://servicos.tce.ap.gov.br/escon/admin/api/public/painel/';
 const PANEL_EVENT = 'oiapoque'; // painel desta edição (a chave vem do usuário, não do código)
@@ -50,7 +50,18 @@ function savedPanelUrl() {
   return ls.get(LS_PANEL);
 }
 
-export default function SyncInscritos({ onData }) {
+/** "terça, 03/11 às 09:58 · sincronizado nesta página · painel de …" */
+function lastSyncLabel(enr) {
+  if (!enr || !enr.updatedAt) return '';
+  const p = T.partsOf(new Date(enr.updatedAt)); const how = inscritosSourceLabel(enr).split(' · ').slice(1).join(' · ');
+  return `${T.fmtDate(p.date, 'wdlong')} às ${p.time}${how ? ` · ${how}` : ''}`;
+}
+
+export default function SyncInscritos({ onData, enr }) {
+  // Sem `enr` (página que não usa o hook), lê o que está guardado neste aparelho depois de montar (evita divergir do HTML estático).
+  const [local, setLocal] = useState(null);
+  useEffect(() => { if (enr === undefined) setLocal(loadLS(LS_DATA, null)); }, [enr]);
+  const cur = enr !== undefined ? enr : local;
   const [st, setSt] = useState({ busy: false, msg: '', kind: '', fallback: false });
   const [setup, setSetup] = useState(false); // formulário com as chaves aberto
   const [details, setDetails] = useState(null); // { items, unmatched, when } da última sincronização
@@ -64,7 +75,7 @@ export default function SyncInscritos({ onData }) {
     const cur = loadLS(LS_DATA, null); const d = diffInscritos(cur && cur.byId, byKey);
     const painelInfo = panelInfoOf(obj) || '';
     const data = { byId: byKey, updatedAt: Date.now(), source: 'sincronizado', painelInfo };
-    saveLS(LS_DATA, data); if (onData) onData(data);
+    saveLS(LS_DATA, data); if (onData) onData(data); else setLocal(data);
     // envia para o tce-senhas (os outros aparelhos e as outras páginas leem de lá); a chave fica só neste navegador
     let sent = '';
     const api = SEND_API(); const token = ls.get(LS_TOKEN);
@@ -134,6 +145,7 @@ export default function SyncInscritos({ onData }) {
           </div>
         </form>
       ) : null}
+      <p className="sync-last">{cur && cur.updatedAt ? <><Icon name="clock" /><b>Última sincronização dos inscritos:</b> {lastSyncLabel(cur)}</> : <><Icon name="alert" />Ainda sem leitura do painel neste aparelho.</>}</p>
       {details ? <Details d={details} open={showDet} setOpen={setShowDet} all={showAll} setAll={setShowAll} /> : null}
       {st.fallback ? <div className="sync-paste"><textarea ref={paste} rows={3} placeholder="Cole aqui o conteúdo (JSON) que a API do painel mostrou" /><button type="button" className="sync-btn" onClick={fromPaste} disabled={st.busy}><Icon name="check" />Usar o que colei</button></div> : null}
     </div>

@@ -55,7 +55,7 @@ function Doc() {
   return (
     <>
       <div className="rs-tools"><button onClick={() => window.print()}><Icon name="download" />Imprimir / PDF</button><button onClick={copyText}><Icon name="copy" />Copiar texto</button><a href="resumo-total.html"><Icon name="layers" />Resumo total</a><a href="resumo-cursos.html"><Icon name="graduation" />Cursos e inscritos</a><a href="index.html"><Icon name="phone" />App</a></div>
-      <SyncInscritos onData={setEnr} />
+      <SyncInscritos onData={setEnr} enr={enr} />
       <div className="rs-tools rs-locais"><span className="muted tiny">Local:</span><a href={qs({ local: '' })} className={sel ? '' : 'on'}>Todos</a>{VENUE_ORDER.filter((v) => T.allSessions().some((x) => x.venue === v)).map((v) => <a key={v} href={qs({ local: v })} className={sameSet(sel, venueFilter(v)) ? 'on' : ''}>{D.venues[v].short}</a>)}</div>
       <div className="rs-tools rs-locais"><span className="muted tiny">Dia:</span><a href={qs({ dia: '' })} className={dsel ? '' : 'on'}>Todos</a>{allDays.map((d) => <a key={d} href={qs({ dia: d.slice(8) })} className={dsel && dsel.size === 1 && dsel.has(d) ? 'on' : ''}>{cap(T.fmtDate(d, 'wd'))}</a>)}{copied ? <span className="tiny ok">{copied}</span> : null}</div>
 

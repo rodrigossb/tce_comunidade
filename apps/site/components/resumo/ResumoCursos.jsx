@@ -163,7 +163,7 @@ function Doc({ variant }) {
   return (
     <>
       <div className="rs-tools"><button onClick={() => window.print()}><Icon name="download" />Imprimir / PDF</button><a href="resumo.html"><Icon name="list" />Resumo geral</a>{total ? <a href="resumo-cursos.html"><Icon name="graduation" />Resumo de cursos</a> : <a href="resumo-total.html"><Icon name="layers" />Resumo total</a>}<a href="lanches.html"><Icon name="store" />Lanches</a><a href="index.html"><Icon name="phone" />App</a></div>
-      <SyncInscritos onData={setEnr} />
+      <SyncInscritos onData={setEnr} enr={enr} />
       <div className="rs-tools rs-locais"><span className="muted tiny">Local:</span><a href={page} className={sel ? '' : 'on'}>Todos</a>{VENUE_ORDER.filter((v) => T.allSessions().some((x) => x.venue === v)).map((v) => <a key={v} href={`${page}?local=${v}`} className={sameSet(sel, venueFilter(v)) ? 'on' : ''}>{D.venues[v].short}</a>)}</div>
       <section className="cover">
         <img src="img/tce-logo.png" alt="Tribunal de Contas do Estado do Amapá" />
