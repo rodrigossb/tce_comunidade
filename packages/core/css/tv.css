@@ -56,13 +56,16 @@
 .col-h em.live{background:#0b1220;color:#fff;animation:blink 1.6s infinite}
 .col-bar{flex:none;height:.35em;background:rgba(255,255,255,.12)}
 .col-bar i{display:block;height:100%;background:var(--c);transition:width 1s linear}
-.col-list{flex:1;min-height:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,19em),1fr));align-content:start;gap:.5em;padding:.6em}
+.col-list{flex:1;min-height:0;display:flex;flex-direction:column;gap:.5em;padding:.6em}
 .col-empty{margin:auto;color:var(--mut);text-align:center;font-weight:600;font-size:1em;padding:1em}
-.ev{flex:none;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.7em;background:var(--card);color:var(--card-ink);border-radius:.7em;padding:.5em .7em .5em .5em;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.18)}
-.ev-room{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:5.2em;padding:.4em .5em;border-radius:.5em;background:color-mix(in srgb,var(--c) 30%,#fff);color:var(--card-ink);line-height:1;text-align:center}
+.ev{flex:1 0 auto;max-height:7.6em;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.75em;background:var(--card);color:var(--card-ink);border-radius:.7em;padding:.45em .7em .45em .45em;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.ev-room{align-self:stretch;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:5.2em;padding:.35em .5em;border-radius:.55em;background:color-mix(in srgb,var(--c) 30%,#fff);color:var(--card-ink);line-height:1;text-align:center}
 .ev-room b{font-family:var(--font-display);font-weight:900;font-size:1.3em;letter-spacing:-.02em;white-space:nowrap}
-.ev-room small{font-size:.72em;font-weight:800;color:var(--card-mut);margin-top:.25em;white-space:nowrap;text-transform:uppercase;letter-spacing:.03em}
-.ev-room small.where{text-transform:none;letter-spacing:0;font-weight:700}
+.ev-room small{font-size:.7em;font-weight:800;color:var(--card-mut);margin-top:.25em;white-space:nowrap}
+.ev-room small.k{margin:0 0 .1em;text-transform:uppercase;letter-spacing:.14em;font-size:.6em;color:color-mix(in srgb,var(--card-ink) 70%,var(--c))}
+.ev-room.num b{font-size:2.3em;font-variant-numeric:tabular-nums;letter-spacing:-.04em}
+.ev-room small.where{font-weight:700}
+.ev-time{font-variant-numeric:tabular-nums;font-weight:800!important;color:var(--card-ink)!important}
 .ev-main{min-width:0;display:flex;flex-direction:column;gap:.15em}
 .ev-main b{font-size:1.12em;line-height:1.12;font-weight:800;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .ev-main small{color:var(--card-mut);font-size:.84em;font-weight:600;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
@@ -71,21 +74,37 @@
 .ev.now{outline:.22em solid var(--c);outline-offset:-.05em}
 .ev.past{opacity:.55;box-shadow:none}
 .ev.past .ev-tag{background:#64748b;color:#fff}
+/* dentro de uma coluna que já diz "Agora"/"Encerrado", o cartão não repete a etiqueta */
+.col.now .ev.now .ev-tag,.col.past .ev.past .ev-tag{display:none}
+.col.now .ev.now{outline:none}
+/* turno encerrado: coluna estreita, só sala + título */
+.col.past .col-h{gap:.4em;padding:.55em .7em}
+.col.past .col-h b{font-size:1.1em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.col.past .col-h b .ico{display:none}
+.col.past .col-h span{display:none}
+/* poucos cursos no turno: cartões mais altos e letra maior, para a coluna não ficar vazia */
+.col.few:not(.past) .ev{max-height:11em}
+.col.few:not(.past) .ev-main b{font-size:1.4em}
+.col.few:not(.past) .ev-main small{font-size:1em}
+.col.few:not(.past) .ev-room{min-width:6.4em}
+.col.few:not(.past) .ev-room.num b{font-size:3em}
+.col.few:not(.past) .ev-room small{font-size:.8em}
+.col.past .ev{max-height:4.6em;gap:.5em;padding:.35em .5em .35em .35em}
+.col.past .ev-main small{display:none}
+.col.past .ev-main b{-webkit-line-clamp:2;font-size:.95em}
+.col.past .ev-room{min-width:3.6em;padding:.25em .35em}
+.col.past .ev-room.num b{font-size:1.5em}
+.col.past .ev-room small{display:none}
 .board.compact .ev-main small{display:none}
 .board.compact .ev{padding:.35em .6em .35em .4em}
 .board.compact .ev-room{padding:.3em .4em}
 .board.compact .ev-main b{-webkit-line-clamp:1}
 .board.compact .col-list{gap:.35em}
-.svc-strip{flex:none;display:flex;align-items:center;gap:.5em;overflow:hidden;padding:.1em .2em 0}
-.svc-strip>small{flex:none;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:.72em;color:var(--mut);margin-right:.3em}
-.svc-chip{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:.45em;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:.35em .7em .35em .4em;font-weight:700;font-size:.86em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.svc-chip i{flex:none;width:1.7em;height:1.7em;border-radius:50%;display:grid;place-items:center;background:var(--c);color:var(--ink-on-c)}
-.svc-chip span{overflow:hidden;text-overflow:ellipsis}
+.board.compact .ev-room.num b{font-size:1.8em}
 .tv.portrait .cols{grid-template-columns:minmax(0,1fr)}
 .tv.portrait .col{flex-direction:column}
-.tv.portrait .col-list{grid-template-columns:repeat(2,minmax(0,1fr))}
-.tv.portrait .svc-strip{flex-wrap:wrap}
-.tv.portrait .svc-chip{flex:1 1 22%}
+.tv.portrait .col-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start}
+.tv.portrait .ev{max-height:none}
 
 /* lateral: destaques + QR */
 .tv-side{min-height:0;display:flex;flex-direction:column;gap:.8em}
@@ -98,7 +117,7 @@
 .hl-tag{display:inline-flex;align-items:center;gap:.4em;align-self:flex-start;font-size:.78em;font-weight:900;text-transform:uppercase;letter-spacing:.08em;background:var(--c);color:var(--ink-on-c);padding:.3em .8em;border-radius:999px}
 .hl-tag.live i{width:.6em;height:.6em;border-radius:50%;background:#0b1220;animation:blink 1.6s infinite}
 .hl-room{font-family:var(--font-display);font-size:2em;font-weight:900;line-height:1;letter-spacing:-.03em;margin-top:.15em}
-.hl-room small{font-family:var(--font-text);font-size:.45em;font-weight:700;color:var(--card-mut);letter-spacing:0;margin-left:.4em}
+.hl-room small{font-family:var(--font-text);font-size:.42em;font-weight:700;color:var(--card-mut);letter-spacing:0;margin-left:.5em;vertical-align:.25em}
 .hl-title{font-size:1.15em;font-weight:800;line-height:1.15;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .hl-aud{font-size:.86em;color:var(--card-mut);font-weight:600;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .hl-aud b{color:var(--card-ink)}
@@ -131,9 +150,6 @@
 .tv-foot span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ---------- dias de serviços ---------- */
-.svc-strip>b{flex:none;font-size:.95em;font-weight:800;color:var(--accent);margin-right:.4em;white-space:nowrap}
-.svc-strip>small .ico{width:1.1em;height:1.1em;color:var(--accent);margin-right:.3em;vertical-align:-.2em}
-.svc-chip.more{flex:0 0 auto;justify-content:center;padding:.35em .8em;color:var(--mut)}
 .board.svc-mode{gap:.7em}
 .svc-grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:.7em}
 .svc-card{min-height:0;min-width:0;display:flex;flex-direction:column;gap:.35em;background:var(--card);color:var(--card-ink);border-radius:.9em;padding:.7em .85em;border-top:.45em solid var(--c);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.18)}
@@ -164,11 +180,3 @@
 .tv.portrait .hl-items li{font-size:.82em;-webkit-line-clamp:1}
 .tv.portrait .hl.svc .hl-room{font-size:1.2em}
 
-.svc-strip.days{gap:.7em}
-.svc-strip.days>small{margin-right:0}
-.svc-icons{display:flex;gap:.3em;flex:none}
-.svc-icons i{width:1.9em;height:1.9em;border-radius:50%;display:grid;place-items:center;background:var(--c);color:var(--ink-on-c);font-style:normal}
-.svc-icons i .ico{width:1.05em;height:1.05em}
-.svc-hint{flex:1;min-width:0;color:var(--mut);font-weight:600;font-size:.88em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tv.portrait .svc-strip.days{flex-wrap:wrap}
-.tv.portrait .svc-hint{flex:1 1 100%}

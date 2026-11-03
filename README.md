@@ -29,8 +29,11 @@ assets em caminho relativo (`assetPrefix: './'`); por isso todas as páginas fic
 | `?zoom=0.9` · `?theme=light` · `?orientation=portrait` | Escala do texto, tema claro, orientação forçada |
 
 Teclas: `F` tela cheia · `+` `−` `0` escala · `L` claro/escuro · `→` `←` troca os destaques · `Esc` limpa
-ajustes salvos. Recarrega sozinha às 4h e se ficar travada. Programação do dia em colunas por turno (o turno
-em andamento ganha destaque), faixa com os 9 blocos de serviços, 2 destaques ("agora" e "a seguir") e QR Code.
+ajustes salvos. Recarrega sozinha às 4h e se ficar travada. Programação do dia em colunas por turno: o turno
+em andamento ganha espaço, o encerrado vira uma coluna estreita só com sala e título; cada cartão mostra o
+**número da sala na planta** (o da placa na porta, DE → PARA de `salas-cursos.js`) grande, com o nome da
+programação ("Sala IV") embaixo; os cartões crescem para preencher a coluna e não repetem "Agora"/"Encerrado"
+quando a coluna já diz isso. Lateral com 2 destaques ("agora" e "a seguir") e QR Code; faixa de serviços no rodapé.
 
 ## App (`index.html`)
 Rotas por hash, compartilháveis: `#programacao?d=2026-11-05&local=jn`, `#busca?q=vacina`,

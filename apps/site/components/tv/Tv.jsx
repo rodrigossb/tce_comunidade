@@ -16,6 +16,15 @@ const clamp = (z) => Math.min(ZOOM[1], Math.max(ZOOM[0], z));
 const loadPrefs = () => { try { return JSON.parse(localStorage.getItem(LS)) || {}; } catch { return {}; } };
 const savePrefs = (p) => { try { localStorage.setItem(LS, JSON.stringify(p)); } catch { /* sem storage */ } };
 const cap = (s) => s.replace(/^./, (c) => c.toUpperCase());
+/** Sala como a pessoa a encontra na escola: número da porta na planta (DE → PARA validado em salas-cursos.js)
+    + nome usado na programação/inscrição ("Sala IV"). Sem planta (SEBRAE, auditório): só o nome. */
+const roomInfo = (x) => {
+  const pl = T.courseRoomPlace(x); const v = D.venues[x.venue];
+  if (pl && pl.num) { const kind = pl.kind === 'sala' ? 'Sala' : pl.kind === 'tenda' ? 'Tenda' : 'Ambiente'; return { num: pl.num, kind, name: x.room, label: `${kind} ${pl.num}` }; }
+  return { num: '', kind: '', name: x.room || v.short, label: x.room || v.short };
+};
+/** Horário da aula só quando foge do padrão do turno (o cabeçalho da coluna já diz "8h às 12h"). */
+const oddTime = (x) => { const sh = T.SHIFTS[x.shift]; return T.toMin(x.time) !== T.toMin(sh.start) || T.toMin(T.sessionEnd(x)) !== T.toMin(sh.end); };
 
 export default function Tv() {
   const [mounted, setMounted] = useState(false);
@@ -76,7 +85,6 @@ function TvLive() {
   const roomIdx = (x) => { const k = D.venues[x.venue].rooms.indexOf(x.room); return k < 0 ? 99 : k; };
   const vIdx = (x) => Object.keys(D.venues).indexOf(x.venue);
   const byRoom = (a, b) => T.toMin(a.time) - T.toMin(b.time) || vIdx(a) - vIdx(b) || roomIdx(a) - roomIdx(b) || String(a.room).localeCompare(String(b.room));
-  const roomOf = (x) => x.room || D.venues[x.venue].short;
   const dayWord = (date) => (date === clock.date ? 'hoje' : T.relDay(date, clock.date) === 'amanhã' ? 'amanhã' : T.fmtDate(date, 'wdlong'));
   const whenOf = (date) => (date === clock.date ? 'Hoje' : T.relDay(date, clock.date) === 'amanhã' ? 'Amanhã' : cap(T.fmtDate(date, 'wdlong')));
 
@@ -169,19 +177,19 @@ function TvLive() {
       </header>
       <div className="tv-body">
         <div id="board-wrap" className="board-wrap">
-          <Board key={boardKey} date={date} clock={clock} venueSel={venueSel} venueName={venueName} q={{ sessionsAt, svcDayAt, st, shiftState, shiftWin, byRoom, roomOf, whenOf }} />
+          <Board key={boardKey} date={date} clock={clock} venueSel={venueSel} venueName={venueName} q={{ sessionsAt, svcDayAt, st, shiftState, shiftWin, byRoom, whenOf }} />
         </div>
         <aside className="tv-side">
           <div className="side-title" id="hl-title"><Icon name="star" />{pool.label}{n > HL_COUNT ? ` · ${n} ${pool.items[0] && pool.items[0].service ? 'blocos' : 'cursos'}` : ''}</div>
           <div className={`hl-wrap${hl.fading ? ' fading' : ''}`} id="hl">
             {!n ? <div className="hl-empty"><Icon name="handshake" /><span>Sem cursos neste momento.<br />Os serviços gratuitos continuam: veja a faixa abaixo.</span></div>
-              : hlItems.map((x, k) => <HlCard key={k} x={x} clock={clock} venueSel={venueSel} st={st} roomOf={roomOf} dayWord={dayWord} />)}
+              : hlItems.map((x, k) => <HlCard key={k} x={x} clock={clock} venueSel={venueSel} st={st} dayWord={dayWord} />)}
           </div>
           <div className="tv-qr"><QrSvg text={url} margin={1} /><div><b><Icon name="phone" />Aponte a câmera do celular</b><p>Veja toda a programação, os serviços gratuitos e faça sua inscrição.</p><code>{shortUrl}</code></div></div>
         </aside>
       </div>
       <div className="tv-ticker"><span className="tv-ticker-label"><Icon name="megaphone" />Serviços · {T.serviceDays().map((d) => d.date.slice(8) + '/11').join(' e ')}</span><div className="tv-ticker-track"><span>{ticker}</span><span aria-hidden="true">{ticker}</span></div></div>
-      <footer className="tv-foot"><span>{D.event.organizer} · {D.event.tagline}</span><span>Cursos gratuitos com inscrição pelo QR Code · Serviços sem inscrição: {T.serviceDaysLabel()}</span></footer>
+      <footer className="tv-foot"><span>{D.event.organizer} · {D.event.tagline}</span><span>Cursos gratuitos com inscrição pelo QR Code · número da sala conforme a placa na porta</span></footer>
     </div>
   );
 }
@@ -189,12 +197,14 @@ function TvLive() {
 /** Etiqueta "Agora"/"Encerrado" de uma aula. */
 const EvTag = ({ s }) => (s === 'now' ? <span className="ev-tag">Agora</span> : s === 'past' ? <span className="ev-tag">Encerrado</span> : null);
 
-/** Faixa de aviso dos dias de serviços (dias comuns). */
-function SvcStrip() {
+/** Bloco da sala no cartão: número da porta grande ("08"), tipo em cima e nome da programação embaixo. */
+function RoomBox({ x, venueSel }) {
+  const r = roomInfo(x); const v = D.venues[x.venue];
   return (
-    <div className="svc-strip days"><small><Icon name="handshake" />Serviços gratuitos</small><b>{T.serviceDaysLabel()}</b>
-      <span className="svc-icons">{D.services.map((s) => <i key={s.id} style={{ '--c': s.color }} title={s.short}><Icon name={s.icon} /></i>)}</span>
-      <span className="svc-hint">sem inscrição · saúde, documentos, justiça, feiras e mais</span></div>
+    <div className={`ev-room${r.num ? ' num' : ''}`}>
+      {r.num ? <><small className="k">{r.kind}</small><b>{r.num}</b><small>{r.name}</small></> : <b>{r.name}</b>}
+      {!venueSel ? <small className="where">{v.short}</small> : null}
+    </div>
   );
 }
 
@@ -205,7 +215,7 @@ const BoardPill = ({ date, clock }) => {
 
 /** Quadro do dia: colunas por turno (dias de cursos) ou 9 pilares + faixa de cursos (dias de serviços). */
 function Board({ date, clock, venueSel, venueName, q }) {
-  const { sessionsAt, svcDayAt, st, shiftState, shiftWin, byRoom, roomOf, whenOf } = q;
+  const { sessionsAt, svcDayAt, st, shiftState, shiftWin, byRoom, whenOf } = q;
   const sd = svcDayAt(date);
   const list = sessionsAt(date).sort(byRoom);
   const isToday = date === clock.date;
@@ -224,7 +234,7 @@ function Board({ date, clock, venueSel, venueName, q }) {
         {list.length ? (
           <div className="ev-strip"><div className="ev-strip-h"><b><Icon name="graduation" />Cursos {isToday ? 'de hoje' : 'do dia'}</b><small>com inscrição pelo QR Code</small></div>
             <div className="ev-row">{list.map((x, k) => { const sx = st(x); const sh = T.SHIFTS[x.shift]; return (
-              <div key={k} className={`ev ${sx}`} style={{ '--c': sh.color }}><div className="ev-room"><b>{roomOf(x)}</b><small>{T.fmtTime(x.time)} às {T.fmtTime(T.sessionEnd(x))}</small></div><div className="ev-main"><b>{T.title(x.course, true)}</b><small><b>Para:</b> {x.course.audience}</small></div><EvTag s={sx} /></div>); })}</div></div>
+              <div key={k} className={`ev ${sx}`} style={{ '--c': sh.color }}><RoomBox x={x} venueSel={venueSel} /><div className="ev-main"><b>{T.title(x.course, true)}</b><small className="ev-time">{T.fmtTime(x.time)} às {T.fmtTime(T.sessionEnd(x))}</small><small><b>Para:</b> {x.course.audience}</small></div><EvTag s={sx} /></div>); })}</div></div>
         ) : null}
       </section>
     );
@@ -233,27 +243,28 @@ function Board({ date, clock, venueSel, venueName, q }) {
   const states = cols.map((k) => shiftState(k, date));
   // Largura de cada turno proporcional ao número de cursos (o turno em andamento ganha um pouco mais).
   const counts = cols.map((k) => list.filter((x) => x.shift === k).length);
-  const widths = cols.map((k, j) => { const w = (1 + 0.4 * (Math.min(counts[j], 10) - 1)) * (states[j] === 'now' ? 1.2 : states[j] === 'past' ? 0.85 : 1); return `${w.toFixed(2)}fr`; });
+  // Turno em andamento ganha espaço; turno encerrado vira uma coluna estreita só de referência.
+  const widths = cols.map((k, j) => { const w = (1 + 0.4 * (Math.min(counts[j], 10) - 1)) * (states[j] === 'now' ? 1.35 : states[j] === 'past' ? 0.5 : 1); return states[j] === 'past' ? `minmax(14em,${w.toFixed(2)}fr)` : `minmax(19em,${w.toFixed(2)}fr)`; });
   const nextCol = cols.find((k, j) => states[j] === 'later' && (j === 0 || states[j - 1] !== 'later'));
   return (
     <section className="board" id="board">
       <div className="board-head"><div><h1><Icon name="calendar" />Programação de <em>{when.toLowerCase()}</em></h1><div className="where"><Icon name="pin" />{venueName}{venueSel ? '' : ' · todos os locais'}</div></div><BoardPill date={date} clock={clock} /></div>
       {!cols.length ? <div className="col-empty">Sem cursos programados neste local. Veja os serviços gratuitos na faixa abaixo.</div> : (
-        <div className="cols" style={{ '--cols': widths.map((w) => `minmax(19em,${w})`).join(' ') }}>
+        <div className="cols" style={{ '--cols': widths.join(' ') }}>
           {cols.map((k, j) => {
             const sh = T.SHIFTS[k]; const s = states[j]; const [a, b] = shiftWin(k);
             const items = list.filter((x) => x.shift === k);
             const pct = s === 'now' ? Math.min(1, Math.max(0, (clock.min - a) / (b - a))) : s === 'past' ? 1 : 0;
             const tag = s === 'now' ? <em className="live">Agora</em> : s === 'past' ? <em>Encerrado</em> : k === nextCol && isToday ? <em>Começa às {T.fmtTime(sh.start)}</em> : null;
             return (
-              <div key={k} className={`col ${s}`} style={{ '--c': sh.color }}>
+              <div key={k} className={`col ${s}${items.length <= 3 ? ' few' : ''}`} style={{ '--c': sh.color }}>
                 <div className="col-h"><b><Icon name={T.SHIFT_ICON[k]} />{sh.label}</b><span>{T.fmtTime(sh.start)} às {T.fmtTime(sh.end)}</span>{tag}</div>
                 {s !== 'later' ? <div className="col-bar"><i style={{ width: `${(pct * 100).toFixed(1)}%` }} /></div> : null}
                 <div className="col-list">
-                  {items.map((x, i) => { const sx = st(x); const v = D.venues[x.venue]; return (
+                  {items.map((x, i) => { const sx = st(x); return (
                     <div key={i} className={`ev ${sx}`} style={{ '--c': sh.color }}>
-                      <div className="ev-room"><b>{roomOf(x)}</b>{venueSel ? <small>{T.fmtTime(x.time)} às {T.fmtTime(T.sessionEnd(x))}</small> : <small className="where">{v.short}</small>}</div>
-                      <div className="ev-main"><b>{T.title(x.course, true)}{x.label ? ` · ${x.label}` : ''}</b><small><b>Para:</b> {x.course.audience}</small></div>
+                      <RoomBox x={x} venueSel={venueSel} />
+                      <div className="ev-main"><b>{T.title(x.course, true)}{x.label ? ` · ${x.label}` : ''}</b>{oddTime(x) ? <small className="ev-time">{T.fmtTime(x.time)} às {T.fmtTime(T.sessionEnd(x))}</small> : null}<small><b>Para:</b> {x.course.audience}</small></div>
                       <EvTag s={sx} />
                     </div>); })}
                 </div>
@@ -262,13 +273,12 @@ function Board({ date, clock, venueSel, venueName, q }) {
           })}
         </div>
       )}
-      <SvcStrip />
     </section>
   );
 }
 
 /** Cartão de destaque: um pilar de serviços (dia de serviços) ou uma aula. */
-function HlCard({ x, clock, venueSel, st, roomOf, dayWord }) {
+function HlCard({ x, clock, venueSel, st, dayWord }) {
   if (x.service) {
     const s = x.service; const items = T.itemsOn(s, x.date); const extra = items.length - 5;
     return (
@@ -278,14 +288,14 @@ function HlCard({ x, clock, venueSel, st, roomOf, dayWord }) {
         {extra > 0 ? <div className="hl-foot"><Icon name="info" />+{extra} {extra > 1 ? 'atendimentos' : 'atendimento'} · veja no celular</div> : null}</div>
     );
   }
-  const s = st(x); const sh = T.SHIFTS[x.shift]; const v = D.venues[x.venue];
+  const s = st(x); const sh = T.SHIFTS[x.shift]; const v = D.venues[x.venue]; const r = roomInfo(x);
   const tag = s === 'now' ? <span className="hl-tag live" style={{ '--c': sh.color }}><i />Agora · até {T.fmtTime(T.sessionEnd(x))}</span>
     : s === 'today' ? <span className="hl-tag" style={{ '--c': sh.color }}>Hoje às {T.fmtTime(x.time)}</span>
       : s === 'past' ? <span className="hl-tag" style={{ '--c': '#94a3b8' }}>Encerrado</span>
         : <span className="hl-tag" style={{ '--c': sh.color }}>{dayWord(x.date)} às {T.fmtTime(x.time)}</span>;
   return (
     <div className="hl" style={{ '--c': sh.color }}>{tag}
-      <div className="hl-room">{roomOf(x)}{x.room && !venueSel ? <small>{v.short}</small> : null}</div>
+      <div className="hl-room">{r.num ? <>{r.kind} {r.num}<small>{r.name}</small></> : r.name}{x.room && !venueSel ? <small>{v.short}</small> : null}</div>
       <div className="hl-title">{T.title(x.course, true)}</div>
       <div className="hl-aud"><b>Para:</b> {x.course.audience}</div>
       <div className="hl-foot"><Icon name="pin" />{v.name} · {x.course.hours}h · {x.course.seats} vagas</div></div>
