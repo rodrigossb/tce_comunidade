@@ -6,7 +6,7 @@ const basePath = process.env.BASE_PATH ?? '/tce-senhas';
 import { execSync } from 'node:child_process';
 let build = '';
 try { build = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { build = ''; }
-const BUILD = `${build || 'dev'} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`;
+const BUILD = `${build || 'dev'} · ${new Date().toLocaleString('sv-SE', { timeZone: 'America/Belem' }).slice(0, 16)}`; // horário do Amapá
 const nextConfig = {
   basePath,
   env: { NEXT_PUBLIC_BASE_PATH: basePath, NEXT_PUBLIC_BUILD: BUILD },
