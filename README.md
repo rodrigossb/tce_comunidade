@@ -235,7 +235,7 @@ tem `places: { jn, manga }` e itens podem ter `where` (sala específica). `packa
 marcadores, calcula a rota a pé do acesso até a sala (Dijkstra sobre os corredores, destino projetado no
 corredor mais próximo) e gera as instruções em texto ("vire à esquerda… Sala 11 fica à sua direita").
 Totem: aba "Mapa" (planta geral, filtro por serviço, toque na sala → rota) e "Onde fica" em cada serviço;
-a origem da rota é o acesso em `?entrada=a1|a2|a3` (padrão a1 = entrada principal; no totem também o id de uma sala ou `x,y`). App: `#mapa?local=jn&p=jn-r11&s=pilar-1&entrada=a1`.
+a origem da rota é o acesso em `?entrada=a1|a2|a3` (padrão a1 = entrada principal; no Manga o padrão é `abertura` = Espaço de abertura, onde o público se concentra; no totem também o id de uma sala ou `x,y`). No Manga não há passagem do hexágono para o bloco das salas 13–15: a rota volta pelo passeio principal e sobe pela lateral da sala 12 (grafo em `maps.manga.corridors`). App: `#mapa?local=jn&p=jn-r11&s=pilar-1&entrada=a1`.
 Sem escala: a rota é orientação visual. Ambientes "A definir" e a tenda Webflash ficam ocultos (`hide`).
 Início do totem: "mapa vivo" (destaca um serviço a cada 4 s, com as salas nomeadas; toque na sala abre o
 caminho; chips por serviço). Rota com "Ouvir o caminho" (síntese de voz pt-BR, quando o navegador tem).

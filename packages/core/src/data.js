@@ -344,16 +344,21 @@ const maps = {
     ] },
   manga: { venue: 'manga', date: '2026-11-04', title: 'Escola Estadual Indígena Jorge Iaparrá · Aldeia do Manga', short: 'Manga', image: 'img/planta-manga.jpg', w: 1600, h: 1484,
     entrances: [
-      { id: 'a1', label: 'Acesso 1 · entrada principal', short: 'Acesso 1', x: 985, y: 1340, default: true },
+      // No dia dos serviços o público se concentra no Espaço de abertura (hexágono): é o "você está aqui" padrão.
+      { id: 'abertura', label: 'Espaço de abertura · hexágono (11)', short: 'Abertura (11)', x: 987, y: 628, default: true, startText: 'Você está no Espaço de abertura. Saia pela frente do hexágono.' },
+      { id: 'a1', label: 'Acesso 1 · entrada principal', short: 'Acesso 1', x: 985, y: 1340 },
       { id: 'a2', label: 'Acesso 2 · entrada lateral', short: 'Acesso 2', x: 815, y: 1340 },
     ],
+    // Atenção: na escola NÃO há passagem do hexágono para o bloco das salas 13–15 (a diagonal da planta não existe
+    // no chão). O caminho é voltar pelo passeio principal em direção à entrada, virar no passeio das tendas da triagem
+    // e subir pela lateral da sala 12 — por isso o bloco 13–15 e a tenda 10 só se ligam ao grafo por [600, 540].
     corridors: [
       [[985, 1340], [985, 1200], [985, 900], [985, 690], [987, 585]],
-      [[987, 585], [850, 490], [760, 450], [560, 300], [430, 220]],
-      [[987, 585], [860, 610], [640, 520], [600, 540]],
+      [[600, 540], [690, 470], [560, 300], [430, 220]],
+      [[985, 690], [900, 650], [860, 610]], // anel do hexágono (lado esquerdo) até as salas 05/06
       [[600, 540], [600, 760], [680, 760], [680, 900], [815, 900], [985, 900]],
       [[180, 760], [600, 760]],
-      [[987, 585], [1100, 640], [1240, 660], [1300, 700], [1400, 760]],
+      [[985, 690], [1060, 670], [1100, 640], [1240, 660], [1300, 700], [1400, 760]], // anel (lado direito) e passeio das salas 03/04/01/02
       [[815, 1340], [815, 1212], [815, 1013], [815, 900]],
       [[815, 1013], [560, 1013]], [[815, 1212], [560, 1212], [265, 1212]],
       [[985, 1200], [1455, 1200]],
