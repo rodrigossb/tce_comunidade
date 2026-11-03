@@ -304,7 +304,9 @@ function Board() {
                     <div className="sq-top"><span className="sq-svc" title={`${svcName(r.place)} · ${r.service.title}`}><span>{svcName(r.place)}</span></span>{r.stat && r.stat.issued ? <span className="sq-wait">{r.stat.waiting} aguardando</span> : null}</div>
                     <div className="sq-mid"><b className="sq-num">{c && c.ticket != null ? c.ticket : '—'}</b>{c && c.priority ? <i className="sq-prio" title="senha prioritária">P</i> : null}</div>
                     {/* embaixo: só a sala (grande) com a categoria minúscula e, à direita, a hora da última chamada; o estado fica na cor/borda do cartão */}
-                    <div className="sq-bot"><div className="sq-line"><b className="sq-roomname">{roomLine(r.place)}</b><small className="sq-place" title={r.service.title}>{r.service.short}</small>{c && c.ticket != null && c.called_at ? <span className="sq-time" title={st.label}>{fmtT(c.called_at)}</span> : null}</div></div>
+                    <div className="sq-bot">{r.stat && r.stat.seq ? (
+                      <div className="sq-seq" title="última chamada → próxima"><span className="n"><em>Comuns</em><b>{r.stat.seq.normal.last ?? '—'}</b><i>→</i><b>{r.stat.seq.normal.next ?? '—'}</b></span><span className="p"><em>Prioridade</em><b>{r.stat.seq.prio.last ?? '—'}</b><i>→</i><b>{r.stat.seq.prio.next ?? '—'}</b></span></div>
+                    ) : null}<div className="sq-line"><b className="sq-roomname">{roomLine(r.place)}</b><small className="sq-place" title={r.service.title}>{r.service.short}</small>{c && c.ticket != null && c.called_at ? <span className="sq-time" title={st.label}>{fmtT(c.called_at)}</span> : null}</div></div>
                   </div>
                 ); })}
             </div>
@@ -316,7 +318,7 @@ function Board() {
           <div className="sq-recent">
             <span className="mb-title"><Icon name="list" />Chamadas anteriores</span>
             {recent.length > 1 ? <ol>{recent.slice(1, portrait ? 4 : 6).map((c) => { const p = T.placeInfo(c.place_id); const s = D.services.find((x) => x.id === c.service_id); return (
-              <li key={c.id} className={c.status} style={{ '--c': s ? s.color : '#94a3b8' }}><b>{c.ticket ?? '—'}</b><span><strong>{p ? svcName(p) : c.place_id}</strong><small>{p ? roomLine(p) : ''}{s ? ` · ${s.short}` : ''}</small></span><em>{fmtT(c.called_at)}</em></li>
+              <li key={c.id} className={c.status} style={{ '--c': s ? s.color : '#94a3b8' }}><b>{c.ticket ?? '—'}{c.priority ? <i className="sq-prio mini">P</i> : null}</b><span><strong>{p ? svcName(p) : c.place_id}</strong><small>{p ? roomLine(p) : ''}{s ? ` · ${s.short}` : ''}</small></span><em>{fmtT(c.called_at)}</em></li>
             ); })}</ol> : <p className="sq-none">{recent.length ? 'Só uma chamada até agora.' : 'Nenhuma chamada ainda hoje.'}</p>}
           </div>
           {(() => {
@@ -328,6 +330,7 @@ function Board() {
               <div className={`sq-now ${k}`} style={{ '--c': s ? s.color : '#fbbf24' }}>
                 <small className="sq-now-k"><Icon name={k === 'calling' ? 'megaphone' : 'ticket'} />Senha atual · <em>{label}</em> · {fmtT(c.called_at)}</small>
                 <div className="sq-now-svc">{p ? svcName(p) : c.place_id}</div>
+                {c.priority ? <i className="sq-prio now">Senha prioritária</i> : null}
                 <b className="sq-now-num">{c.ticket ?? '—'}</b>
                 <div className="sq-now-room"><b>{p ? roomLine(p) : ''}</b><span>{s ? <><Icon name={s.icon} />{s.short}</> : null}</span></div>
               </div>

@@ -5,6 +5,7 @@
    server actions (app/actions.js). Guarda configuração no aparelho (localStorage) e tem fila offline. */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TCE as T } from '@tce/core';
+import { parsePrioList, whyLabel } from '@tce/core/fila';
 import { placeLabel } from '@tce/core/map';
 import Icon from './Icon';
 import * as A from '@/app/actions';
@@ -13,7 +14,7 @@ const D = T.D;
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const LS = 'tce_at';
 const VER = '2.0';
-const ACTIONS = { setIssued: A.setIssued, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall, advance: A.advance };
+const ACTIONS = { setIssued: A.setIssued, setPriorities: A.setPriorities, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall, advance: A.advance };
 const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch { return d; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem storage */ } };
 const fmtT = (ms) => T.partsOf(new Date(ms)).time;
@@ -35,6 +36,7 @@ export default function Atendimento() {
   const [numVal, setNumVal] = useState('');
   const [busy, setBusy] = useState(false); // evita toque duplo nos botões de chamada
   const toastT = useRef(null); const issuedT = useRef({}); const numInput = useRef(null);
+  const [prioTxt, setPrioTxt] = useState({}); const prioT = useRef({}); // triagem: texto das senhas prioritárias por sala (enquanto digita)
 
   // ---------- início ----------
   useEffect(() => {
@@ -114,6 +116,14 @@ export default function Atendimento() {
     clearTimeout(issuedT.current[id]);
     issuedT.current[id] = setTimeout(() => run(async () => { await post('setIssued', { day: c.day, venue: c.venue, service_id: sid, place_id: id, count, device }); await refresh(); }), 700);
   }
+  // Senhas prioritárias da sala (triagem): texto livre "5, 12, 100-120"; grava 900 ms depois de parar de digitar (ou ao sair do campo).
+  const prioOf = (pid) => { if (prioTxt[pid] != null) return prioTxt[pid]; const r = ((data && data.priorities) || []).find((x) => x.place_id === pid); return r ? r.spec : ''; };
+  function setPrio(id, sid, text, now) {
+    const c = ctxOf(st); const device = st.device; setPrioTxt((p) => Object.assign({}, p, { [id]: text }));
+    clearTimeout(prioT.current[id]);
+    const save = () => run(async () => { const parsed = parsePrioList(text); if (parsed.error) { toast(parsed.error, 'alert'); return; } await post('setPriorities', { day: c.day, venue: c.venue, service_id: sid, place_id: id, spec: parsed.spec, device }); setPrioTxt((p) => { const n = Object.assign({}, p); delete n[id]; return n; }); await refresh(); });
+    if (now) save(); else prioT.current[id] = setTimeout(save, 900);
+  }
   function askNumber(title, value, cb) { setNumAsk({ title, cb }); setNumVal(String(value)); }
   useEffect(() => { if (numAsk && numInput.current) { numInput.current.focus(); numInput.current.select(); } }, [numAsk]);
   function numKey(k) {
@@ -133,9 +143,6 @@ export default function Atendimento() {
     place: (id, s) => setSt({ place: id, service: s }),
     call: (ticket, status) => { const c = ctxOf(st); setBusy(true); run(async () => { try { await post('call', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket, status: status || undefined, device: st.device }); await refresh(); } finally { setBusy(false); } }); },
     callOther: () => askNumber('Qual senha você vai chamar?', (queue && queue.last_ticket != null ? queue.last_ticket + 1 : 1), (v) => { const c = ctxOf(st); run(async () => { await post('call', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket: v, status: 'served', device: st.device }); await refresh(); }); }),
-    // Senha prioritária (idoso, gestante, PcD…): a triagem marca a senha impressa com "P"; aqui ela é chamada fora da ordem,
-    // entra no ato e NÃO avança a sequência normal (a próxima continua sendo a seguinte à última senha comum).
-    priority: () => askNumber('Senha prioritária: qual número?', '', (v) => { const c = ctxOf(st); run(async () => { await post('call', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket: v, status: 'served', priority: 1, device: st.device }); await refresh(); }); }),
     status: (id, status) => { setBusy(true); run(async () => { try { await post('setStatus', id, status); await refresh(); } finally { setBusy(false); } }); },
     // "Chamar a próxima": a senha que estava na sala sai (entrou, ou não veio) e a próxima é chamada, numa só gravação.
     resolve: (id, status, nextTicket) => { const c = ctxOf(st); setBusy(true); run(async () => { try { await post('advance', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket: nextTicket, device: st.device, prev_id: id, prev_status: status }); await refresh(); } finally { setBusy(false); } }); },
@@ -219,6 +226,9 @@ export default function Atendimento() {
                   <button className="minus" data-id={p.id} aria-label="Menos um" onClick={() => setIssued(p.id, g.service.id, n - 1)}>{I('x')}</button>
                   <button className="cnt" data-id={p.id} aria-label="Digitar o total entregue" onClick={() => askNumber(`${p.name}: total de senhas entregues`, n, (v) => setIssued(p.id, g.service.id, v))}><b>{n}</b><small>{I('sliders')}digitar</small></button>
                   <button className="plus" data-id={p.id} onClick={() => setIssued(p.id, g.service.id, n + 1)}>+1</button>
+                  {(() => { const txt = prioOf(p.id); const parsed = parsePrioList(txt); const inRange = parsed.nums.filter((x) => !n || x <= n).length; return (
+                    <div className="tri-prio"><label htmlFor={`prio-${p.id}`}>{I('star')}Senhas prioritárias</label><input id={`prio-${p.id}`} type="text" inputMode="numeric" placeholder="ex.: 5, 12, 100-120" value={txt} onChange={(e) => setPrio(p.id, g.service.id, e.target.value)} onBlur={(e) => { if (prioTxt[p.id] != null) setPrio(p.id, g.service.id, e.target.value, true); }} /><small className={parsed.error ? 'err' : ''}>{parsed.error ? parsed.error : parsed.nums.length ? `${parsed.nums.length} prioritária${parsed.nums.length === 1 ? '' : 's'}${n && inRange !== parsed.nums.length ? ` (${inRange} entre as ${n} entregues)` : ''} · a porta chama intercalando com as comuns` : 'números ou intervalos separados por vírgula; a porta intercala prioridade e comum'}</small></div>
+                  ); })()}
                 </div>
               ); })}
             </div>
@@ -247,7 +257,13 @@ export default function Atendimento() {
   function viewPorta() {
     const c = ctxOf(st); const s = svc(st.service) || D.services[0]; const qd = queueById(st.place); const calls = (queue && queue.calls) || []; const cur = calls[0] || null;
     const issued = queue && queue.issued ? queue.issued.count : null; const last = queue && queue.last_ticket != null ? queue.last_ticket : (cur && !cur.priority ? cur.ticket : 0);
-    const next = (last || 0) + 1;
+    // Próxima senha: o plano do servidor (intercala prioritárias da lista da triagem com as comuns); sem plano, última + 1.
+    const plan = queue && queue.plan ? queue.plan : null; const nxt = plan && plan.next && plan.next.ticket != null ? plan.next : { ticket: (last || 0) + 1, priority: false, why: '' };
+    const next = nxt.ticket;
+    const seq = plan && plan.has_prio ? (
+      <div className="door-seq"><div><small>Comuns</small><b>{plan.normal.last ?? '—'}</b><em>última</em><b>{plan.normal.next ?? '—'}</b><em>próxima</em>{plan.normal.left != null ? <span>faltam {plan.normal.left} de {plan.normal.total}</span> : null}</div><div className="p"><small>{I('star')}Prioritárias</small><b>{plan.prio.last ?? '—'}</b><em>última</em><b>{plan.prio.next ?? '—'}</b><em>próxima</em><span>faltam {plan.prio.left} de {plan.prio.total}</span></div></div>
+    ) : null;
+    const nextTag = plan && plan.has_prio ? <i className={`prio ${nxt.priority ? '' : 'n'}`}>{nxt.priority ? 'Prioridade' : 'comum'}</i> : null;
     // Senha da vez: chamada e ainda não encerrada (entra no ato; "chamada" pura só em registros antigos).
     const atDoor = cur && (cur.status === 'called' || (cur.status === 'served' && !cur.ended_at)) ? cur : null;
     // Alguém ainda em atendimento além da senha da vez (registros antigos / "entrou" pelo histórico).
@@ -266,13 +282,15 @@ export default function Atendimento() {
             <>
               <div className="door-now door-call"><small>{I('megaphone')}Senha chamada · na sala{atDoor.priority ? <i className="prio">Prioridade</i> : null}</small><button type="button" className="door-num" data-act="recall" disabled={busy} onClick={() => act.recall(atDoor.id)} title="Chamar novamente na TV"><b>{atDoor.ticket ?? '—'}</b><em>{I('megaphone')}toque para chamar de novo</em></button>
                 <span className="st called">entrou às {fmtT(atDoor.called_at)}{atDoor.recalled_at ? ` · repetida às ${fmtT(atDoor.recalled_at)}` : ''}</span></div>
-              <button className="door-next" data-act="advance" disabled={busy} onClick={() => act.resolve(atDoor.id, 'served', next)}>{I('megaphone')}<span><b>Chamar a próxima · senha {next}</b><small>a senha {atDoor.ticket ?? '—'} foi atendida</small></span></button>
+              <button className="door-next" data-act="advance" disabled={busy} onClick={() => act.resolve(atDoor.id, 'served', next)}>{I('megaphone')}<span><b>Chamar a próxima · senha {next}{nextTag}</b><small>a senha {atDoor.ticket ?? '—'} foi atendida{nxt.why ? ` · ${whyLabel(nxt.why)}` : ''}</small></span></button>
+              {seq}
               <div className="door-res"><button className="ghost" data-act="recall" disabled={busy} onClick={() => act.recall(atDoor.id)}>{I('megaphone')}<span>Chamar de novo<small>a TV anuncia a senha {atDoor.ticket ?? '—'} outra vez</small></span></button><button className="no" data-act="resolve" data-status="absent" disabled={busy} onClick={() => act.resolve(atDoor.id, 'absent', next)}>{I('x')}<span>Não veio<small>registra a falta e chama a senha {next}</small></span></button></div>
             </>
           ) : (
             <>
               <div className="door-now idle"><small>{cur ? 'Nenhuma senha aguardando na porta' : 'Nenhuma senha chamada ainda'}</small><b>—</b></div>
-              <button className="door-next" data-act="call" disabled={busy} onClick={() => act.call(next, 'served')}>{I('megaphone')}<span><b>Chamar a senha {next}</b><small>a chamada já registra a entrada na sala</small></span></button>
+              <button className="door-next" data-act="call" disabled={busy} onClick={() => act.call(next, 'served')}>{I('megaphone')}<span><b>Chamar a senha {next}{nextTag}</b><small>a chamada já registra a entrada na sala{nxt.why ? ` · ${whyLabel(nxt.why)}` : ''}</small></span></button>
+              {seq}
               <p className="door-hint">A chamada aparece na TV (e por voz) e a pessoa entra na sala. Ao terminar, toque em "Chamar a próxima".{issued != null && next > issued ? ' (A triagem registrou menos senhas entregues do que isso.)' : ''}</p>
             </>
           )}
@@ -280,7 +298,6 @@ export default function Atendimento() {
             <div className="door-serving"><span className="lbl">{I('check')}Em atendimento</span><b>{serving.ticket ?? '—'}</b><small>entrou às {fmtT(serving.status_at)} · há {Math.max(0, Math.round((Date.now() - serving.status_at) / 60000))} min</small><button className="link" data-act="end" onClick={() => act.end(serving.id)}>finalizar</button></div>
           ) : (cur && !atDoor ? <div className="door-serving muted"><span className="lbl">{cur.status === 'served' ? I('check') : I('x')}Última</span><b>{cur.ticket ?? '—'}</b><small>{cur.status === 'served' ? `entrou às ${fmtT(cur.status_at)}` : 'não compareceu'}</small></div> : null)}
           <div className="door-tools">
-            <button className="btn btn-ghost btn-prio" data-act="priority" onClick={act.priority}>{I('star')}Prioridade</button>
             <button className="btn btn-ghost" data-act="call-other" onClick={act.callOther}>{I('ticket')}Outro número</button>
             {cur ? <button className="btn btn-ghost" data-act="undo" onClick={() => act.undo(cur.id)}>{I('back')}Desfazer</button> : null}
           </div>

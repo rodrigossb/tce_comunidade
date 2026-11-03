@@ -88,3 +88,19 @@ test('senha prioritária: chamada fora da ordem, entra no ato, não avança a se
   const tv = db.tvBoard(DAY, V); const pl = tv.places.find((x) => x.place_id === P3); assert.equal(pl.current.ticket, 57); assert.equal(pl.current.priority, 1);
   assert.equal(tv.recent.find((x) => x.id === pr.id).priority, 1);
 });
+
+test('prioridades da triagem: lista/intervalos gravados, plano intercalado na fila, chamada classificada pelo servidor e seq na TV', async () => {
+  const P4 = 'jn-r14'; const B = { day: DAY, venue: V, service_id: S, place_id: P4, device: 'a' };
+  db.issued({ ...B, count: 12 });
+  assert.throws(() => db.priorities({ ...B, spec: '3, x' }), (e) => e.status === 400);
+  assert.deepEqual(db.priorities({ ...B, spec: '12-10, 3' }).spec, '3, 10-12');
+  let q = db.queue(DAY, V, S, P4); assert.equal(q.prio_spec, '3, 10-12'); assert.deepEqual(q.plan.next, { ticket: 3, priority: true, why: 'alternado' });
+  const c1 = db.call({ ...B, ticket: 3, status: 'served' }); assert.equal(c1.priority, 1, 'classificada pela lista'); await sleep(2);
+  q = db.queue(DAY, V, S, P4); assert.deepEqual(q.plan.next, { ticket: 1, priority: false, why: 'alternado' });
+  const c2 = db.advance({ ...B, ticket: 1, prev_id: c1.id, prev_status: 'served' }); assert.equal(c2.priority, 0);
+  q = db.queue(DAY, V, S, P4); assert.equal(q.plan.next.ticket, 10); assert.equal(q.last_ticket, 1);
+  const tv = db.tvBoard(DAY, V); const pl = tv.places.find((x) => x.place_id === P4);
+  assert.deepEqual(pl.seq.normal, { last: 1, next: 2, left: 7, total: 8 }); assert.deepEqual(pl.seq.prio, { last: 3, next: 10, left: 3, total: 4 });
+  assert.equal(db.state(DAY, V).priorities.find((x) => x.place_id === P4).spec, '3, 10-12');
+  assert.equal(tv.places.find((x) => x.place_id === P).seq, null, 'sala sem prioritárias não mostra filas');
+});

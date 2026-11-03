@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { summarize } from '@tce/core/stats';
+import { parsePrioList, queuePlan } from '@tce/core/fila';
 import { notify } from './bus.js';
 
 export class ApiError extends Error { constructor(status, message) { super(message); this.status = status; } }
@@ -18,6 +19,8 @@ CREATE TABLE IF NOT EXISTS issued_log (id INTEGER PRIMARY KEY, day TEXT NOT NULL
 CREATE INDEX IF NOT EXISTS issued_day ON issued_log(day, venue, service_id, ts);
 CREATE TABLE IF NOT EXISTS calls (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, ticket INTEGER, called_at INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'called', status_at INTEGER, ended_at INTEGER, device TEXT, note TEXT);
 CREATE INDEX IF NOT EXISTS calls_day ON calls(day, venue, service_id, place_id, called_at);
+CREATE TABLE IF NOT EXISTS prio_log (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, spec TEXT NOT NULL, device TEXT, ts INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS prio_day ON prio_log(day, venue, service_id, place_id, ts);
 CREATE TABLE IF NOT EXISTS inscritos_snap (id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, painel_info TEXT, source TEXT, data TEXT NOT NULL);`;
 
 function open(file) {
@@ -30,6 +33,10 @@ function open(file) {
   const q = {
     issuedLatest: db.prepare(`SELECT service_id, place_id, count, ts FROM issued_log i WHERE day=? AND venue=? AND ts=(SELECT MAX(ts) FROM issued_log WHERE day=i.day AND venue=i.venue AND service_id=i.service_id AND place_id=i.place_id)`),
     issuedInsert: db.prepare(`INSERT INTO issued_log (day, venue, service_id, place_id, count, device, ts) VALUES (?,?,?,?,?,?,?)`),
+    prioLatest: db.prepare(`SELECT service_id, place_id, spec, ts FROM prio_log p WHERE day=? AND venue=? AND ts=(SELECT MAX(ts) FROM prio_log WHERE day=p.day AND venue=p.venue AND service_id=p.service_id AND place_id=p.place_id)`),
+    prioInsert: db.prepare(`INSERT INTO prio_log (day, venue, service_id, place_id, spec, device, ts) VALUES (?,?,?,?,?,?,?)`),
+    prioOf: db.prepare(`SELECT spec FROM prio_log WHERE day=? AND venue=? AND service_id=? AND place_id=? ORDER BY ts DESC, id DESC LIMIT 1`),
+    callsAllPlace: db.prepare(`SELECT id, ticket, called_at FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=?`),
     issuedHistory: db.prepare(`SELECT service_id, place_id, count, ts FROM issued_log WHERE day=? AND venue=? ORDER BY ts`),
     callsDay: db.prepare(`SELECT * FROM calls WHERE day=? AND venue=? ORDER BY called_at, id`),
     callsPlace: db.prepare(`SELECT * FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=? ORDER BY called_at DESC, id DESC LIMIT ?`),
@@ -65,7 +72,7 @@ function ctx(day, venue) { const v = clean(venue, 16); if (!isDay(day) || !v) th
 export function state(day, venue) {
   const c = ctx(day, venue); const { q } = conn();
   const issued = rows(q.issuedLatest.all(c.day, c.venue)); const calls = rows(q.callsDay.all(c.day, c.venue));
-  return { day: c.day, venue: c.venue, now: Date.now(), issued, stats: summarize(issued, calls, Date.now()) };
+  return { day: c.day, venue: c.venue, now: Date.now(), issued, priorities: rows(q.prioLatest.all(c.day, c.venue)), stats: summarize(issued, calls, Date.now()) };
 }
 export function stats(day, venue) {
   const st = state(day, venue); const { q } = conn();
@@ -75,12 +82,27 @@ export function stats(day, venue) {
 export function queue(day, venue, service, place) {
   const c = ctx(day, venue); const s = clean(service, 32); const p = clean(place, 32); if (!s || !p) throw err(400, 'parâmetros');
   const { q } = conn();
+  const issuedRow = rows(q.issuedLatest.all(c.day, c.venue)).find((x) => x.place_id === p) || null;
+  const spec = prioSpec(c.day, c.venue, s, p);
   return {
     calls: rows(q.callsPlace.all(c.day, c.venue, s, p, 30)),
     open: q.openServed.all(c.day, c.venue, s, p).map((x) => num(x.id)),
     last_ticket: num(q.lastTicket.get(c.day, c.venue, s, p).t),
-    issued: rows(q.issuedLatest.all(c.day, c.venue)).find((x) => x.place_id === p) || null,
+    issued: issuedRow,
+    prio_spec: spec,
+    plan: planOf(c.day, c.venue, s, p, issuedRow ? issuedRow.count : null, spec),
   };
+}
+/** Lista de senhas prioritárias da sala (texto normalizado) ou ''. */
+function prioSpec(day, venue, s, p) { const r = conn().q.prioOf.get(day, venue, s, p); return r ? String(r.spec) : ''; }
+/** Plano da fila (próxima comum/prioritária, intercalação) a partir de tudo que já foi chamado na sala. */
+function planOf(day, venue, s, p, count, spec) { return queuePlan({ count: count == null ? null : num(count), prio: parsePrioList(spec || '').nums, calls: rows(conn().q.callsAllPlace.all(day, venue, s, p)) }); }
+/** Triagem: senhas prioritárias da sala ("5, 12, 100-120"); vale a última gravação. */
+export function priorities(b) {
+  if (!isDay(b.day) || !clean(b.venue, 16) || !clean(b.service_id, 32) || !clean(b.place_id, 32)) throw err(400, 'dados');
+  const parsed = parsePrioList(b.spec); if (parsed.error) throw err(400, parsed.error);
+  const ts = Date.now(); conn().q.prioInsert.run(b.day, clean(b.venue, 16), clean(b.service_id, 32), clean(b.place_id, 32), parsed.spec, clean(b.device, 40), ts);
+  notify(b.day, clean(b.venue, 16)); return { ok: true, ts, spec: parsed.spec, count: parsed.nums.length };
 }
 export function issued(b) {
   const count = Number(b.count);
@@ -92,7 +114,9 @@ export function call(b) {
   const day = b.day; const venue = clean(b.venue, 16); const s = clean(b.service_id, 32); const p = clean(b.place_id, 32); const ticket = b.ticket == null ? null : Number(b.ticket);
   if (!isDay(day) || !venue || !s || !p || (ticket != null && (!Number.isInteger(ticket) || ticket < 0 || ticket > 100000))) throw err(400, 'dados');
   const { q } = conn(); const now = Date.now();
-  const status = ['served', 'absent'].includes(b.status) ? b.status : null; const priority = b.priority ? 1 : 0;
+  const status = ['served', 'absent'].includes(b.status) ? b.status : null;
+  // Prioritária = está na lista da triagem para esta sala (ou veio marcada explicitamente).
+  const priority = b.priority != null ? (b.priority ? 1 : 0) : (ticket != null && parsePrioList(prioSpec(day, venue, s, p)).nums.includes(ticket) ? 1 : 0);
   // Porta da sala: a chamada já é a entrada (status served no ato), e entrar encerra quem estava em atendimento na mesma
   // sala. Uma chamada sem status ("called") fica aguardando e não encerra ninguém.
   if (status === 'served') for (const o of q.openServed.all(day, venue, s, p)) q.callEnd.run(now, o.id);
@@ -142,7 +166,14 @@ export function tvBoard(day, venue) {
   const serving = {};
   for (const c of calls) if (c.status === 'served' && !c.ended_at) { const k = c.place_id; if (!serving[k] || c.status_at > serving[k].status_at) serving[k] = { id: c.id, ticket: c.ticket, status_at: c.status_at }; }
   const places = [];
-  for (const s of st.services) for (const p of s.places) places.push({ service_id: s.service_id, place_id: p.place_id, issued: p.issued || 0, called: p.called || 0, waiting: p.not_called || 0, in_service: p.in_service || 0, current: p.current || null, serving: serving[p.place_id] && (!p.current || serving[p.place_id].id !== p.current.id) ? serving[p.place_id] : null });
+  const prios = {}; for (const r of rows(q.prioLatest.all(c.day, c.venue))) prios[`${r.service_id}|${r.place_id}`] = r.spec;
+  const issuedBy = {}; for (const r of issued) issuedBy[r.place_id] = r.count;
+  for (const s of st.services) for (const p of s.places) {
+    const spec = prios[`${s.service_id}|${p.place_id}`] || '';
+    const plan = queuePlan({ count: issuedBy[p.place_id] == null ? null : issuedBy[p.place_id], prio: parsePrioList(spec).nums, calls: calls.filter((x) => x.service_id === s.service_id && x.place_id === p.place_id) });
+    // seq: o que a TV mostra de cada fila (última e próxima comum/prioritária) — só quando a sala tem prioritárias
+    places.push({ service_id: s.service_id, place_id: p.place_id, issued: p.issued || 0, called: p.called || 0, waiting: p.not_called || 0, in_service: p.in_service || 0, current: p.current || null, serving: serving[p.place_id] && (!p.current || serving[p.place_id].id !== p.current.id) ? serving[p.place_id] : null, seq: plan.has_prio ? { normal: plan.normal, prio: plan.prio, next: plan.next } : null });
+  }
   const recent = calls.slice().sort((a, b) => b.called_at - a.called_at || b.id - a.id).slice(0, 60)
     .map((x) => ({ id: x.id, ticket: x.ticket, service_id: x.service_id, place_id: x.place_id, status: x.status, called_at: x.called_at, recalled_at: x.recalled_at || null, priority: x.priority ? 1 : 0, status_at: x.status_at, ended_at: x.ended_at }));
   return { day: c.day, venue: c.venue, now, places, recent, total: { issued: st.total.issued, called: st.total.called, waiting: st.total.not_called, in_service: st.total.in_service } };

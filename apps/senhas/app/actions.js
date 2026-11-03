@@ -25,6 +25,7 @@ export async function getState(day, venue) { return guard(ANY, async () => db.st
 export async function getStats(day, venue) { return guard(ANY, async () => db.stats(day, venue)); }
 export async function getQueue(day, venue, service, place) { return guard(ANY, async () => db.queue(day, venue, service, place)); }
 export async function setIssued(body) { return guard(ANY, async () => db.issued(body || {})); }
+export async function setPriorities(body) { return guard(ANY, async () => db.priorities(body || {})); }
 export async function call(body) { return guard(ANY, async () => db.call(body || {})); }
 export async function setStatus(id, status) { return guard(ANY, async () => db.setStatus(id, status)); }
 export async function endCall(id) { return guard(ANY, async () => db.endCall(id)); }
