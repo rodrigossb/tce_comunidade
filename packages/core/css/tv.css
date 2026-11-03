@@ -4,8 +4,8 @@
 .tv.portrait{font-size:calc(clamp(11px,1.72vw,24px) * var(--tv-zoom,1))}
 .tv h1,.tv h2,.tv .display{font-family:var(--font-display);letter-spacing:-.02em}
 .tv .ico{flex:none;width:1em;height:1em}
-.tv.tv-dark{--bg:#071128;--bg2:#0d1b3d;--panel:rgba(255,255,255,.06);--line:rgba(255,255,255,.12);--ink:#f8fafc;--mut:#b6c3dd;--card:#ffffff;--card-ink:#0b1220;--card-mut:#4b5a73;--card-line:#e6eaf2;--ink-on-c:#14110a;
-  background:radial-gradient(120% 90% at 0% 0%,#15307a 0%,var(--bg2) 38%,var(--bg) 100%);color:var(--ink)}
+.tv.tv-dark{--bg:#04070f;--bg2:#0a1124;--panel:rgba(255,255,255,.045);--line:rgba(255,255,255,.1);--ink:#f3f6fb;--mut:#9fb0cc;--card:#111a2e;--card-ink:#f3f6fb;--card-mut:#aab8d2;--card-line:rgba(255,255,255,.09);--ink-on-c:#14110a;
+  background:radial-gradient(110% 80% at 0% 0%,var(--bg2) 0%,var(--bg) 60%);color:var(--ink)}
 .tv.tv-light{--bg:#eef1f7;--bg2:#fff;--panel:#fff;--line:#d9dfea;--ink:#0b1220;--mut:#55617a;--card:#fff;--card-ink:#0b1220;--card-mut:#4b5a73;--card-line:#e6eaf2;--ink-on-c:#14110a;background:var(--bg);color:var(--ink)}
 .tv-msg{margin:auto;text-align:center;color:var(--mut)}
 .spinner{width:3em;height:3em;border:.4em solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 1em}
@@ -16,7 +16,8 @@
 .tv-logo{height:3.4em;background:#fff;border-radius:.7em;padding:.45em .8em;display:flex;align-items:center;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 .tv-logo img{height:100%;width:auto}
 .tv-title{min-width:0}
-.tv-title b{display:block;font-family:var(--font-display);font-size:1.7em;font-weight:800;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.05}
+.tv-title b{display:block;font-family:var(--font-display);font-size:1.75em;font-weight:900;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.05}
+.tv-title b .ed{color:var(--accent);margin-right:.1em}
 .tv-title small{display:flex;align-items:center;gap:.6em;color:var(--mut);font-size:.95em;font-weight:600;margin-top:.25em;white-space:nowrap;overflow:hidden}
 .tv-title small .ico{color:var(--accent)}
 .tv-live{display:inline-flex;align-items:center;gap:.35em;font-size:.68em;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#4ade80;background:rgba(74,222,128,.12);border-radius:999px;padding:.2em .7em}
@@ -58,7 +59,7 @@
 .col-bar i{display:block;height:100%;background:var(--c);transition:width 1s linear}
 .col-list{flex:1;min-height:0;display:flex;flex-direction:column;gap:.5em;padding:.6em}
 .col-empty{margin:auto;color:var(--mut);text-align:center;font-weight:600;font-size:1em;padding:1em}
-.ev{flex:1 0 auto;max-height:7.6em;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.75em;background:var(--card);color:var(--card-ink);border-radius:.7em;padding:.45em .7em .45em .45em;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.ev{flex:1 0 auto;max-height:7.6em;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.75em;background:var(--card);color:var(--card-ink);border:1px solid var(--card-line);border-radius:.7em;padding:.45em .7em .45em .45em;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.18)}
 .ev-room{align-self:stretch;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:5.2em;padding:.35em .5em;border-radius:.55em;background:color-mix(in srgb,var(--c) 30%,#fff);color:var(--card-ink);line-height:1;text-align:center}
 .ev-room b{font-family:var(--font-display);font-weight:900;font-size:1.3em;letter-spacing:-.02em;white-space:nowrap}
 .ev-room small{font-size:.7em;font-weight:800;color:var(--card-mut);margin-top:.25em;white-space:nowrap}
@@ -84,11 +85,11 @@
 .col.past .col-h span{display:none}
 /* poucos cursos no turno: cartões mais altos e letra maior, para a coluna não ficar vazia */
 .col.few:not(.past) .ev{max-height:11em}
-.col.few:not(.past) .ev-main b{font-size:1.4em}
-.col.few:not(.past) .ev-main small{font-size:1em}
-.col.few:not(.past) .ev-room{min-width:6.4em}
-.col.few:not(.past) .ev-room.num b{font-size:3em}
-.col.few:not(.past) .ev-room small{font-size:.8em}
+.col.few.now .ev-main b{font-size:1.4em}
+.col.few.now .ev-main small{font-size:1em}
+.col.few.now .ev-room{min-width:6.4em}
+.col.few.now .ev-room.num b{font-size:3em}
+.col.few.now .ev-room small{font-size:.8em}
 .col.past .ev{max-height:4.6em;gap:.5em;padding:.35em .5em .35em .35em}
 .col.past .ev-main small{display:none}
 .col.past .ev-main b{-webkit-line-clamp:2;font-size:.95em}
@@ -180,3 +181,29 @@
 .tv.portrait .hl-items li{font-size:.82em;-webkit-line-clamp:1}
 .tv.portrait .hl.svc .hl-room{font-size:1.2em}
 
+
+/* ---------- tema escuro: cores de turno só como acento (menos brilho na TV) ---------- */
+.tv-dark .col-h{background:color-mix(in srgb,var(--c) 16%,var(--card));color:var(--ink)}
+.tv-dark .col-h b{color:var(--c)}
+.tv-dark .col-h em{background:rgba(255,255,255,.12)}
+.tv-dark .col.now .col-h{background:var(--c);color:var(--ink-on-c)}
+.tv-dark .col.now .col-h b{color:inherit}
+.tv-dark .col.now .col-h em{background:rgba(0,0,0,.22)}
+.tv-dark .col.now .col-h em.live{background:#0b1220}
+.tv-dark .col.past .col-h{background:color-mix(in srgb,var(--c) 8%,var(--card));color:var(--mut)}
+.tv-dark .col.past .col-h b{color:var(--mut)}
+.tv-dark .col-bar{background:rgba(255,255,255,.08)}
+.tv-dark .ev-room{background:color-mix(in srgb,var(--c) 14%,var(--card));color:var(--c);border:1px solid color-mix(in srgb,var(--c) 30%,transparent)}
+.tv-dark .ev-room small{color:var(--card-mut)}
+.tv-dark .ev-room small.k{color:color-mix(in srgb,var(--c) 70%,var(--card-mut))}
+.tv-dark .ev-main small b{color:var(--card-ink)}
+.tv-dark .ev.now{outline-color:color-mix(in srgb,var(--c) 70%,transparent)}
+.tv-dark .ev.past{opacity:.45}
+.tv-dark .hl{box-shadow:0 10px 30px rgba(0,0,0,.45);border:1px solid var(--card-line);border-left-width:.55em}
+.tv-dark .hl-foot .ico{color:var(--accent)}
+.tv-dark .tv-qr{background:#fff;color:#0b1220;--card-mut:#4b5a73}
+.tv-dark .tv-qr code{color:var(--tce-azul-700,#1d3fa6)}
+.tv-dark .svc-card{border:1px solid var(--card-line);border-top-width:.45em}
+.tv-dark .svc-card-h i{background:color-mix(in srgb,var(--c) 18%,var(--card));color:var(--c)}
+.tv-dark .tv-logo{box-shadow:0 8px 24px rgba(0,0,0,.6)}
+.tv-dark .tv-ticker{background:color-mix(in srgb,var(--accent) 88%,#000)}

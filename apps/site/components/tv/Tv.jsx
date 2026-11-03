@@ -172,7 +172,7 @@ function TvLive() {
     <div id="tv" ref={root} className={`tv ${light ? 'tv-light' : 'tv-dark'} ${orientation === 'portrait' ? 'portrait' : 'landscape'}`} style={{ '--tv-zoom': zoom }}>
       <header className="tv-head">
         <div className="tv-logo"><img src="img/tce-logo.png" alt="Tribunal de Contas do Estado do Amapá" /></div>
-        <div className="tv-title"><b>{D.event.name} · {D.event.edition}</b><small><Icon name="pin" />{venueName} · {D.event.datesLabel} {T.isSimulated() ? <span className="tv-live demo"><i />demonstração</span> : <span className="tv-live"><i />ao vivo</span>}</small></div>
+        <div className="tv-title"><b><span className="ed">IX</span> TCE NA COMUNIDADE</b><small><Icon name="pin" />{venueName} · {D.event.datesLabel} {T.isSimulated() ? <span className="tv-live demo"><i />demonstração</span> : <span className="tv-live"><i />ao vivo</span>}</small></div>
         <div className="tv-clock"><div className="date"><b id="clock-wd">{clock.weekday.replace('-feira', '')}</b><small id="clock-date">{clock.day} de {clock.month}</small></div><div className="time" id="clock-time">{clock.time}</div></div>
       </header>
       <div className="tv-body">
