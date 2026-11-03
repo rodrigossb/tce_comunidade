@@ -301,9 +301,10 @@ function Board() {
               {shown.map((r) => { const st = stateOf(r); const c = r.stat && r.stat.current; const isLatest = c && latestId != null && c.id === latestId && Date.now() - c.called_at < 60000;
                 return (
                   <div key={r.key} className={`sq-card ${st.k} ${isLatest ? 'latest' : ''}`} style={{ '--c': r.service.color }}>
-                    <div className="sq-top"><span className="sq-svc" title={`${svcName(r.place)} · ${r.service.title}`}><span>{svcName(r.place)}</span></span></div>
+                    <div className="sq-top"><span className="sq-svc" title={`${svcName(r.place)} · ${r.service.title}`}><span>{svcName(r.place)}</span></span>{r.stat && r.stat.issued ? <span className="sq-wait">{r.stat.waiting} aguardando</span> : null}</div>
                     <div className="sq-mid"><b className="sq-num">{c && c.ticket != null ? c.ticket : '—'}</b></div>
-                    <div className="sq-bot"><div className="sq-line"><b className="sq-roomname">{roomLine(r.place)}</b><small className="sq-place" title={r.service.title}>{r.service.short}</small>{r.stat && r.stat.issued ? <span className="sq-wait">{r.stat.waiting} aguardando</span> : null}</div><span className="sq-tags"><span className={`sq-state ${st.k}`}>{st.k === 'calling' ? <Icon name="megaphone" /> : st.k === 'serving' ? <Icon name="check" /> : null}{st.label}{c && st.k !== 'idle' ? <em> · {fmtT(c.status_at || c.called_at)}</em> : null}</span>{r.stat && r.stat.serving ? <span className="sq-state serving soft" title="em atendimento"><Icon name="check" />{r.stat.serving.ticket}<em> em atendimento</em></span> : null}</span></div>
+                    {/* embaixo: só a sala (grande) com a categoria minúscula e, à direita, a hora da última chamada; o estado fica na cor/borda do cartão */}
+                    <div className="sq-bot"><div className="sq-line"><b className="sq-roomname">{roomLine(r.place)}</b><small className="sq-place" title={r.service.title}>{r.service.short}</small>{c && c.ticket != null && c.called_at ? <span className="sq-time" title={st.label}>{fmtT(c.called_at)}</span> : null}</div></div>
                   </div>
                 ); })}
             </div>
