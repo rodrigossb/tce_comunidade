@@ -8,7 +8,8 @@
     "dev": "next dev -p ${PORT:-3115}",
     "build": "next build",
     "start": "next start -p ${PORT:-3015} -H ${HOST:-127.0.0.1}",
-    "backup": "node scripts/backup.js"
+    "backup": "node scripts/backup.js",
+    "padrao": "node scripts/padrao-senhas.mjs"
   },
   "dependencies": {
     "@tce/core": "*",

@@ -198,7 +198,9 @@ Servidor local (sem internet): `git pull` do repositório, `npm ci`, `.env` com 
 direto por `http://IP:3015/tce-senhas/`, ou `BASE_PATH=` vazio para servir na raiz) e, se o acesso for por
 IP/nome, `ALLOWED_ORIGINS=192.168.0.10:3015`; `npm run build:senhas && npm run start:senhas` (ou pm2).
 
-Backup: `npm run backup [rótulo]` gera zip com cópia consistente do banco (`VACUUM INTO`), o `.env` e um
+Padrão de abertura: `npm run senhas:padrao -- [--count 100] [--prio 80-100] [--force]` grava, para cada sala que entrega senha
+nos dias de serviços, a contagem (100 senhas já impressas) e a lista de prioritárias (80-100); sem `--force`, não mexe em
+salas já lançadas. Rodar em cada servidor (AWS e o local do TCE) antes do dia. Backup: `npm run backup [rótulo]` gera zip com cópia consistente do banco (`VACUUM INTO`), o `.env` e um
 LEIA-ME em `apps/senhas/backups/` (mantém 60); `apps/senhas/scripts/backup-cron.sh` copia para
 `~/backups/tce-senhas/` (90 dias). Cron sugerido (`crontab -e`): diário às 03:40 e de hora em hora (7h–20h)
 de 03 a 07/11. Restaurar: `pm2 stop tce-senhas`, copiar `senhas.db` para `apps/senhas/data/`, `pm2 start`.

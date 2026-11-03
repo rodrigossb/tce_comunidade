@@ -16,7 +16,8 @@
     "start:senhas": "npm run start -w apps/senhas",
     "backup": "node apps/senhas/scripts/backup.js",
     "test": "node --test \"packages/core/tests/*.test.mjs\" \"apps/senhas/tests/*.test.mjs\"",
-    "test:core": "node --test \"packages/core/tests/*.test.mjs\""
+    "test:core": "node --test \"packages/core/tests/*.test.mjs\"",
+    "senhas:padrao": "cd apps/senhas && node scripts/padrao-senhas.mjs"
   },
   "engines": {
     "node": ">=22.5"
