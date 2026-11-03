@@ -301,12 +301,12 @@ function Board() {
               {shown.map((r) => { const st = stateOf(r); const c = r.stat && r.stat.current; const isLatest = c && latestId != null && c.id === latestId && Date.now() - c.called_at < 60000;
                 return (
                   <div key={r.key} className={`sq-card ${st.k} ${isLatest ? 'latest' : ''}`} style={{ '--c': r.service.color }}>
-                    <div className="sq-top"><span className="sq-svc" title={`${svcName(r.place)} · ${r.service.title}`}><span>{svcName(r.place)}</span></span>{r.stat && r.stat.issued ? <span className="sq-wait">{r.stat.waiting} aguardando</span> : null}</div>
+                    <div className="sq-top"><span className="sq-svc" title={`${svcName(r.place)} · ${r.service.title}`}><span>{svcName(r.place)}</span></span></div>
                     <div className="sq-mid"><b className="sq-num">{c && c.ticket != null ? c.ticket : '—'}</b>{c && c.priority ? <i className="sq-prio" title="senha prioritária">P</i> : null}</div>
                     {/* embaixo: só a sala (grande) com a categoria minúscula e, à direita, a hora da última chamada; o estado fica na cor/borda do cartão */}
                     <div className="sq-bot">{r.stat && r.stat.seq ? (
                       <div className="sq-seq" title="última chamada → próxima"><span className="n"><em>Comuns</em><b>{r.stat.seq.normal.last ?? '—'}</b><i>→</i><b>{r.stat.seq.normal.next ?? '—'}</b></span><span className="p"><em>Prioridade</em><b>{r.stat.seq.prio.last ?? '—'}</b><i>→</i><b>{r.stat.seq.prio.next ?? '—'}</b></span></div>
-                    ) : null}<div className="sq-line"><b className="sq-roomname">{roomLine(r.place)}</b>{c && c.ticket != null && c.called_at ? <span className="sq-time" title={st.label}>{fmtT(c.called_at)}</span> : null}</div></div>
+                    ) : null}<div className="sq-line"><b className="sq-roomname">{roomLine(r.place)}</b><span className="sq-right">{r.stat && r.stat.issued ? <span className="sq-wait">{r.stat.waiting} aguardando</span> : null}{c && c.ticket != null && c.called_at ? <span className="sq-time" title={st.label}>{fmtT(c.called_at)}</span> : null}</span></div></div>
                   </div>
                 ); })}
             </div>
