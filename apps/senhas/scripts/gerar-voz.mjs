@@ -30,6 +30,7 @@ for (const v of Object.keys(T.D.venues)) for (const g of T.ticketQueuesOf(v)) fo
 for (const p of places.values()) items.push({ file: `p-${p.id}`, text: placePhrase(p) });
 items.push({ file: 'x-som', text: 'Som ativado. As senhas serão anunciadas.' });
 items.push({ file: 'x-novamente', text: 'Atenção, chamando novamente.' });
+items.push({ file: 'x-prioridade', text: 'Atenção, senha prioritária.' });
 
 const run = (cmd, args, input) => new Promise((res, rej) => { const c = spawn(cmd, args, { stdio: [input != null ? 'pipe' : 'ignore', 'ignore', 'pipe'] }); let err = ''; c.stderr.on('data', (d) => { err += d; }); c.on('error', rej); c.on('close', (code) => (code === 0 ? res() : rej(new Error(`${cmd} saiu com ${code}: ${err.slice(-300)}`)))); if (input != null) { c.stdin.end(input); } });
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'voz-'));
@@ -50,7 +51,7 @@ async function one(it) {
 const queue = items.slice(); const workers = Array.from({ length: 2 }, async () => { for (let it = queue.shift(); it; it = queue.shift()) await one(it); });
 await Promise.all(workers);
 fs.rmSync(tmp, { recursive: true, force: true });
-const manifest = { numbers: CLIP_MAX, places: [...places.keys()], extras: ['x-som', 'x-novamente'], voice: path.basename(MODEL, '.onnx'), generatedAt: new Date().toISOString(), phrases: Object.fromEntries(items.filter((i) => i.file.startsWith('p-') || i.file.startsWith('x-')).map((i) => [i.file, i.text])) };
+const manifest = { numbers: CLIP_MAX, places: [...places.keys()], extras: ['x-som', 'x-novamente', 'x-prioridade'], voice: path.basename(MODEL, '.onnx'), generatedAt: new Date().toISOString(), phrases: Object.fromEntries(items.filter((i) => i.file.startsWith('p-') || i.file.startsWith('x-')).map((i) => [i.file, i.text])) };
 fs.writeFileSync(path.join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 1));
 const size = fs.readdirSync(OUT).reduce((a, f) => a + fs.statSync(path.join(OUT, f)).size, 0);
 console.log(`✔ ${done} gerados, ${skipped} já existiam · ${items.length} arquivos · ${(size / 1048576).toFixed(1)} MB em ${path.relative(process.cwd(), OUT)}`);

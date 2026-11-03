@@ -231,10 +231,10 @@ function Board() {
     const c = queue.current.shift();
     if (!c) { showing.current = false; setFlash(null); return; }
     showing.current = true;
-    setFlash({ id: `${c.id}:${c.again ? Date.now() : 0}`, ticket: c.ticket, place: c.place, service: c.service, again: c.again, until: Date.now() + FLASH_MS });
+    setFlash({ id: `${c.id}:${c.again ? Date.now() : 0}`, ticket: c.ticket, place: c.place, service: c.service, again: c.again, priority: c.priority, until: Date.now() + FLASH_MS });
     if (voice) { // campainha e, depois dela, a voz: áudios prontos; se não houver (senha > 300, sala nova, falha), síntese do navegador
-      const text = c.place ? `Senha ${c.ticket}. ${c.place.num ? `${svcName(c.place)}, ${speakable(c.place)}` : svcName(c.place)}.` : `Senha ${c.ticket}.`;
-      announce(clipsFor({ ticket: c.ticket, placeId: c.place && c.place.id, again: c.again }, manifest), text);
+      const text = `${c.priority ? 'Senha prioritária. ' : ''}${c.place ? `Senha ${c.ticket}. ${c.place.num ? `${svcName(c.place)}, ${speakable(c.place)}` : svcName(c.place)}.` : `Senha ${c.ticket}.`}`;
+      announce(clipsFor({ ticket: c.ticket, placeId: c.place && c.place.id, again: c.again, priority: c.priority }, manifest), text);
     }
     timer.current = setTimeout(() => { setFlash(null); timer.current = setTimeout(next, 400); }, FLASH_MS);
   }, [voice, supported, manifest, announce]);
@@ -250,7 +250,7 @@ function Board() {
     for (const c of fresh) {
       seen.current.add(keyOf(c));
       if (c.ticket == null || Date.now() - stamp(c) > 60000) continue; // chamada antiga (ex.: recarga) não pisca
-      queue.current.push({ id: c.id, ticket: c.ticket, place: T.placeInfo(c.place_id), service: D.services.find((x) => x.id === c.service_id), again: !!c.recalled_at });
+      queue.current.push({ id: c.id, ticket: c.ticket, place: T.placeInfo(c.place_id), service: D.services.find((x) => x.id === c.service_id), again: !!c.recalled_at, priority: !!c.priority });
     }
     if (!showing.current && queue.current.length) next();
   }, [data, recent, next]);
@@ -302,7 +302,7 @@ function Board() {
                 return (
                   <div key={r.key} className={`sq-card ${st.k} ${isLatest ? 'latest' : ''}`} style={{ '--c': r.service.color }}>
                     <div className="sq-top"><span className="sq-svc" title={`${svcName(r.place)} · ${r.service.title}`}><span>{svcName(r.place)}</span></span>{r.stat && r.stat.issued ? <span className="sq-wait">{r.stat.waiting} aguardando</span> : null}</div>
-                    <div className="sq-mid"><b className="sq-num">{c && c.ticket != null ? c.ticket : '—'}</b></div>
+                    <div className="sq-mid"><b className="sq-num">{c && c.ticket != null ? c.ticket : '—'}</b>{c && c.priority ? <i className="sq-prio" title="senha prioritária">P</i> : null}</div>
                     {/* embaixo: só a sala (grande) com a categoria minúscula e, à direita, a hora da última chamada; o estado fica na cor/borda do cartão */}
                     <div className="sq-bot"><div className="sq-line"><b className="sq-roomname">{roomLine(r.place)}</b><small className="sq-place" title={r.service.title}>{r.service.short}</small>{c && c.ticket != null && c.called_at ? <span className="sq-time" title={st.label}>{fmtT(c.called_at)}</span> : null}</div></div>
                   </div>
@@ -347,7 +347,7 @@ function Board() {
       {flash ? (
         <div className="sq-flash" role="alert" key={flash.id} style={{ '--c': flash.service ? flash.service.color : '#fbbf24' }}>
           <div className="sq-flash-box">
-            <small><Icon name="megaphone" />{flash.again ? 'Chamando novamente' : 'Chamando agora'}</small>
+            <small><Icon name="megaphone" />{flash.again ? 'Chamando novamente' : 'Chamando agora'}{flash.priority ? <i className="sq-flash-prio">Prioridade</i> : null}</small>
             <div className="sq-flash-row">
               <span className="sq-flash-col num"><em>senha</em><b>{flash.ticket}</b></span>
               {(() => { const name = flash.place ? svcName(flash.place) : flash.place_id; const L = String(name).length; return <span className="sq-flash-col svc" style={{ '--svcfs': L > 30 ? '2.8em' : L > 20 ? '3.4em' : '4em' }}><em>serviço</em><b>{name}</b></span>; })()}

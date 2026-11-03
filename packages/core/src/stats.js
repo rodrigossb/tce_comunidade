@@ -34,12 +34,12 @@ function summarize(issued, calls, nowMs) {
     const s = svc(c.service_id);
     const p = (s.places[c.place_id] = s.places[c.place_id] || { place_id: c.place_id, issued: issuedByPlace[c.place_id] ? issuedByPlace[c.place_id].count : 0, called: 0, served: 0, absent: 0, pending_result: 0, in_service: 0, durations: [], current: null, last_call_at: null });
     s.called++; p.called++;
-    if (c.ticket != null && (s.last_ticket == null || c.ticket > s.last_ticket)) s.last_ticket = c.ticket;
+    if (c.ticket != null && !c.priority && (s.last_ticket == null || c.ticket > s.last_ticket)) s.last_ticket = c.ticket; // prioritárias não avançam a sequência
     const hour = hourOf(c.called_at); s.per_hour[hour] = (s.per_hour[hour] || 0) + 1;
     if (c.status === 'served') { s.served++; p.served++; if (c._dur != null) { s.durations.push(c._dur); p.durations.push(c._dur); } if (c._active) { s.in_service++; p.in_service++; } }
     else if (c.status === 'absent') { s.absent++; p.absent++; }
     else { s.pending_result++; p.pending_result++; }
-    if (!p.last_call_at || c.called_at >= p.last_call_at) { p.last_call_at = c.called_at; p.current = { id: c.id, ticket: c.ticket, status: c.status, called_at: c.called_at, status_at: c.status_at, in_service_min: c._active && c.status_at ? round1((now - c.status_at) / MIN) : null }; }
+    if (!p.last_call_at || c.called_at >= p.last_call_at) { p.last_call_at = c.called_at; p.current = { id: c.id, ticket: c.ticket, status: c.status, priority: c.priority ? 1 : 0, called_at: c.called_at, status_at: c.status_at, in_service_min: c._active && c.status_at ? round1((now - c.status_at) / MIN) : null }; }
   }
   const finish = (o) => {
     o.avg_min = round1(avg(o.durations) / MIN || null); o.median_min = round1(median(o.durations) / MIN || null);

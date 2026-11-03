@@ -26,20 +26,21 @@ function open(file) {
   db.exec(DDL);
   if (!db.prepare(`PRAGMA table_info(issued_log)`).all().some((c) => c.name === 'place_id')) db.exec(`ALTER TABLE issued_log ADD COLUMN place_id TEXT NOT NULL DEFAULT ''`);
   if (!db.prepare(`PRAGMA table_info(calls)`).all().some((c) => c.name === 'recalled_at')) db.exec(`ALTER TABLE calls ADD COLUMN recalled_at INTEGER`); // "chamar novamente" (reanuncia na TV)
+  if (!db.prepare(`PRAGMA table_info(calls)`).all().some((c) => c.name === 'priority')) db.exec(`ALTER TABLE calls ADD COLUMN priority INTEGER NOT NULL DEFAULT 0`); // senha prioritária, chamada fora da ordem (não avança a sequência)
   const q = {
     issuedLatest: db.prepare(`SELECT service_id, place_id, count, ts FROM issued_log i WHERE day=? AND venue=? AND ts=(SELECT MAX(ts) FROM issued_log WHERE day=i.day AND venue=i.venue AND service_id=i.service_id AND place_id=i.place_id)`),
     issuedInsert: db.prepare(`INSERT INTO issued_log (day, venue, service_id, place_id, count, device, ts) VALUES (?,?,?,?,?,?,?)`),
     issuedHistory: db.prepare(`SELECT service_id, place_id, count, ts FROM issued_log WHERE day=? AND venue=? ORDER BY ts`),
     callsDay: db.prepare(`SELECT * FROM calls WHERE day=? AND venue=? ORDER BY called_at, id`),
     callsPlace: db.prepare(`SELECT * FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=? ORDER BY called_at DESC, id DESC LIMIT ?`),
-    callInsert: db.prepare(`INSERT INTO calls (day, venue, service_id, place_id, ticket, called_at, status, device) VALUES (?,?,?,?,?,?,'called',?)`),
+    callInsert: db.prepare(`INSERT INTO calls (day, venue, service_id, place_id, ticket, called_at, status, device, priority) VALUES (?,?,?,?,?,?,'called',?,?)`),
     callGet: db.prepare(`SELECT * FROM calls WHERE id=?`),
     callStatus: db.prepare(`UPDATE calls SET status=?, status_at=? WHERE id=?`),
     callEnd: db.prepare(`UPDATE calls SET ended_at=? WHERE id=?`),
     callDelete: db.prepare(`DELETE FROM calls WHERE id=?`),
     callRecall: db.prepare(`UPDATE calls SET recalled_at=? WHERE id=?`),
     openServed: db.prepare(`SELECT id FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=? AND status='served' AND ended_at IS NULL`),
-    lastTicket: db.prepare(`SELECT MAX(ticket) t FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=?`),
+    lastTicket: db.prepare(`SELECT MAX(ticket) t FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=? AND priority=0`), // a sequência normal ignora as prioritárias
     exportDay: db.prepare(`SELECT * FROM calls WHERE day=? ORDER BY venue, service_id, place_id, called_at`),
     snapInsert: db.prepare(`INSERT INTO inscritos_snap (ts, painel_info, source, data) VALUES (?,?,?,?)`),
     snapLatest: db.prepare(`SELECT ts, painel_info, source, data FROM inscritos_snap ORDER BY ts DESC, id DESC LIMIT 1`),
@@ -91,14 +92,14 @@ export function call(b) {
   const day = b.day; const venue = clean(b.venue, 16); const s = clean(b.service_id, 32); const p = clean(b.place_id, 32); const ticket = b.ticket == null ? null : Number(b.ticket);
   if (!isDay(day) || !venue || !s || !p || (ticket != null && (!Number.isInteger(ticket) || ticket < 0 || ticket > 100000))) throw err(400, 'dados');
   const { q } = conn(); const now = Date.now();
-  const status = ['served', 'absent'].includes(b.status) ? b.status : null;
-  // Chamar a próxima NÃO encerra quem está em atendimento: a chamada fica aguardando na porta da sala.
-  // Só o "entrou" (status served, aqui ou em setStatus) encerra o atendimento anterior da mesma sala.
+  const status = ['served', 'absent'].includes(b.status) ? b.status : null; const priority = b.priority ? 1 : 0;
+  // Porta da sala: a chamada já é a entrada (status served no ato), e entrar encerra quem estava em atendimento na mesma
+  // sala. Uma chamada sem status ("called") fica aguardando e não encerra ninguém.
   if (status === 'served') for (const o of q.openServed.all(day, venue, s, p)) q.callEnd.run(now, o.id);
-  const r = q.callInsert.run(day, venue, s, p, ticket, now, clean(b.device, 40));
+  const r = q.callInsert.run(day, venue, s, p, ticket, now, clean(b.device, 40), priority);
   const id = Number(r.lastInsertRowid);
   if (status) q.callStatus.run(status, now, id);
-  notify(day, venue); return { ok: true, id, called_at: now, status: status || 'called' };
+  notify(day, venue); return { ok: true, id, called_at: now, status: status || 'called', priority };
 }
 export function setStatus(idRaw, status) {
   const id = Number(idRaw); const { q } = conn(); const c = q.callGet.get(id); if (!c) throw err(404, 'chamada não encontrada');
@@ -110,24 +111,22 @@ export function setStatus(idRaw, status) {
   q.callStatus.run(status, now, id); if (status === 'absent') q.callEnd.run(null, id);
   notify(c.day, c.venue); return { ok: true, status_at: now };
 }
-/** Fluxo "chamada = entra na sala": resolve a senha que estava na sala (entrou, contando o tempo desde a chamada; ou não
-    veio) e chama a próxima numa só gravação (uma ida ao servidor, um item na fila offline). Se a anterior já estava
-    resolvida, só chama a próxima. */
+/** Fluxo "chamada = entra na sala": a senha que estava na sala sai (atendida, já registrada como "entrou" no momento da
+    chamada; ou "não veio", se o operador disser) e a próxima é chamada numa só gravação (uma ida ao servidor, um item
+    na fila offline). A próxima entra no ato (served), o que encerra a anterior com o tempo entre as duas chamadas. */
 export function advance(b) {
   const prevId = Number(b.prev_id); const { q } = conn(); const prev = prevId ? q.callGet.get(prevId) : null; const now = Date.now();
-  if (prev && prev.status === 'called') {
+  if (prev && prev.status !== 'absent' && !prev.ended_at) {
     if (b.prev_status === 'absent') { q.callStatus.run('absent', now, prevId); q.callEnd.run(null, prevId); }
-    else { // entrou quando foi chamada e sai agora: o tempo de atendimento é o intervalo entre as chamadas
-      for (const o of q.openServed.all(prev.day, prev.venue, prev.service_id, prev.place_id)) if (num(o.id) !== prevId) q.callEnd.run(now, o.id);
-      q.callStatus.run('served', prev.called_at, prevId); q.callEnd.run(now, prevId);
-    }
+    else if (prev.status === 'called') q.callStatus.run('served', prev.called_at, prevId); // chamada antiga (sem entrada no ato): entrou quando foi chamada
   }
-  return call(Object.assign({}, b, { status: undefined }));
+  return call(Object.assign({}, b, { status: 'served' }));
 }
-/** Chamar novamente: a senha continua a mesma (sem nova chamada no histórico), mas a TV volta a anunciá-la. Só para senha ainda chamando. */
+/** Chamar novamente: a senha continua a mesma (sem nova chamada no histórico), mas a TV volta a anunciá-la. Só para a senha
+    da vez (chamando, ou na sala e ainda não encerrada). */
 export function recall(idRaw) {
   const id = Number(idRaw); const { q } = conn(); const c = q.callGet.get(id); if (!c) throw err(404, 'chamada não encontrada');
-  if (c.status !== 'called') throw err(409, 'essa senha já entrou ou faltou');
+  if (c.status === 'absent' || c.ended_at) throw err(409, 'essa senha já foi encerrada ou faltou');
   const now = Date.now(); q.callRecall.run(now, id); notify(c.day, c.venue); return { ok: true, recalled_at: now };
 }
 export function endCall(idRaw) {
@@ -145,7 +144,7 @@ export function tvBoard(day, venue) {
   const places = [];
   for (const s of st.services) for (const p of s.places) places.push({ service_id: s.service_id, place_id: p.place_id, issued: p.issued || 0, called: p.called || 0, waiting: p.not_called || 0, in_service: p.in_service || 0, current: p.current || null, serving: serving[p.place_id] && (!p.current || serving[p.place_id].id !== p.current.id) ? serving[p.place_id] : null });
   const recent = calls.slice().sort((a, b) => b.called_at - a.called_at || b.id - a.id).slice(0, 60)
-    .map((x) => ({ id: x.id, ticket: x.ticket, service_id: x.service_id, place_id: x.place_id, status: x.status, called_at: x.called_at, recalled_at: x.recalled_at || null, status_at: x.status_at, ended_at: x.ended_at }));
+    .map((x) => ({ id: x.id, ticket: x.ticket, service_id: x.service_id, place_id: x.place_id, status: x.status, called_at: x.called_at, recalled_at: x.recalled_at || null, priority: x.priority ? 1 : 0, status_at: x.status_at, ended_at: x.ended_at }));
   return { day: c.day, venue: c.venue, now, places, recent, total: { issued: st.total.issued, called: st.total.called, waiting: st.total.not_called, in_service: st.total.in_service } };
 }
 /** Chamadas do dia no local (para o dashboard: séries por hora e linha do tempo). */

@@ -33,9 +33,10 @@ export function placePhrase(p) {
 }
 export const ticketPhrase = (n) => `Senha ${numeroExtenso(n)}.`;
 /** Arquivos (relativos a /voz/) que compõem um anúncio; null se não há áudio pronto para essa senha/sala. */
-export function clipsFor({ ticket, placeId, again }, manifest) {
+export function clipsFor({ ticket, placeId, again, priority }, manifest) {
   if (!manifest || !(ticket >= 1 && ticket <= (manifest.numbers || 0))) return null;
   const out = []; if (again) out.push('x-novamente.mp3');
+  if (priority && manifest.extras && manifest.extras.includes('x-prioridade')) out.push('x-prioridade.mp3');
   out.push(`n-${ticket}.mp3`);
   if (placeId && manifest.places && manifest.places.includes(placeId)) out.push(`p-${placeId}.mp3`);
   return out;

@@ -46,6 +46,8 @@ test('números por extenso e frases dos áudios prontos', () => {
 test('clipsFor monta a sequência de arquivos e devolve null fora do que foi gerado', () => {
   const m = { numbers: CLIP_MAX, places: ['jn-r04'] };
   assert.deepEqual(clipsFor({ ticket: 7, placeId: 'jn-r04' }, m), ['n-7.mp3', 'p-jn-r04.mp3']);
+  assert.deepEqual(clipsFor({ ticket: 7, placeId: 'jn-r04', priority: true }, Object.assign({}, m, { extras: ['x-prioridade'] })), ['x-prioridade.mp3', 'n-7.mp3', 'p-jn-r04.mp3']);
+  assert.deepEqual(clipsFor({ ticket: 7, placeId: 'jn-r04', priority: true }, m), ['n-7.mp3', 'p-jn-r04.mp3'], 'sem o áudio de prioridade gerado, anuncia normalmente');
   assert.deepEqual(clipsFor({ ticket: 7, placeId: 'jn-r04', again: true }, m), ['x-novamente.mp3', 'n-7.mp3', 'p-jn-r04.mp3']);
   assert.deepEqual(clipsFor({ ticket: 7, placeId: 'xx' }, m), ['n-7.mp3'], 'sala sem áudio: só a senha');
   assert.equal(clipsFor({ ticket: CLIP_MAX + 1, placeId: 'jn-r04' }, m), null);

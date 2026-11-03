@@ -57,8 +57,8 @@ test('chamar novamente: marca recalled_at na senha que está chamando, aparece n
   const c = db.call({ day: DAY2, venue: V2, service_id: S2, place_id: P2, ticket: 41 });
   const r = db.recall(c.id); assert.ok(r.ok && r.recalled_at > 0);
   const b = db.tvBoard(DAY2, V2); assert.equal(b.recent.find((x) => x.id === c.id).recalled_at, r.recalled_at);
-  db.setStatus(c.id, 'served');
-  assert.throws(() => db.recall(c.id), (e) => e.status === 409);
+  db.setStatus(c.id, 'served'); assert.ok(db.recall(c.id).ok, 'na sala (entrou e não encerrou) ainda pode chamar de novo');
+  db.endCall(c.id); assert.throws(() => db.recall(c.id), (e) => e.status === 409);
   assert.throws(() => db.recall(999999), (e) => e.status === 404);
 });
 
@@ -66,13 +66,25 @@ test('chamar a próxima (advance): a anterior sai como atendida contando desde a
   const P2 = 'jn-r12';
   const a = db.call({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 1, device: 'a' }); await sleep(5);
   const r = db.advance({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 2, device: 'a', prev_id: a.id, prev_status: 'served' });
-  assert.equal(r.status, 'called');
+  assert.equal(r.status, 'served', 'a próxima entra no ato');
   let q = db.queue(DAY, V, S, P2); const pa = q.calls.find((x) => x.id === a.id);
   assert.equal(pa.status, 'served'); assert.equal(pa.status_at, pa.called_at, 'entrou quando foi chamada'); assert.ok(pa.ended_at >= pa.called_at + 5, 'saiu ao chamar a próxima');
-  assert.equal(q.calls[0].id, r.id); assert.equal(q.calls[0].status, 'called'); assert.deepEqual(q.open, []);
+  assert.equal(q.calls[0].id, r.id); assert.equal(q.calls[0].status, 'served'); assert.deepEqual(q.open, [r.id], 'só a senha da vez fica em atendimento');
   const r2 = db.advance({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 3, device: 'a', prev_id: r.id, prev_status: 'absent' });
   q = db.queue(DAY, V, S, P2); assert.equal(q.calls.find((x) => x.id === r.id).status, 'absent'); assert.equal(q.calls[0].id, r2.id); assert.equal(q.last_ticket, 3);
-  // anterior já resolvida: só chama a próxima
-  db.setStatus(r2.id, 'served'); const r3 = db.advance({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 4, device: 'a', prev_id: r2.id, prev_status: 'absent' });
+  // anterior já encerrada: só chama a próxima (não vira falta)
+  db.setStatus(r2.id, 'served'); db.endCall(r2.id); const r3 = db.advance({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 4, device: 'a', prev_id: r2.id, prev_status: 'absent' });
   q = db.queue(DAY, V, S, P2); assert.equal(q.calls.find((x) => x.id === r2.id).status, 'served'); assert.equal(q.calls[0].id, r3.id);
+});
+
+test('senha prioritária: chamada fora da ordem, entra no ato, não avança a sequência normal e aparece marcada na TV', async () => {
+  const P3 = 'jn-r13';
+  db.call({ day: DAY, venue: V, service_id: S, place_id: P3, ticket: 5, status: 'served', device: 'a' }); await sleep(2);
+  const pr = db.call({ day: DAY, venue: V, service_id: S, place_id: P3, ticket: 57, status: 'served', priority: 1, device: 'a' });
+  assert.equal(pr.priority, 1);
+  const q = db.queue(DAY, V, S, P3);
+  assert.equal(q.last_ticket, 5, 'a próxima comum continua sendo a 6'); assert.equal(q.calls[0].ticket, 57); assert.equal(q.calls[0].priority, 1);
+  assert.ok(q.calls.find((x) => x.ticket === 5).ended_at, 'a prioritária encerra quem estava na sala');
+  const tv = db.tvBoard(DAY, V); const pl = tv.places.find((x) => x.place_id === P3); assert.equal(pl.current.ticket, 57); assert.equal(pl.current.priority, 1);
+  assert.equal(tv.recent.find((x) => x.id === pr.id).priority, 1);
 });

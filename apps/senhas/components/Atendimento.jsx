@@ -132,7 +132,10 @@ export default function Atendimento() {
     placeClear: () => setSt({ place: null, service: null }),
     place: (id, s) => setSt({ place: id, service: s }),
     call: (ticket, status) => { const c = ctxOf(st); setBusy(true); run(async () => { try { await post('call', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket, status: status || undefined, device: st.device }); await refresh(); } finally { setBusy(false); } }); },
-    callOther: () => askNumber('Qual senha você vai chamar?', (queue && queue.last_ticket != null ? queue.last_ticket + 1 : 1), (v) => { const c = ctxOf(st); run(async () => { await post('call', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket: v, device: st.device }); await refresh(); }); }),
+    callOther: () => askNumber('Qual senha você vai chamar?', (queue && queue.last_ticket != null ? queue.last_ticket + 1 : 1), (v) => { const c = ctxOf(st); run(async () => { await post('call', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket: v, status: 'served', device: st.device }); await refresh(); }); }),
+    // Senha prioritária (idoso, gestante, PcD…): a triagem marca a senha impressa com "P"; aqui ela é chamada fora da ordem,
+    // entra no ato e NÃO avança a sequência normal (a próxima continua sendo a seguinte à última senha comum).
+    priority: () => askNumber('Senha prioritária: qual número?', '', (v) => { const c = ctxOf(st); run(async () => { await post('call', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket: v, status: 'served', priority: 1, device: st.device }); await refresh(); }); }),
     status: (id, status) => { setBusy(true); run(async () => { try { await post('setStatus', id, status); await refresh(); } finally { setBusy(false); } }); },
     // "Chamar a próxima": a senha que estava na sala sai (entrou, ou não veio) e a próxima é chamada, numa só gravação.
     resolve: (id, status, nextTicket) => { const c = ctxOf(st); setBusy(true); run(async () => { try { await post('advance', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, ticket: nextTicket, device: st.device, prev_id: id, prev_status: status }); await refresh(); } finally { setBusy(false); } }); },
@@ -243,11 +246,12 @@ export default function Atendimento() {
   }
   function viewPorta() {
     const c = ctxOf(st); const s = svc(st.service) || D.services[0]; const qd = queueById(st.place); const calls = (queue && queue.calls) || []; const cur = calls[0] || null;
-    const issued = queue && queue.issued ? queue.issued.count : null; const last = queue && queue.last_ticket != null ? queue.last_ticket : (cur ? cur.ticket : 0);
-    const next = (last || 0) + 1; const inService = cur && cur.status === 'served' && !cur.ended_at;
-    // Quem está em atendimento agora (entrou e não saiu), mesmo que a última chamada seja outra senha na porta.
-    const serving = calls.find((x) => x.status === 'served' && !x.ended_at) || null;
-    const atDoor = cur && cur.status === 'called' ? cur : null;
+    const issued = queue && queue.issued ? queue.issued.count : null; const last = queue && queue.last_ticket != null ? queue.last_ticket : (cur && !cur.priority ? cur.ticket : 0);
+    const next = (last || 0) + 1;
+    // Senha da vez: chamada e ainda não encerrada (entra no ato; "chamada" pura só em registros antigos).
+    const atDoor = cur && (cur.status === 'called' || (cur.status === 'served' && !cur.ended_at)) ? cur : null;
+    // Alguém ainda em atendimento além da senha da vez (registros antigos / "entrou" pelo histórico).
+    const serving = calls.find((x) => x.status === 'served' && !x.ended_at && (!atDoor || x.id !== atDoor.id)) || null;
     // Fluxo da porta: a chamada já é a entrada na sala. "Chamar a próxima" dá a anterior como atendida; se a pessoa não
     // veio, "Chamar de novo" (a TV reanuncia) ou "Não veio" (registra a falta e chama a próxima). A próxima é chamada
     // SEMPRE (a contagem da triagem pode estar atrasada; se a senha não existir, "Não veio" ou "Desfazer").
@@ -260,22 +264,23 @@ export default function Atendimento() {
         <div className="door">
           {atDoor ? (
             <>
-              <div className="door-now door-call"><small>{I('megaphone')}Senha chamada · na sala</small><button type="button" className="door-num" data-act="recall" disabled={busy} onClick={() => act.recall(atDoor.id)} title="Chamar novamente na TV"><b>{atDoor.ticket ?? '—'}</b><em>{I('megaphone')}toque para chamar de novo</em></button>
-                <span className="st called">chamada às {fmtT(atDoor.called_at)}{atDoor.recalled_at ? ` · repetida às ${fmtT(atDoor.recalled_at)}` : ''}</span></div>
+              <div className="door-now door-call"><small>{I('megaphone')}Senha chamada · na sala{atDoor.priority ? <i className="prio">Prioridade</i> : null}</small><button type="button" className="door-num" data-act="recall" disabled={busy} onClick={() => act.recall(atDoor.id)} title="Chamar novamente na TV"><b>{atDoor.ticket ?? '—'}</b><em>{I('megaphone')}toque para chamar de novo</em></button>
+                <span className="st called">entrou às {fmtT(atDoor.called_at)}{atDoor.recalled_at ? ` · repetida às ${fmtT(atDoor.recalled_at)}` : ''}</span></div>
               <button className="door-next" data-act="advance" disabled={busy} onClick={() => act.resolve(atDoor.id, 'served', next)}>{I('megaphone')}<span><b>Chamar a próxima · senha {next}</b><small>a senha {atDoor.ticket ?? '—'} foi atendida</small></span></button>
               <div className="door-res"><button className="ghost" data-act="recall" disabled={busy} onClick={() => act.recall(atDoor.id)}>{I('megaphone')}<span>Chamar de novo<small>a TV anuncia a senha {atDoor.ticket ?? '—'} outra vez</small></span></button><button className="no" data-act="resolve" data-status="absent" disabled={busy} onClick={() => act.resolve(atDoor.id, 'absent', next)}>{I('x')}<span>Não veio<small>registra a falta e chama a senha {next}</small></span></button></div>
             </>
           ) : (
             <>
               <div className="door-now idle"><small>{cur ? 'Nenhuma senha aguardando na porta' : 'Nenhuma senha chamada ainda'}</small><b>—</b></div>
-              <button className="door-next" data-act="call" disabled={busy} onClick={() => act.call(next)}>{I('megaphone')}Chamar a senha {next}</button>
+              <button className="door-next" data-act="call" disabled={busy} onClick={() => act.call(next, 'served')}>{I('megaphone')}<span><b>Chamar a senha {next}</b><small>a chamada já registra a entrada na sala</small></span></button>
               <p className="door-hint">A chamada aparece na TV (e por voz) e a pessoa entra na sala. Ao terminar, toque em "Chamar a próxima".{issued != null && next > issued ? ' (A triagem registrou menos senhas entregues do que isso.)' : ''}</p>
             </>
           )}
           {serving ? (
             <div className="door-serving"><span className="lbl">{I('check')}Em atendimento</span><b>{serving.ticket ?? '—'}</b><small>entrou às {fmtT(serving.status_at)} · há {Math.max(0, Math.round((Date.now() - serving.status_at) / 60000))} min</small><button className="link" data-act="end" onClick={() => act.end(serving.id)}>finalizar</button></div>
-          ) : (cur && cur.status !== 'called' ? <div className="door-serving muted"><span className="lbl">{cur.status === 'served' ? I('check') : I('x')}Última</span><b>{cur.ticket ?? '—'}</b><small>{cur.status === 'served' ? `entrou às ${fmtT(cur.status_at)}` : 'não compareceu'}</small></div> : null)}
+          ) : (cur && !atDoor ? <div className="door-serving muted"><span className="lbl">{cur.status === 'served' ? I('check') : I('x')}Última</span><b>{cur.ticket ?? '—'}</b><small>{cur.status === 'served' ? `entrou às ${fmtT(cur.status_at)}` : 'não compareceu'}</small></div> : null)}
           <div className="door-tools">
+            <button className="btn btn-ghost btn-prio" data-act="priority" onClick={act.priority}>{I('star')}Prioridade</button>
             <button className="btn btn-ghost" data-act="call-other" onClick={act.callOther}>{I('ticket')}Outro número</button>
             {cur ? <button className="btn btn-ghost" data-act="undo" onClick={() => act.undo(cur.id)}>{I('back')}Desfazer</button> : null}
           </div>
@@ -283,7 +288,7 @@ export default function Atendimento() {
           {calls.length > 1 ? (
             <>
               <h3 style={{ margin: '.4em 0 .2em' }}>Últimas chamadas</h3>
-              <ul className="hist">{calls.slice(1, 9).map((x) => <li key={x.id}><b>{x.ticket ?? '—'}</b><span className={`badge ${x.status}`}>{x.status === 'served' ? 'entrou' : x.status === 'absent' ? 'faltou' : 'sem registro'}</span><time>{fmtT(x.called_at)}</time>{x.status === 'called' ? <button className="link" onClick={() => act.status(x.id, 'served')}>entrou</button> : null}</li>)}</ul>
+              <ul className="hist">{calls.slice(1, 9).map((x) => <li key={x.id}><b>{x.ticket ?? '—'}{x.priority ? <i className="prio" title="prioritária">P</i> : null}</b><span className={`badge ${x.status}`}>{x.status === 'served' ? 'entrou' : x.status === 'absent' ? 'faltou' : 'sem registro'}</span><time>{fmtT(x.called_at)}</time>{x.status === 'called' ? <button className="link" onClick={() => act.status(x.id, 'served')}>entrou</button> : null}</li>)}</ul>
             </>
           ) : null}
         </div>

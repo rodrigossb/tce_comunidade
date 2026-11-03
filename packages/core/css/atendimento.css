@@ -74,11 +74,14 @@
 .door-res .ok{background:#16a34a}.door-res .no{background:#dc2626}
 .door-res button .ico{width:1.4em;height:1.4em}
 .door-res button:active{transform:scale(.98)}
-.door-next{height:4.4em;border-radius:18px;border:0;font:inherit;font-size:1.15em;font-weight:800;background:var(--accent);color:#1f1300;display:flex;align-items:center;justify-content:center;gap:.5em;box-shadow:0 10px 24px -12px rgba(0,0,0,.4)}
+.door-next{height:5.4em;border-radius:18px;border:0;font:inherit;font-size:1.15em;font-weight:800;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;gap:.5em;box-shadow:0 10px 24px -12px rgba(0,0,0,.4)}
 .door-next:active{transform:scale(.98)}
 .door-next .ico{width:1.3em;height:1.3em}
 .door-next span{display:flex;flex-direction:column;align-items:flex-start;line-height:1.1}.door-next span b{font-weight:800}.door-next span small{font-size:.68em;font-weight:700;opacity:.75}
 .door-res .ghost{background:var(--card);color:var(--ink);border:1.5px solid var(--line);box-shadow:none}
+.btn-prio{color:#1d4ed8;border-color:#93c5fd;background:#eff6ff}
+.hist li b .prio,.door-now small .prio{display:inline-block;font-style:normal;font-family:var(--font-text);font-size:.6em;font-weight:800;background:#2563eb;color:#fff;border-radius:.35em;padding:.15em .4em;margin-left:.4em;vertical-align:middle;letter-spacing:.04em}
+.door-now small .prio{font-size:.85em;text-transform:none}
 .door-tools{display:flex;gap:.5em;flex-wrap:wrap}
 .door-tools .btn{flex:1;font-size:.92em}
 .door-kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:.5em}

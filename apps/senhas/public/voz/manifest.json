@@ -41,10 +41,11 @@
  ],
  "extras": [
   "x-som",
-  "x-novamente"
+  "x-novamente",
+  "x-prioridade"
  ],
  "voice": "pt_BR-faber-medium",
- "generatedAt": "2026-11-03T02:17:03.357Z",
+ "generatedAt": "2026-11-03T03:18:59.434Z",
  "phrases": {
   "p-jn-r03": "Laboratório, exames, sala três.",
   "p-jn-r04": "Ginecologista, sala quatro.",
@@ -84,6 +85,7 @@
   "p-mg-r14": "Justiça e direitos, sala quatorze.",
   "p-mg-t04": "Tenda Pet, tenda quatro.",
   "x-som": "Som ativado. As senhas serão anunciadas.",
-  "x-novamente": "Atenção, chamando novamente."
+  "x-novamente": "Atenção, chamando novamente.",
+  "x-prioridade": "Atenção, senha prioritária."
  }
 }
