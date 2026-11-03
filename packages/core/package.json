@@ -15,6 +15,7 @@
     "./css/*": "./css/*",
     "./inscritos": "./src/inscritos.js",
     "./lanches": "./src/lanches.js",
-    "./fila": "./src/fila.js"
+    "./fila": "./src/fila.js",
+    "./lugares": "./src/lugares.js"
   }
 }

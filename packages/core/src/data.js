@@ -401,16 +401,16 @@ const senhas = {
 // Fontes (03/11/2026): OpenStreetMap/Nominatim para as escolas (ponto do prédio) e endereços públicos para os demais;
 // approx = ponto da rua/quadra, não da porta — confirmar com a organização. `venues` liga o pino aos locais da programação.
 const geo = [
-  { id: 'jn', venues: ['jn'], name: 'Escola Estadual Joaquim Nabuco', short: 'Joaquim Nabuco', city: 'Oiapoque',
+  { id: 'jn', venues: ['jn'], kind: 'escola', name: 'Escola Estadual Joaquim Nabuco', short: 'Joaquim Nabuco', city: 'Oiapoque',
     address: 'Rua Dr. Lélio Silva, 719 – Centro, Oiapoque/AP', lat: 3.8435884, lng: -51.8342181, approx: false,
     note: 'Sede dos cursos em Oiapoque. No sábado 07/11, também os serviços gratuitos.' },
-  { id: 'manga', venues: ['manga', 'iaparra'], name: 'Escola Estadual Indígena Jorge Iaparrá', short: 'Aldeia do Manga', city: 'Distrito do Manga',
+  { id: 'manga', venues: ['manga', 'iaparra'], kind: 'escola', name: 'Escola Estadual Indígena Jorge Iaparrá', short: 'Aldeia do Manga', city: 'Distrito do Manga',
     address: 'Via Principal, Aldeia do Manga – Terra Indígena Uaçá, Oiapoque/AP', lat: 3.7251695, lng: -51.7203639, approx: false,
     note: 'Cursos no Distrito do Manga e, na quarta 04/11, os serviços gratuitos.' },
-  { id: 'sebrae', venues: ['sebrae'], name: 'SEBRAE · Escritório Regional de Oiapoque', short: 'SEBRAE', city: 'Oiapoque',
+  { id: 'sebrae', venues: ['sebrae'], kind: 'outro', name: 'SEBRAE · Escritório Regional de Oiapoque', short: 'SEBRAE', city: 'Oiapoque',
     address: 'Rua Santos Dumont, 228 – Sala 2, Centro, Oiapoque/AP', lat: 3.8459819, lng: -51.8374998, approx: true,
     note: 'Cursos de empreendedorismo, beleza e alimentos.' },
-  { id: 'auditorio', venues: ['auditorio'], name: 'Auditório Joaquim Caetano', short: 'Aud. Joaquim Caetano', city: 'Oiapoque',
+  { id: 'auditorio', venues: ['auditorio'], kind: 'escola', name: 'Auditório Joaquim Caetano', short: 'Aud. Joaquim Caetano', city: 'Oiapoque',
     address: 'Escola Estadual Joaquim Caetano da Silva · Av. Coaracy Nunes, 40 – Centro, Oiapoque/AP', lat: 3.8385419, lng: -51.8302762, approx: true,
     note: 'Local a confirmar com a organização.' },
 ];

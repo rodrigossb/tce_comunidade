@@ -6,6 +6,7 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { summarize } from '@tce/core/stats';
 import { parsePrioList, queuePlan } from '@tce/core/fila';
+import { normalizeLugar } from '@tce/core/lugares';
 import { notify } from './bus.js';
 
 export class ApiError extends Error { constructor(status, message) { super(message); this.status = status; } }
@@ -21,7 +22,8 @@ CREATE TABLE IF NOT EXISTS calls (id INTEGER PRIMARY KEY, day TEXT NOT NULL, ven
 CREATE INDEX IF NOT EXISTS calls_day ON calls(day, venue, service_id, place_id, called_at);
 CREATE TABLE IF NOT EXISTS prio_log (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, spec TEXT NOT NULL, device TEXT, ts INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS prio_day ON prio_log(day, venue, service_id, place_id, ts);
-CREATE TABLE IF NOT EXISTS inscritos_snap (id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, painel_info TEXT, source TEXT, data TEXT NOT NULL);`;
+CREATE TABLE IF NOT EXISTS inscritos_snap (id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, painel_info TEXT, source TEXT, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS lugares (id INTEGER PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, address TEXT, lat REAL NOT NULL, lng REAL NOT NULL, note TEXT, phone TEXT, device TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0);`;
 
 function open(file) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -52,6 +54,11 @@ function open(file) {
     snapInsert: db.prepare(`INSERT INTO inscritos_snap (ts, painel_info, source, data) VALUES (?,?,?,?)`),
     snapLatest: db.prepare(`SELECT ts, painel_info, source, data FROM inscritos_snap ORDER BY ts DESC, id DESC LIMIT 1`),
     snapPrune: db.prepare(`DELETE FROM inscritos_snap WHERE id NOT IN (SELECT id FROM inscritos_snap ORDER BY ts DESC, id DESC LIMIT 500)`),
+    lugarAll: db.prepare(`SELECT id, name, kind, address, lat, lng, note, phone, created_at, updated_at FROM lugares WHERE deleted=0 ORDER BY kind, name`),
+    lugarGet: db.prepare(`SELECT * FROM lugares WHERE id=?`),
+    lugarInsert: db.prepare(`INSERT INTO lugares (name, kind, address, lat, lng, note, phone, device, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`),
+    lugarUpdate: db.prepare(`UPDATE lugares SET name=?, kind=?, address=?, lat=?, lng=?, note=?, phone=?, device=?, updated_at=? WHERE id=?`),
+    lugarDelete: db.prepare(`UPDATE lugares SET deleted=1, updated_at=? WHERE id=?`),
   };
   return { db, q, file };
 }
@@ -202,4 +209,26 @@ export function saveInscritos({ byId, painelInfo, source }) {
 export function latestInscritos() {
   const { q } = conn(); const r = q.snapLatest.get(); if (!r) return null;
   return { updatedAt: num(r.ts), painelInfo: r.painel_info || '', source: r.source || 'coletor', byId: JSON.parse(r.data) };
+}
+
+// ---- lugares do mapa (mapa-eventos.html): cadastro da equipe, além dos locais fixos do evento (D.geo) ----
+/** Lista os lugares ativos. */
+export function lugares() { return rows(conn().q.lugarAll.all()); }
+/** Cria (sem id) ou atualiza (com id) um lugar; validação em @tce/core/lugares. */
+export function saveLugar(b) {
+  let l; try { l = normalizeLugar(b); } catch (e) { throw err(e.status || 400, e.message); }
+  const { q } = conn(); const now = Date.now(); const device = clean(b && b.device, 32);
+  if (l.id) {
+    const cur = q.lugarGet.get(l.id); if (!cur || num(cur.deleted)) throw err(404, 'lugar não encontrado');
+    q.lugarUpdate.run(l.name, l.kind, l.address, l.lat, l.lng, l.note, l.phone, device, now, l.id);
+    return { ok: true, id: l.id };
+  }
+  const r = q.lugarInsert.run(l.name, l.kind, l.address, l.lat, l.lng, l.note, l.phone, device, now, now);
+  return { ok: true, id: num(r.lastInsertRowid) };
+}
+/** Remove (lógico) um lugar. */
+export function deleteLugar(idRaw) {
+  const id = Number(idRaw); if (!Number.isInteger(id) || id <= 0) throw err(400, 'id');
+  const { q } = conn(); const cur = q.lugarGet.get(id); if (!cur || num(cur.deleted)) throw err(404, 'lugar não encontrado');
+  q.lugarDelete.run(Date.now(), id); return { ok: true, id };
 }

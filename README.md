@@ -44,6 +44,13 @@ localização" mostra a distância em linha reta. `?local=jn|manga|sebrae|audito
 Joaquim Caetano da Silva, Av. Coaracy Nunes, 40) pelo ponto da rua, marcados `approx` e com aviso na página. Links para cá:
 ferramentas do resumo e botão "Como chegar" na folha de cada local do app.
 
+**Cadastro de lugares** (escolas, restaurantes, hotéis, saúde, outro): botão "Cadastrar lugar" abre o formulário (nome,
+tipo, endereço, telefone, latitude/longitude, observação). As coordenadas podem ser digitadas, preenchidas pelo GPS do
+celular, marcadas com um toque no mapa (pino "?" arrastável) ou buscadas pelo endereço no OpenStreetMap (Nominatim).
+Salvar exige o PIN da equipe (operador ou gestor do tce-senhas; fica só na sessão do navegador). Os lugares ficam no
+tce-senhas (`GET/POST/DELETE /api/lugares`, tabela `lugares`, validação em `@tce/core/lugares`) e aparecem para todos,
+com filtro por tipo, cor própria no pino, editar/excluir e cópia local (`localStorage`) para abrir sem a API.
+
 ## App (`index.html`)
 Rotas por hash, compartilháveis: `#programacao?d=2026-11-05&local=jn`, `#busca?q=vacina`,
 `#cursos?q=ia&tema=tecnologia&dia=…&turno=manha&local=jn&fav=1&ord=az`, `#curso/116`, `#servicos`,

@@ -104,3 +104,18 @@ test('prioridades da triagem: lista/intervalos gravados, plano intercalado na fi
   assert.equal(db.state(DAY, V).priorities.find((x) => x.place_id === P4).spec, '3, 10-12');
   assert.equal(tv.places.find((x) => x.place_id === P).seq, null, 'sala sem prioritárias não mostra filas');
 });
+
+test('lugares do mapa: cria, atualiza, valida e remove', () => {
+  assert.throws(() => db.saveLugar({ name: 'X', kind: 'hotel', lat: 3.84, lng: -51.83 }), (e) => e.status === 400); // nome curto
+  assert.throws(() => db.saveLugar({ name: 'Hotel Teste', kind: 'spa', lat: 3.84, lng: -51.83 }), (e) => e.status === 400); // tipo
+  assert.throws(() => db.saveLugar({ name: 'Hotel Teste', kind: 'hotel', lat: 0, lng: -51.83 }), (e) => e.status === 400); // fora da região
+  const a = db.saveLugar({ name: 'Hotel Teste', kind: 'hotel', address: 'Rua A, 1', lat: '3,8440', lng: '-51,8350', phone: '(96) 9999-0000', device: 'd1' });
+  assert.ok(a.ok && a.id > 0);
+  const b = db.saveLugar({ name: 'Restaurante Beira Rio', kind: 'restaurante', lat: 3.845, lng: -51.836 });
+  let list = db.lugares(); assert.equal(list.length, 2); assert.equal(list[0].kind, 'hotel'); assert.equal(list[0].lat, 3.844); assert.equal(list[0].phone, '(96) 9999-0000');
+  db.saveLugar({ id: a.id, name: 'Hotel Teste Novo', kind: 'hotel', lat: 3.8441, lng: -51.8351 });
+  list = db.lugares(); assert.equal(list.find((l) => l.id === a.id).name, 'Hotel Teste Novo');
+  assert.throws(() => db.saveLugar({ id: 999, name: 'Nada', kind: 'outro', lat: 3.84, lng: -51.83 }), (e) => e.status === 404);
+  db.deleteLugar(b.id); assert.equal(db.lugares().length, 1);
+  assert.throws(() => db.deleteLugar(b.id), (e) => e.status === 404);
+});
