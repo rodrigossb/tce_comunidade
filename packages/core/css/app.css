@@ -385,6 +385,25 @@ em.only .ico{width:.95em;height:.95em}
 .sec.dest{background:color-mix(in srgb,#fbbf24 10%,var(--card));border:1px solid color-mix(in srgb,#fbbf24 45%,var(--line));border-radius:var(--radius);padding:.8em .9em}
 .sec.dest .sec-head{margin-bottom:.4em}
 .sec.dest .actions{margin-top:.4em}
+.sec.dest{scroll-margin-top:calc(4.4em + env(safe-area-inset-top))}
+/* Painel da sala no mapa: o que é oferecido ali, por serviço (pilar), e as aulas de cursos */
+.dest-when{display:flex;align-items:center;gap:.4em;font-size:.82em;color:var(--mut);margin:0 0 .5em;line-height:1.3}
+.dest-when .ico{flex:none;color:var(--primary)}
+.offer{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--c);border-radius:var(--radius-sm);padding:.65em .8em;margin:0 0 .5em;box-shadow:var(--shadow)}
+.offer-head{display:flex;align-items:center;gap:.6em;width:100%;background:none;border:0;padding:0;font:inherit;color:inherit;text-align:left;cursor:pointer;border-radius:8px}
+.offer-head>span:nth-child(2){flex:1;min-width:0}
+.offer-head b{display:block;font-family:var(--font-display);font-weight:800;font-size:1em;line-height:1.15}
+.offer-head small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--mut);font-size:.78em;line-height:1.3;margin-top:.15em}
+.offer-head>.ico{flex:none;color:var(--mut)}
+div.offer-head{cursor:default}
+.offer .ul{margin:.6em 0 .1em;padding:0;list-style:none}
+.offer .ul li{font-size:.92em}
+.offer-sum{margin:.5em 0 .1em;font-size:.88em;line-height:1.4;color:var(--ink2)}
+.offer .day-group{margin:.5em 0 0}
+.offer .day-group>small{margin:.4em 0 .35em}
+.offer.courses .sess{box-shadow:none;border-radius:var(--radius-sm);padding:.6em .6em .6em .75em;gap:0 .6em}
+.offer.courses .sess-right .ico{display:none}
+.offer.courses .day-group>small{font-size:.72em}
 
 /* botão de destaque para o mapa (folhas de curso, serviço e local) */
 .btn-map{width:100%;justify-content:flex-start;gap:.7em;background:var(--primary);color:#fff;border:0;border-radius:var(--radius);padding:.8em .9em;margin:.2em 0 .7em;text-align:left;box-shadow:0 6px 16px -8px rgba(31,59,154,.6)}

@@ -1,7 +1,8 @@
 'use client';
 /* Telas principais do app (porta de viewProgramacao/viewBusca/viewCursos/viewMapa/viewServicos/viewLocais). */
+import { useEffect, useRef } from 'react';
 import PlanMap from '@/components/PlanMap';
-import { T, D, M, I, useApp, useDomain, activeFilterCount, cap, shiftColor, sessionsOf, StateBadge, SessRow, CourseCard, SvcCard, OnlyNote, VenueCard, Chip, Empty, PlaceChip, SearchBox, ServicesStrip, Footer, SvcDayCard, WhenBox, hashOf } from './ui';
+import { T, D, M, I, useApp, useDomain, activeFilterCount, cap, shiftColor, sessionsOf, StateBadge, SessRow, ItemLi, CourseCard, SvcCard, OnlyNote, VenueCard, Chip, Empty, PlaceChip, SearchBox, ServicesStrip, Footer, SvcDayCard, WhenBox, hashOf } from './ui';
 
 export function ViewProgramacao() {
   const { clock, route, favs, setParam, nav, go, openShifts, toggleShift } = useApp();
@@ -136,13 +137,49 @@ export function useMapParams() {
   return { p, venue, map, placeId, sid, ent, fixed: !!fixedEnt, svc, course, cx, alias, hl: svc ? T.placesOf(svc, venue) : [] };
 }
 
+/** Painel da sala/tenda escolhida no mapa: cada serviço (pilar) com o que é oferecido ali e as aulas de cursos (T.offeringsAt). */
+function PlaceOfferings({ placeId }) {
+  const { clock, openSheet } = useApp(); const { st } = useDomain();
+  const o = T.offeringsAt(placeId); if (!o) return null;
+  if (!o.services.length && !o.sessions.length) return <p className="muted tiny" style={{ margin: '.2em 0 .6em' }}>Sem atendimentos cadastrados neste ambiente.</p>;
+  const byDay = {}; o.sessions.forEach((x) => { (byDay[x.date] = byDay[x.date] || []).push(x); });
+  return (
+    <>
+      {o.services.length ? <p className="dest-when">{I('handshake')}<span>Serviços gratuitos{o.day ? <> · <b>{T.fmtDate(o.day.date, 'wdlong')}</b></> : null} · sem inscrição, por ordem de chegada</span></p> : null}
+      {o.services.map(({ service: s, items, specific }) => (
+        <div key={s.id} className="offer" style={{ '--c': s.color }}>
+          <button className="offer-head" onClick={() => openSheet('servico', s.id)} aria-label={`${s.title}: ver o serviço completo`}><span className="sec-ico c">{I(s.icon)}</span><span><b>{s.title}</b><small>{s.num ? `Pilar ${s.num}` : 'Acolhida'} · {s.partners.join(', ')}</small></span>{I('right')}</button>
+          {specific ? <ul className="ul">{items.map((it, k) => <ItemLi key={k} it={it} />)}</ul> : <p className="offer-sum">{s.summary}</p>}
+        </div>
+      ))}
+      {o.sessions.length ? (
+        <div className="offer courses" style={{ '--c': '#34d399' }}>
+          <div className="offer-head"><span className="sec-ico c">{I('graduation')}</span><span><b>Cursos nesta sala</b><small>{o.sessions.length} aula{o.sessions.length === 1 ? '' : 's'} · com inscrição · toque para ver o curso</small></span></div>
+          {Object.keys(byDay).map((d) => <div key={d} className="day-group"><small className={d === clock.date ? 'today' : ''}>{T.fmtDate(d)}{d === clock.date ? ' · hoje' : ''}</small><div className="stack">{byDay[d].map((x, k) => { const sx = st(x); const c = shiftColor(x.shift); return (
+            <button key={k} className={`sess ${sx}`} style={{ '--c': c }} onClick={() => openSheet('curso', x.course.id)} aria-label={T.title(x.course)}>
+              <span className="sess-time"><b>{T.fmtTime(x.time)}</b><small>até {T.fmtTime(T.sessionEnd(x))}</small></span>
+              <span className="sess-body"><b>{T.title(x.course, true)}{x.label ? ` · ${x.label}` : ''}</b><small>Para: {x.course.audience}</small></span>
+              <span className="sess-right"><StateBadge s={sx} c={c} />{I('right')}</span>
+            </button>); })}</div></div>)}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 export function ViewMapa() {
   const { nav, go, openSheet, setParam, toast, setFullMap } = useApp();
   const { p, venue, map, placeId, sid, ent, fixed, svc, course, cx, alias, hl } = useMapParams();
   const here = M.entranceOf(map, ent);
   const day = T.serviceDays().find((d) => d.venue === venue);
   const place = placeId ? T.placeInfo(placeId) : null;
-  const servicesHere = place ? D.services.filter((s) => T.placesOf(s, venue).includes(placeId)) : [];
+  // Ao escolher outra sala (pino, chip ou mapa ampliado) o painel dela entra na tela; na abertura com ?p= (vindo de um curso) fica o mapa com o caminho.
+  const destRef = useRef(null); const prevPlace = useRef(placeId);
+  useEffect(() => {
+    if (prevPlace.current === placeId) return; prevPlace.current = placeId;
+    const el = destRef.current; if (!placeId || !el) return;
+    const r = el.getBoundingClientRect(); if (r.top < 0 || r.bottom > window.innerHeight) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [placeId]);
   const speak = () => { if (!M.speak(M.route(venue, placeId, ent))) toast('Este navegador não tem leitura em voz alta', 'info'); };
   return (
     <>
@@ -155,10 +192,10 @@ export function ViewMapa() {
         onEntrance={fixed ? undefined : (eid) => go(`#mapa?local=${venue}&entrada=${eid}${p.get('p') ? `&p=${p.get('p')}` : ''}${sid ? `&s=${sid}` : ''}${p.get('curso') ? `&curso=${p.get('curso')}` : ''}`, true)} />
       <div className="map-foot"><div className="map-legend"><span><i style={{ background: '#e11d48' }}></i>Você</span><span><i style={{ background: '#0b1b3d' }}></i>Sala</span><span><i style={{ background: '#7e22ce' }}></i>Tenda</span><span><i style={{ background: '#0f766e' }}></i>Área</span><span><i style={{ background: '#fbbf24' }}></i>Destino</span></div><button className="btn btn-ghost sm" onClick={() => setFullMap(venue)}>{I('zoomin')}Ampliar</button></div>
       {place ? (
-        <section className="sec dest"><div className="sec-head"><span className="sec-ico" style={{ background: '#fbbf24', color: '#0b1b3d' }}>{I('flag')}</span><h2>{M.placeLabel(place)} {alias || M.placeLabel(place) !== place.name ? <small>{alias || place.name}</small> : null}</h2>{typeof window !== 'undefined' && window.speechSynthesis ? <button className="icon-btn" onClick={speak} aria-label="Ouvir o caminho" title="Ouvir o caminho">{I('megaphone')}</button> : null}</div>
+        <section ref={destRef} className="sec dest"><div className="sec-head"><span className="sec-ico" style={{ background: '#fbbf24', color: '#0b1b3d' }}>{I('flag')}</span><h2>{M.placeLabel(place)} {alias || M.placeLabel(place) !== place.name ? <small>{alias || place.name}</small> : null}</h2>{typeof window !== 'undefined' && window.speechSynthesis ? <button className="icon-btn" onClick={speak} aria-label="Ouvir o caminho" title="Ouvir o caminho">{I('megaphone')}</button> : null}</div>
           {cx ? <p className="page-lead" style={{ margin: '0 0 .5em' }}>{T.title(course)} · {T.fmtDate(cx.date, 'wdlong')} às {T.fmtTime(cx.time)}</p> : null}
-          {!course && servicesHere.length ? <div className="chips">{servicesHere.map((s) => <button key={s.id} className="chip c" style={{ '--c': s.color }} onClick={() => openSheet('servico', s.id)}><i></i>{I(s.icon)}{s.short}</button>)}</div> : null}
-          <div className="actions"><button className="btn btn-ghost" onClick={() => nav(`mapa?local=${venue}&entrada=${ent}${sid ? `&s=${sid}` : ''}`)}>{I('map')}Mapa geral</button>{course ? <button className="btn btn-primary" onClick={() => openSheet('curso', course.id)}>{I('graduation')}Voltar ao curso</button> : svc ? <button className="btn btn-primary" onClick={() => openSheet('servico', svc.id)}>{I(svc.icon)}{svc.short}</button> : null}</div></section>
+          <PlaceOfferings placeId={placeId} />
+          <div className="actions"><button className="btn btn-ghost" onClick={() => { const el = document.querySelector('.app-main .tcemap'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}>{I('pin')}Ver o caminho</button><button className="btn btn-ghost" onClick={() => nav(`mapa?local=${venue}&entrada=${ent}${sid ? `&s=${sid}` : ''}`)}>{I('map')}Mapa geral</button>{course ? <button className="btn btn-primary" onClick={() => openSheet('curso', course.id)}>{I('graduation')}Voltar ao curso</button> : svc ? <button className="btn btn-primary" onClick={() => openSheet('servico', svc.id)}>{I(svc.icon)}{svc.short}</button> : null}</div></section>
       ) : null}
       {!place && svc ? <section className="sec"><div className="sec-head"><span className="sec-ico c" style={{ '--c': svc.color }}>{I(svc.icon)}</span><h2>{svc.title} <small>{hl.length} local{hl.length === 1 ? '' : 'is'}</small></h2><button className="icon-btn" onClick={() => openSheet('servico', svc.id)} aria-label="Detalhes do serviço">{I('info')}</button></div><p className="page-lead" style={{ margin: '0 0 .5em' }}>{day ? `${T.fmtDate(day.date, 'wdlong')} · ` : ''}toque em uma sala para ver o caminho.</p><div className="place-chips">{hl.map((id) => <PlaceChip key={id} id={id} s={sid} />)}</div></section> : null}
       {!place && !svc ? <section className="sec"><div className="sec-head"><span className="sec-ico">{I('door')}</span><h2>Salas e tendas <small>{map.places.filter((x) => !x.hide).length}</small></h2></div><p className="page-lead" style={{ margin: '0 0 .5em' }}>{day ? <>Serviços gratuitos em <b>{T.fmtDate(day.date, 'wdlong')}</b>. </> : null}Toque em uma sala, no mapa ou na lista, para ver o caminho.</p><div className="place-chips">{map.places.filter((x) => !x.hide).map((x) => <PlaceChip key={x.id} id={x.id} />)}</div>
