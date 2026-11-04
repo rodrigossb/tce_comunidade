@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { TCE as T } from '@tce/core';
 import { parsePrioList, whyLabel } from '@tce/core/fila';
 import { placeLabel } from '@tce/core/map';
-import { mergeExtras, placeOf } from '@/lib/filas-extra';
+import { mergeExtras, withoutDisabled, placeOf } from '@/lib/filas-extra';
 import Icon from './Icon';
 import * as A from '@/app/actions';
 
@@ -15,7 +15,7 @@ const D = T.D;
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const LS = 'tce_at';
 const VER = '2.0';
-const ACTIONS = { setIssued: A.setIssued, setPriorities: A.setPriorities, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall, advance: A.advance, addExtraQueue: A.addExtraQueue, removeExtraQueue: A.removeExtraQueue };
+const ACTIONS = { setIssued: A.setIssued, setPriorities: A.setPriorities, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall, advance: A.advance, addExtraQueue: A.addExtraQueue, removeExtraQueue: A.removeExtraQueue, setQueueEnabled: A.setQueueEnabled };
 const EXTRA_BLANK = { service_id: '', name: '', kind: 'sala', num: '', count: '100', spec: '80-100' };
 const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch { return d; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem storage */ } };
@@ -41,6 +41,7 @@ export default function Atendimento() {
   const [prioTxt, setPrioTxt] = useState({}); const prioSaved = useRef({}); // triagem: texto das senhas prioritárias por sala, exatamente como digitado
   const [extraForm, setExtraForm] = useState(null); // triagem: formulário de novo serviço/sala (null = fechado)
   const extrasRef = useRef([]); extrasRef.current = (data && data.extras) || []; // filas criadas no dia (vêm com o estado)
+  const disabledRef = useRef([]); disabledRef.current = (data && data.disabled) || []; // filas desativadas na triagem (ids de ambiente)
 
   // ---------- início ----------
   useEffect(() => {
@@ -57,7 +58,9 @@ export default function Atendimento() {
   const ctxOf = (s, c) => { const d = T.serviceDays().find((x) => x.date === s.day) || dayDefault(c || T.now()); return { day: d.date, venue: d.venue, place: d.place }; };
   const svc = (id) => T.serviceById(id);
   const placeName = (id) => { const p = placeOf(id, extrasRef.current); return p ? (p.kind === 'area' && !p.num ? p.name : `${placeLabel(p)} · ${p.name}`) : id; };
-  const queues = () => mergeExtras(T.ticketQueuesOf(ctxOf(stRef.current).venue), extrasRef.current); // filas fixas (D.senhas) + extras criadas na triagem
+  const allQueues = () => mergeExtras(T.ticketQueuesOf(ctxOf(stRef.current).venue), extrasRef.current); // filas fixas (D.senhas) + extras criadas na triagem
+  const queues = () => withoutDisabled(allQueues(), disabledRef.current); // só as ativas (as desativadas somem da triagem, da porta e da TV)
+  const disabledQueues = () => { const off = new Set(disabledRef.current); const out = []; for (const g of allQueues()) for (const p of g.places) if (off.has(p.id)) out.push(Object.assign({ svc: g.service }, p)); return out; };
   const queueById = (id) => { for (const g of queues()) for (const p of g.places) if (p.id === id) return Object.assign({ svc: g.service }, p); return null; };
 
   // ---------- servidor (server actions) + fila offline ----------
@@ -140,6 +143,7 @@ export default function Atendimento() {
     const count = f.count.trim() === '' ? null : Number(f.count); if (count != null && (!Number.isInteger(count) || count < 0)) { toast('Quantidade de senhas inválida', 'alert'); return; }
     run(async () => { const r = await post('addExtraQueue', { day: c.day, venue: c.venue, service_id: f.service_id, name: f.name.trim(), kind: f.kind, num: f.num.trim(), count, spec: f.spec, device: st.device }); if (r) { toast(`${f.name.trim()} criado`); setExtraForm(null); } await refresh(); });
   }
+  const setEnabled = (p, sid, enabled) => { const c = ctxOf(st); run(async () => { await post('setQueueEnabled', { day: c.day, venue: c.venue, service_id: sid, place_id: p.id, enabled, device: st.device }); toast(enabled ? `${p.name} reativado` : `${p.name} desativado: saiu da porta e da TV`); await refresh(); }); };
   const removeExtra = (p) => { if (!confirm(`Remover "${p.name}" da triagem, da porta e da TV? As chamadas já feitas ficam no histórico.`)) return; run(async () => { await post('removeExtraQueue', p.extra_id); toast(`${p.name} removido`); await refresh(); }); };
   function askNumber(title, value, cb) { setNumAsk({ title, cb }); setNumVal(String(value)); }
   useEffect(() => { if (numAsk && numInput.current) { numInput.current.focus(); numInput.current.select(); } }, [numAsk]);
@@ -239,7 +243,7 @@ export default function Atendimento() {
               {g.places.map((p) => { const n = cnt(p.id); const stt = statOf(g.service.id, p.id); return (
                 <div key={p.id} className="tri-row" style={{ '--c': g.service.color }}>
                   <span className="ic">{I(p.kind === 'tenda' ? 'tent' : 'door')}</span>
-                  <span className="nm"><b>{p.name}</b><small>{placeLabel(p)}{stt ? ` · ${stt.called} chamada${stt.called === 1 ? '' : 's'} · ${stt.served} atendida${stt.served === 1 ? '' : 's'}` : ''}{p.extra ? <> · criado na triagem · <button type="button" className="link rm" data-act="extra-rm" onClick={() => removeExtra(p)}>remover</button></> : null}</small></span>
+                  <span className="nm"><b>{p.name}</b><small>{placeLabel(p)}{stt ? ` · ${stt.called} chamada${stt.called === 1 ? '' : 's'} · ${stt.served} atendida${stt.served === 1 ? '' : 's'}` : ''}{p.extra ? <> · criado na triagem · <button type="button" className="link rm" data-act="extra-rm" onClick={() => removeExtra(p)}>remover</button></> : null} · <button type="button" className="link off" data-act="queue-off" data-id={p.id} onClick={() => { if (confirm(`Desativar "${p.name}" hoje? Some da porta da sala e da TV até ser reativado aqui.`)) setEnabled(p, g.service.id, false); }}>desativar</button></small></span>
                   <button className="minus" data-id={p.id} aria-label="Menos um" onClick={() => setIssued(p.id, g.service.id, n - 1)}>{I('x')}</button>
                   <button className="cnt" data-id={p.id} aria-label="Digitar o total entregue" onClick={() => askNumber(`${p.name}: total de senhas entregues`, n, (v) => setIssued(p.id, g.service.id, v))}><b>{n}</b><small>{I('sliders')}digitar</small></button>
                   <button className="plus" data-id={p.id} onClick={() => setIssued(p.id, g.service.id, n + 1)}>+1</button>
@@ -251,6 +255,19 @@ export default function Atendimento() {
             </div>
           </div>
         ))}
+        {disabledQueues().length ? (
+          <div className="tri-off">
+            <h3 className="tri-h" style={{ '--c': '#64748b' }}>{I('x')}Desativados hoje ({disabledQueues().length})</h3>
+            <p className="tiny muted">Não aparecem na porta da sala nem na TV. Toque em reativar para voltar.</p>
+            <div className="tri">{disabledQueues().map((p) => (
+              <div key={p.id} className="tri-row off" style={{ '--c': '#94a3b8' }}>
+                <span className="ic">{I(p.kind === 'tenda' ? 'tent' : 'door')}</span>
+                <span className="nm"><b>{p.name}</b><small>{placeLabel(p)} · {p.svc.short}</small></span>
+                <button type="button" className="btn btn-primary sm" data-act="queue-on" data-id={p.id} onClick={() => setEnabled(p, p.svc.id, true)}>{I('check')}Reativar</button>
+              </div>
+            ))}</div>
+          </div>
+        ) : null}
         <div className="tri-new">
           {!extraForm ? (
             <button type="button" className="btn btn-ghost" data-act="extra-new" onClick={() => setExtraForm(Object.assign({}, EXTRA_BLANK, { service_id: (queues()[0] || { service: { id: '' } }).service.id }))}>{I('calendarplus')}Novo serviço / sala</button>

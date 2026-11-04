@@ -158,7 +158,9 @@ médio, senha atual, chamadas por hora). Fila offline no aparelho, reenviada qua
 nome, pilar, tipo (sala/tenda/outro) e número, já com o padrão de senhas entregues (100) e prioritárias (80-100). Fica na
 tabela `filas_extra` (id do ambiente `<local>-x<n>`), vale para o local/dia, e entra na triagem, na porta, na TV (quando a TV não
 está limitada por `?salas=`), na voz (síntese do navegador, sem áudio pronto) e no painel; "remover" tira a fila mantendo o
-histórico de chamadas. Junção com as filas fixas em `apps/senhas/lib/filas-extra.js`.
+histórico de chamadas. **Desativar** (link em cada linha da triagem) tira a fila da porta e da TV no dia (tabela `filas_off`,
+uma linha por ambiente); ela fica no bloco "Desativados hoje" da triagem, com "Reativar". Junção com as filas fixas em
+`apps/senhas/lib/filas-extra.js` (`activeQueues` = fixas + extras − desativadas).
 
 **Dashboard de resultados** (`https://dev.gerenciahub.com.br/tce-senhas/dashboard`, público, 16:9, mesmo formato da TV):
 números do dia de serviços para projetar no encerramento da ação ou acompanhar ao vivo. Quatro telas que alternam a cada

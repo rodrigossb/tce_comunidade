@@ -25,7 +25,9 @@ CREATE TABLE IF NOT EXISTS prio_log (id INTEGER PRIMARY KEY, day TEXT NOT NULL, 
 CREATE INDEX IF NOT EXISTS prio_day ON prio_log(day, venue, service_id, place_id, ts);
 CREATE TABLE IF NOT EXISTS inscritos_snap (id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, painel_info TEXT, source TEXT, data TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS lugares (id INTEGER PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, address TEXT, lat REAL NOT NULL, lng REAL NOT NULL, note TEXT, phone TEXT, device TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0);
-CREATE TABLE IF NOT EXISTS filas_extra (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL DEFAULT '', name TEXT NOT NULL, kind TEXT NOT NULL, num TEXT NOT NULL DEFAULT '', device TEXT, created_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0);`;
+CREATE TABLE IF NOT EXISTS filas_extra (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL DEFAULT '', name TEXT NOT NULL, kind TEXT NOT NULL, num TEXT NOT NULL DEFAULT '', device TEXT, created_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS filas_off (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, device TEXT, ts INTEGER NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS filas_off_key ON filas_off(day, venue, place_id);`;
 
 function open(file) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -66,6 +68,9 @@ function open(file) {
     extraInsert: db.prepare(`INSERT INTO filas_extra (day, venue, service_id, place_id, name, kind, num, device, created_at) VALUES (?,?,?,?,?,?,?,?,?)`),
     extraSetPlace: db.prepare(`UPDATE filas_extra SET place_id=? WHERE id=?`),
     extraDelete: db.prepare(`UPDATE filas_extra SET deleted=1 WHERE id=?`),
+    offAll: db.prepare(`SELECT service_id, place_id, ts FROM filas_off WHERE day=? AND venue=? ORDER BY ts`),
+    offInsert: db.prepare(`INSERT OR REPLACE INTO filas_off (day, venue, service_id, place_id, device, ts) VALUES (?,?,?,?,?,?)`),
+    offDelete: db.prepare(`DELETE FROM filas_off WHERE day=? AND venue=? AND place_id=?`),
   };
   return { db, q, file };
 }
@@ -87,7 +92,7 @@ function ctx(day, venue) { const v = clean(venue, 16); if (!isDay(day) || !v) th
 export function state(day, venue) {
   const c = ctx(day, venue); const { q } = conn();
   const issued = rows(q.issuedLatest.all(c.day, c.venue)); const calls = rows(q.callsDay.all(c.day, c.venue));
-  return { day: c.day, venue: c.venue, now: Date.now(), issued, priorities: rows(q.prioLatest.all(c.day, c.venue)), stats: summarize(issued, calls, Date.now()), extras: extras(c.day, c.venue) };
+  return { day: c.day, venue: c.venue, now: Date.now(), issued, priorities: rows(q.prioLatest.all(c.day, c.venue)), stats: summarize(issued, calls, Date.now()), extras: extras(c.day, c.venue), disabled: disabled(c.day, c.venue) };
 }
 export function stats(day, venue) {
   const st = state(day, venue); const { q } = conn();
@@ -191,7 +196,7 @@ export function tvBoard(day, venue) {
   }
   const recent = calls.slice().sort((a, b) => b.called_at - a.called_at || b.id - a.id).slice(0, 60)
     .map((x) => ({ id: x.id, ticket: x.ticket, service_id: x.service_id, place_id: x.place_id, status: x.status, called_at: x.called_at, recalled_at: x.recalled_at || null, priority: x.priority ? 1 : 0, status_at: x.status_at, ended_at: x.ended_at }));
-  return { day: c.day, venue: c.venue, now, places, recent, extras: extras(c.day, c.venue), total: { issued: st.total.issued, called: st.total.called, waiting: st.total.not_called, in_service: st.total.in_service } };
+  return { day: c.day, venue: c.venue, now, places, recent, extras: extras(c.day, c.venue), disabled: disabled(c.day, c.venue), total: { issued: st.total.issued, called: st.total.called, waiting: st.total.not_called, in_service: st.total.in_service } };
 }
 /** Chamadas do dia no local (para o dashboard: séries por hora e linha do tempo). */
 export function callsOfDay(day, venue) { const c = ctx(day, venue); return rows(conn().q.callsDay.all(c.day, c.venue)); }
@@ -254,6 +259,16 @@ export function removeExtra(idRaw) {
   const id = Number(idRaw); if (!Number.isInteger(id) || id <= 0) throw err(400, 'id');
   const { q } = conn(); const cur = q.extraGet.get(id); if (!cur || num(cur.deleted)) throw err(404, 'fila não encontrada');
   q.extraDelete.run(id); notify(cur.day, cur.venue); return { ok: true, id };
+}
+
+/** Filas desativadas na triagem (ids de ambiente) no dia/local: somem da triagem, da porta e da TV até serem reativadas. */
+export function disabled(day, venue) { const c = ctx(day, venue); return rows(conn().q.offAll.all(c.day, c.venue)).map((r) => r.place_id); }
+/** Liga/desliga uma fila { day, venue, service_id, place_id, enabled, device }. O histórico de chamadas não muda. */
+export function setQueueEnabled(b) {
+  const c = ctx(b && b.day, b && b.venue); const sid = clean(b.service_id, 32); const pid = clean(b.place_id, 32); if (!sid || !pid) throw err(400, 'dados');
+  const { q } = conn();
+  if (b.enabled) q.offDelete.run(c.day, c.venue, pid); else q.offInsert.run(c.day, c.venue, sid, pid, clean(b.device, 40), Date.now());
+  notify(c.day, c.venue); return { ok: true, place_id: pid, enabled: !!b.enabled };
 }
 
 // ---- lugares do mapa (mapa-eventos.html): cadastro da equipe, além dos locais fixos do evento (D.geo) ----

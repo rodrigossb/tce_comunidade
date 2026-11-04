@@ -136,3 +136,13 @@ test('filas extras: criar na triagem já lança o padrão de senhas e prioritár
   assert.ok(!db.state(DAY, V).extras.some((x) => x.id === r.place_id));
   assert.throws(() => db.removeExtra(r.id), /não encontrada/);
 });
+
+test('desativar fila na triagem: entra em disabled (estado e TV) e volta ao reativar', () => {
+  db.setQueueEnabled({ day: DAY, venue: V, service_id: S, place_id: P, enabled: false, device: 't' });
+  assert.deepEqual(db.state(DAY, V).disabled, [P]); assert.deepEqual(db.tvBoard(DAY, V).disabled, [P]);
+  db.setQueueEnabled({ day: DAY, venue: V, service_id: S, place_id: P, enabled: false, device: 't' }); // repetir não duplica
+  assert.deepEqual(db.state(DAY, V).disabled, [P]);
+  db.setQueueEnabled({ day: DAY, venue: V, service_id: S, place_id: P, enabled: true, device: 't' });
+  assert.deepEqual(db.state(DAY, V).disabled, []);
+  assert.throws(() => db.setQueueEnabled({ day: DAY, venue: V, service_id: S, place_id: '', enabled: false }), /dados/);
+});

@@ -170,7 +170,7 @@ function Board() {
   const [data, setData] = useState(null);
   const [offline, setOffline] = useState(false);
   const lastOk = useRef(Date.now());
-  const take = useCallback((j) => { lastOk.current = Date.now(); setOffline(false); setData((prev) => (prev && JSON.stringify(prev.places) === JSON.stringify(j.places) && JSON.stringify(prev.recent) === JSON.stringify(j.recent) ? Object.assign(prev, { now: j.now }) : j)); }, []);
+  const take = useCallback((j) => { lastOk.current = Date.now(); setOffline(false); setData((prev) => (prev && JSON.stringify(prev.places) === JSON.stringify(j.places) && JSON.stringify(prev.recent) === JSON.stringify(j.recent) && JSON.stringify(prev.extras || []) === JSON.stringify(j.extras || []) && JSON.stringify(prev.disabled || []) === JSON.stringify(j.disabled || []) ? Object.assign(prev, { now: j.now }) : j)); }, []);
   const refresh = useCallback(async () => {
     try {
       const r = await fetch(`${BP}/api/tv?local=${encodeURIComponent(venue)}&dia=${day}`, { cache: 'no-store', signal: AbortSignal.timeout(6000) });
@@ -215,7 +215,8 @@ function Board() {
     // Filas extras criadas na triagem entram quando a TV não está limitada a salas específicas (?salas=); ?servicos= filtra também elas.
     const svcFilter = new Set(String(sp.get('servicos') || '').split(/[,;+ ]+/).filter(Boolean));
     const extra = sp.get('salas') ? [] : extraQueues((data && data.extras) || [], svcFilter);
-    return sel.queues.concat(extra).map((q) => ({ key: q.place.id, place: q.place, service: q.service, stat: byPlace.get(q.place.id) || null }))
+    const off = new Set((data && data.disabled) || []); // filas desativadas na triagem
+    return sel.queues.concat(extra).filter((q) => !off.has(q.place.id)).map((q) => ({ key: q.place.id, place: q.place, service: q.service, stat: byPlace.get(q.place.id) || null }))
       .sort((a, b) => svcIdx(a.service) - svcIdx(b.service) || numOf(a.place) - numOf(b.place) || String(a.place.name).localeCompare(String(b.place.name), 'pt-BR'));
   }, [sel, data, sp]);
   const selected = useMemo(() => new Set(rows.map((r) => r.key)), [rows]);

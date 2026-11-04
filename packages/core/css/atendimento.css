@@ -208,3 +208,8 @@
 .tri-new-form input:focus,.tri-new-form select:focus{outline:2px solid #2563eb;outline-offset:1px}
 .tri-new-form .row2{display:grid;grid-template-columns:1fr 1fr;gap:.6em}
 .tri-new-form .actions{display:flex;gap:.6em;justify-content:flex-end;margin-top:.2em}
+/* triagem: filas desativadas */
+.tri-row .nm small .link.off{font-size:1em;color:var(--mut);font-weight:700;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline}
+.tri-off{margin-top:1.4em}
+.tri-row.off{grid-template-columns:auto minmax(0,1fr) auto;opacity:.85;background:color-mix(in srgb,var(--card) 70%,#f1f5f9)}
+.tri-row.off .nm b{text-decoration:line-through;color:var(--mut)}
