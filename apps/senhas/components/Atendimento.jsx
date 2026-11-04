@@ -98,7 +98,8 @@ export default function Atendimento() {
   const screen = !st ? 'loading' : !st.role ? 'pin' : !st.local ? 'local' : !st.mode ? 'role' : st.mode === 'triagem' ? 'triagem' : st.mode === 'painel' ? 'painel' : (!st.service || !st.place) ? 'porta-setup' : 'porta';
   const pollKey = st ? `${screen}|${st.day}|${st.service}|${st.place}` : '';
   useEffect(() => {
-    if (!['triagem', 'painel', 'porta'].includes(screen)) return undefined;
+    // porta-setup (lista de salas) também: as filas criadas/desativadas na triagem vêm com o estado do servidor.
+    if (!['triagem', 'painel', 'porta', 'porta-setup'].includes(screen)) return undefined;
     const ms = screen === 'painel' ? 15000 : 10000; let t;
     const tick = async () => { await refresh(); t = setTimeout(tick, ms); };
     refresh(); t = setTimeout(tick, ms);
@@ -307,6 +308,7 @@ export default function Atendimento() {
     return (
       <>
         {top('Porta da sala', `Em qual sala/atendimento você está? · ${c.place}`, act.home)}
+        {!data ? <p className="door-hint">{I('hourglass')} buscando as salas criadas na triagem…</p> : null}
         {queues().map((g) => (
           <div key={g.service.id}>
             <h3 className="tri-h" style={{ '--c': g.service.color }}>{I(g.service.icon)}{g.service.title}</h3>
