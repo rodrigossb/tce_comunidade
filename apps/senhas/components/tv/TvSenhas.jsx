@@ -35,6 +35,8 @@ const roomBig = (p) => (p.num ? `${roomWord(p)} ${p.num}` : p.name);
 const speakable = (p) => (p.num ? `${roomWord(p).toLowerCase()} ${Number(p.num)}` : p.name);
 const svcName = (p) => p.name; // o que a pessoa procura: a especialidade/atendimento da sala
 const roomLine = (p) => (p.num ? roomBig(p) : roomWord(p)); // "Sala 04" (ou "Tenda"/"Ambiente" se não houver número)
+/** Senha com a letra da série ("N 12" / "P 3"): prefixos configurados na triagem por sala (labels do quadro), senão N/P. */
+const Tk = ({ ticket, priority, labels }) => { if (ticket == null) return <>—</>; const pre = labels ? labels[priority ? 'p' : 'n'] : ''; return <>{pre ? <i className="sq-kind">{pre}</i> : null}{ticket}</>; };
 
 export default function TvSenhas() {
   const [mounted, setMounted] = useState(false);
@@ -283,6 +285,7 @@ function Board() {
     return { k: 'idle', label: '' };
   };
   const latestId = recent[0] ? recent[0].id : null;
+  const lblOf = (pid) => (data && data.labels && data.labels[pid]) || (data && data.default_labels) || { n: 'N', p: 'P' };
 
   return (
     <div className={`tv tv-dark sq ${portrait ? 'portrait' : 'landscape'}`} style={{ '--tv-zoom': zoom }}>
@@ -307,10 +310,10 @@ function Board() {
                 return (
                   <div key={r.key} className={`sq-card ${st.k} ${isLatest ? 'latest' : ''}`} style={{ '--c': r.service.color }}>
                     <div className="sq-top"><span className="sq-svc" title={`${svcName(r.place)} · ${r.service.title}`}><span>{svcName(r.place)}</span></span></div>
-                    <div className="sq-mid"><b className="sq-num">{c && c.ticket != null ? c.ticket : '—'}</b>{c && c.priority ? <i className="sq-prio" title="senha prioritária">P</i> : null}</div>
+                    <div className="sq-mid"><b className="sq-num">{c && c.ticket != null ? <Tk ticket={c.ticket} priority={c.priority} labels={lblOf(r.key)} /> : '—'}</b>{c && c.priority ? <i className="sq-prio" title="senha prioritária">prioridade</i> : null}</div>
                     {/* embaixo: só a sala (grande) com a categoria minúscula e, à direita, a hora da última chamada; o estado fica na cor/borda do cartão */}
                     <div className="sq-bot">{r.stat && r.stat.seq ? (
-                      <div className="sq-seq" title="última chamada → próxima"><span className="n"><em>Comuns</em><b>{r.stat.seq.normal.last ?? '—'}</b><i>→</i><b>{r.stat.seq.normal.next ?? '—'}</b></span><span className="p"><em>Prioridade</em><b>{r.stat.seq.prio.last ?? '—'}</b><i>→</i><b>{r.stat.seq.prio.next ?? '—'}</b></span></div>
+                      <div className="sq-seq" title="última chamada → próxima"><span className="n"><em>{lblOf(r.key).n || 'Comuns'}</em><b>{r.stat.seq.normal.last ?? '—'}</b><i>→</i><b>{r.stat.seq.normal.next ?? '—'}</b></span><span className="p"><em>{lblOf(r.key).p || 'Prioridade'}</em><b>{r.stat.seq.prio.last ?? '—'}</b><i>→</i><b>{r.stat.seq.prio.next ?? '—'}</b></span></div>
                     ) : null}<div className="sq-line"><b className="sq-roomname">{roomLine(r.place)}</b><span className="sq-right">{r.stat && r.stat.issued ? <span className="sq-wait">{r.stat.waiting} aguardando</span> : null}{c && c.ticket != null && c.called_at ? <span className="sq-time" title={st.label}>{fmtT(c.called_at)}</span> : null}</span></div></div>
                   </div>
                 ); })}
@@ -323,7 +326,7 @@ function Board() {
           <div className="sq-recent">
             <span className="mb-title"><Icon name="list" />Chamadas anteriores</span>
             {recent.length > 1 ? <ol>{recent.slice(1, portrait ? 4 : 6).map((c) => { const p = placeOf(c.place_id, data && data.extras); const s = D.services.find((x) => x.id === c.service_id); return (
-              <li key={c.id} className={c.status} style={{ '--c': s ? s.color : '#94a3b8' }}><b>{c.ticket ?? '—'}{c.priority ? <i className="sq-prio mini">P</i> : null}</b><span><strong>{p ? svcName(p) : c.place_id}</strong><small>{p ? roomLine(p) : ''}</small></span><em>{fmtT(c.called_at)}</em></li>
+              <li key={c.id} className={c.status} style={{ '--c': s ? s.color : '#94a3b8' }}><b><Tk ticket={c.ticket} priority={c.priority} labels={lblOf(c.place_id)} /></b><span><strong>{p ? svcName(p) : c.place_id}</strong><small>{p ? roomLine(p) : ''}</small></span><em>{fmtT(c.called_at)}</em></li>
             ); })}</ol> : <p className="sq-none">{recent.length ? 'Só uma chamada até agora.' : 'Nenhuma chamada ainda hoje.'}</p>}
           </div>
           {(() => {
@@ -336,7 +339,7 @@ function Board() {
                 <small className="sq-now-k"><Icon name={k === 'calling' ? 'megaphone' : 'ticket'} />Senha atual · <em>{label}</em> · {fmtT(c.called_at)}</small>
                 <div className="sq-now-svc">{p ? svcName(p) : c.place_id}</div>
                 {c.priority ? <i className="sq-prio now">Senha prioritária</i> : null}
-                <b className="sq-now-num">{c.ticket ?? '—'}</b>
+                <b className="sq-now-num"><Tk ticket={c.ticket} priority={c.priority} labels={lblOf(c.place_id)} /></b>
                 <div className="sq-now-room"><b>{p ? roomLine(p) : ''}</b></div>
               </div>
             );
@@ -357,7 +360,7 @@ function Board() {
           <div className="sq-flash-box">
             <small><Icon name="megaphone" />{flash.again ? 'Chamando novamente' : 'Chamando agora'}{flash.priority ? <i className="sq-flash-prio">Prioridade</i> : null}</small>
             <div className="sq-flash-row">
-              <span className="sq-flash-col num"><em>senha</em><b>{flash.ticket}</b></span>
+              <span className="sq-flash-col num"><em>senha</em><b><Tk ticket={flash.ticket} priority={flash.priority} labels={lblOf(flash.place ? flash.place.id : '')} /></b></span>
               {(() => { const name = flash.place ? svcName(flash.place) : flash.place_id; const L = String(name).length; return <span className="sq-flash-col svc" style={{ '--svcfs': L > 30 ? '2.8em' : L > 20 ? '3.4em' : '4em' }}><em>serviço</em><b>{name}</b></span>; })()}
               {flash.place && flash.place.num ? <span className="sq-flash-col room"><em>{roomWord(flash.place)}</em><b>{flash.place.num}</b></span> : null}
             </div>

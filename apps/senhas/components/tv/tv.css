@@ -169,3 +169,10 @@
 .tv-banner{position:fixed;left:50%;top:14%;transform:translateX(-50%);z-index:70;display:flex;align-items:center;gap:.6em;font-size:1.15em;font-weight:700;color:#0b1b3d;background:#fff;border-radius:999px;padding:.6em 1.3em;box-shadow:0 .6em 2em rgba(0,0,0,.5);max-width:90vw}
 .tv-banner .ico{width:1.4em;height:1.4em;flex:none;color:#b45309}
 .tv-build{opacity:.55;font-size:.85em}
+
+/* letra da série antes do número ("N 12" / "P 3") */
+.sq-kind{font-style:normal;font-weight:800;font-size:.42em;letter-spacing:0;margin-right:.18em;vertical-align:.55em;opacity:.85}
+.sq-num .sq-kind{font-size:.38em;vertical-align:.7em}
+.sq-recent li b .sq-kind{font-size:.6em;vertical-align:.3em}
+.sq-flash-col.num b .sq-kind{font-size:.32em;vertical-align:.9em;opacity:.9}
+.sq-prio{font-size:.6em;text-transform:uppercase;letter-spacing:.06em;padding:.3em .55em}

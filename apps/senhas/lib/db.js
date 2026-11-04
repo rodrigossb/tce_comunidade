@@ -5,10 +5,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { summarize } from '@tce/core/stats';
-import { parsePrioList, queuePlan } from '@tce/core/fila';
+import { queuePlan, normalizeCfg, DEFAULT_CFG } from '@tce/core/fila';
 import { normalizeLugar } from '@tce/core/lugares';
 import { TCE as T } from '@tce/core';
 import { notify } from './bus.js';
+import { activeQueues } from './filas-extra.js';
 
 export class ApiError extends Error { constructor(status, message) { super(message); this.status = status; } }
 export const err = (status, msg) => new ApiError(status, msg);
@@ -29,7 +30,9 @@ CREATE TABLE IF NOT EXISTS filas_extra (id INTEGER PRIMARY KEY, day TEXT NOT NUL
 CREATE TABLE IF NOT EXISTS filas_off (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, device TEXT, ts INTEGER NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS filas_off_key ON filas_off(day, venue, place_id);
 CREATE TABLE IF NOT EXISTS fila_cursor (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, normal_last INTEGER NOT NULL DEFAULT 0, prio_last INTEGER NOT NULL DEFAULT 0, device TEXT, ts INTEGER NOT NULL);
-CREATE INDEX IF NOT EXISTS fila_cursor_key ON fila_cursor(day, venue, service_id, place_id, ts);`;
+CREATE INDEX IF NOT EXISTS fila_cursor_key ON fila_cursor(day, venue, service_id, place_id, ts);
+CREATE TABLE IF NOT EXISTS fila_cfg (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, n_prefix TEXT NOT NULL DEFAULT 'N', p_prefix TEXT NOT NULL DEFAULT 'P', n_from INTEGER NOT NULL DEFAULT 1, p_from INTEGER NOT NULL DEFAULT 1, n_total INTEGER NOT NULL DEFAULT 100, p_total INTEGER NOT NULL DEFAULT 20, pattern TEXT NOT NULL DEFAULT '1:1', device TEXT, ts INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS fila_cfg_key ON fila_cfg(day, venue, service_id, place_id, id);`;
 
 function open(file) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -38,14 +41,16 @@ function open(file) {
   if (!db.prepare(`PRAGMA table_info(issued_log)`).all().some((c) => c.name === 'place_id')) db.exec(`ALTER TABLE issued_log ADD COLUMN place_id TEXT NOT NULL DEFAULT ''`);
   if (!db.prepare(`PRAGMA table_info(calls)`).all().some((c) => c.name === 'recalled_at')) db.exec(`ALTER TABLE calls ADD COLUMN recalled_at INTEGER`); // "chamar novamente" (reanuncia na TV)
   if (!db.prepare(`PRAGMA table_info(calls)`).all().some((c) => c.name === 'priority')) db.exec(`ALTER TABLE calls ADD COLUMN priority INTEGER NOT NULL DEFAULT 0`); // senha prioritária, chamada fora da ordem (não avança a sequência)
+  if (!db.prepare(`PRAGMA table_info(issued_log)`).all().some((c) => c.name === 'kind')) db.exec(`ALTER TABLE issued_log ADD COLUMN kind TEXT NOT NULL DEFAULT 'n'`); // série: 'n' comuns, 'p' prioritárias
   const q = {
-    issuedLatest: db.prepare(`SELECT service_id, place_id, count, ts FROM issued_log i WHERE day=? AND venue=? AND ts=(SELECT MAX(ts) FROM issued_log WHERE day=i.day AND venue=i.venue AND service_id=i.service_id AND place_id=i.place_id)`),
-    issuedInsert: db.prepare(`INSERT INTO issued_log (day, venue, service_id, place_id, count, device, ts) VALUES (?,?,?,?,?,?,?)`),
-    prioLatest: db.prepare(`SELECT service_id, place_id, spec, ts FROM prio_log p WHERE day=? AND venue=? AND ts=(SELECT MAX(ts) FROM prio_log WHERE day=p.day AND venue=p.venue AND service_id=p.service_id AND place_id=p.place_id)`),
-    prioInsert: db.prepare(`INSERT INTO prio_log (day, venue, service_id, place_id, spec, device, ts) VALUES (?,?,?,?,?,?,?)`),
-    prioOf: db.prepare(`SELECT spec FROM prio_log WHERE day=? AND venue=? AND service_id=? AND place_id=? ORDER BY ts DESC, id DESC LIMIT 1`),
+    // última contagem por sala E série (kind 'n'/'p'); vale o lançamento mais recente (id)
+    issuedLatest: db.prepare(`SELECT service_id, place_id, kind, count, ts FROM issued_log i WHERE day=? AND venue=? AND id=(SELECT MAX(id) FROM issued_log WHERE day=i.day AND venue=i.venue AND service_id=i.service_id AND place_id=i.place_id AND kind=i.kind)`),
+    issuedInsert: db.prepare(`INSERT INTO issued_log (day, venue, service_id, place_id, kind, count, device, ts) VALUES (?,?,?,?,?,?,?,?)`),
     callsAllPlace: db.prepare(`SELECT id, ticket, called_at, priority FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=?`),
-    issuedHistory: db.prepare(`SELECT service_id, place_id, count, ts FROM issued_log WHERE day=? AND venue=? ORDER BY ts`),
+    issuedHistory: db.prepare(`SELECT service_id, place_id, kind, count, ts FROM issued_log WHERE day=? AND venue=? ORDER BY ts`),
+    cfgOf: db.prepare(`SELECT * FROM fila_cfg WHERE day=? AND venue=? AND service_id=? AND place_id=? ORDER BY id DESC LIMIT 1`),
+    cfgAll: db.prepare(`SELECT * FROM fila_cfg f WHERE day=? AND venue=? AND id=(SELECT MAX(id) FROM fila_cfg WHERE day=f.day AND venue=f.venue AND service_id=f.service_id AND place_id=f.place_id)`),
+    cfgInsert: db.prepare(`INSERT INTO fila_cfg (day, venue, service_id, place_id, n_prefix, p_prefix, n_from, p_from, n_total, p_total, pattern, device, ts) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`),
     callsDay: db.prepare(`SELECT * FROM calls WHERE day=? AND venue=? ORDER BY called_at, id`),
     callsPlace: db.prepare(`SELECT * FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=? ORDER BY called_at DESC, id DESC LIMIT ?`),
     callInsert: db.prepare(`INSERT INTO calls (day, venue, service_id, place_id, ticket, called_at, status, device, priority) VALUES (?,?,?,?,?,?,'called',?,?)`),
@@ -94,10 +99,25 @@ const rows = (list) => list.map((r) => { const o = {}; for (const k of Object.ke
 // ---- domínio (todas lançam ApiError com status em entrada inválida) ----
 function ctx(day, venue) { const v = clean(venue, 16); if (!isDay(day) || !v) throw err(400, 'day/venue'); return { day, venue: v }; }
 
+/** Entregues por sala: { [place_id]: { service_id, n, p, ts } } a partir da última contagem de cada série. */
+function issuedMap(day, venue) {
+  const out = {};
+  for (const r of rows(conn().q.issuedLatest.all(day, venue))) { const o = (out[r.place_id] = out[r.place_id] || { service_id: r.service_id, place_id: r.place_id, n: 0, p: 0, ts: 0 }); o[r.kind === 'p' ? 'p' : 'n'] = r.count; o.ts = Math.max(o.ts, r.ts); }
+  return out;
+}
+/** Linhas agregadas (n+p) no formato que summarize() espera: [{ service_id, place_id, count, ts }]. */
+const issuedAgg = (map) => Object.values(map).map((o) => ({ service_id: o.service_id, place_id: o.place_id, count: o.n + o.p, ts: o.ts }));
+const cfgRow = (r) => (r ? { n_prefix: r.n_prefix, p_prefix: r.p_prefix, n_from: num(r.n_from), p_from: num(r.p_from), n_total: num(r.n_total), p_total: num(r.p_total), pattern: r.pattern } : null);
+/** Configuração da fila (última gravada) ou a padrão. */
+function cfgOf(day, venue, s, p) { return cfgRow(conn().q.cfgOf.get(day, venue, s, p)) || Object.assign({}, DEFAULT_CFG); }
+/** Configurações do dia/local: { [service|place]: cfg }. */
+function cfgMap(day, venue) { const out = {}; for (const r of conn().q.cfgAll.all(day, venue)) out[`${r.service_id}|${r.place_id}`] = cfgRow(r); return out; }
+
 export function state(day, venue) {
   const c = ctx(day, venue); const { q } = conn();
-  const issued = rows(q.issuedLatest.all(c.day, c.venue)); const calls = rows(q.callsDay.all(c.day, c.venue));
-  return { day: c.day, venue: c.venue, now: Date.now(), issued, priorities: rows(q.prioLatest.all(c.day, c.venue)), stats: summarize(issued, calls, Date.now()), extras: extras(c.day, c.venue), disabled: disabled(c.day, c.venue) };
+  const imap = issuedMap(c.day, c.venue); const calls = rows(q.callsDay.all(c.day, c.venue));
+  const configs = []; for (const r of q.cfgAll.all(c.day, c.venue)) configs.push(Object.assign({ service_id: r.service_id, place_id: r.place_id, ts: num(r.ts) }, cfgRow(r)));
+  return { day: c.day, venue: c.venue, now: Date.now(), issued: Object.values(imap), configs, default_cfg: DEFAULT_CFG, stats: summarize(issuedAgg(imap), calls, Date.now()), extras: extras(c.day, c.venue), disabled: disabled(c.day, c.venue) };
 }
 export function stats(day, venue) {
   const st = state(day, venue); const { q } = conn();
@@ -107,57 +127,58 @@ export function stats(day, venue) {
 export function queue(day, venue, service, place) {
   const c = ctx(day, venue); const s = clean(service, 32); const p = clean(place, 32); if (!s || !p) throw err(400, 'parâmetros');
   const { q } = conn();
-  const issuedRow = rows(q.issuedLatest.all(c.day, c.venue)).find((x) => x.place_id === p) || null;
-  const spec = prioSpec(c.day, c.venue, s, p);
-  const plan = planOf(c.day, c.venue, s, p, issuedRow ? issuedRow.count : null, spec);
+  const issued = issuedMap(c.day, c.venue)[p] || { service_id: s, place_id: p, n: 0, p: 0, ts: 0 };
+  const cfg = cfgOf(c.day, c.venue, s, p);
+  const plan = planOf(c.day, c.venue, s, p, cfg, issued);
   return {
     calls: rows(q.callsPlace.all(c.day, c.venue, s, p, 30)),
     open: q.openServed.all(c.day, c.venue, s, p).map((x) => num(x.id)),
     last_ticket: plan.normal.last || 0, // última comum segundo o plano (respeita o ajuste manual da porta)
-    issued: issuedRow,
-    prio_spec: spec,
+    issued, cfg,
     cursor: cursorOf(c.day, c.venue, s, p),
     plan,
   };
 }
-/** Lista de senhas prioritárias da sala (texto normalizado) ou ''. */
-function prioSpec(day, venue, s, p) { const r = conn().q.prioOf.get(day, venue, s, p); return r ? String(r.spec) : ''; }
-/** Plano da fila (próxima comum/prioritária, intercalação) a partir de tudo que já foi chamado na sala. */
-function planOf(day, venue, s, p, count, spec) { return queuePlan({ count: count == null ? null : num(count), prio: parsePrioList(spec || '').nums, calls: rows(conn().q.callsAllPlace.all(day, venue, s, p)), from: cursorOf(day, venue, s, p) }); }
+/** Plano da fila (próxima N/P pela ordem configurada) a partir de tudo que já foi chamado na sala. */
+function planOf(day, venue, s, p, cfg, issued) { return queuePlan({ cfg, issued, calls: rows(conn().q.callsAllPlace.all(day, venue, s, p)), from: cursorOf(day, venue, s, p) }); }
 /** Último ajuste manual do número atual da sala ({ normal, prio, ts }) ou null. */
 function cursorOf(day, venue, s, p) { const r = conn().q.cursorOf.get(day, venue, s, p); return r ? { normal: num(r.normal_last), prio: num(r.prio_last), ts: num(r.ts) } : null; }
 /** Porta da sala: "o número atual é X" — corrige a sequência quando avançou errado (ou volta ao início com 0).
-    normal = última senha comum chamada; prio = última prioritária chamada (opcional, 0 = nenhuma). As chamadas
+    normal = última senha comum (N) chamada; prio = última prioritária (P) chamada (0 = nenhuma). As chamadas
     anteriores ficam no histórico/estatística; só deixam de contar para a próxima senha. */
 export function setCursor(b) {
   const day = b.day; const venue = clean(b.venue, 16); const s = clean(b.service_id, 32); const p = clean(b.place_id, 32);
-  const normal = Number(b.normal); const prio = b.prio == null || b.prio === '' ? 0 : Number(b.prio);
+  const normal = b.normal == null || b.normal === '' ? 0 : Number(b.normal); const prio = b.prio == null || b.prio === '' ? 0 : Number(b.prio);
   if (!isDay(day) || !venue || !s || !p) throw err(400, 'dados');
-  if (!Number.isInteger(normal) || normal < 0 || normal > 100000) throw err(400, 'informe a última senha comum chamada (0 = recomeçar do 1)');
+  if (!Number.isInteger(normal) || normal < 0 || normal > 100000) throw err(400, 'informe a última senha comum chamada (0 = recomeçar do início)');
   if (!Number.isInteger(prio) || prio < 0 || prio > 100000) throw err(400, 'última prioritária inválida');
   const ts = Date.now(); conn().q.cursorInsert.run(day, venue, s, p, normal, prio, clean(b.device, 40), ts);
   notify(day, venue); return { ok: true, ts, normal, prio };
 }
-/** Triagem: senhas prioritárias da sala ("5, 12, 100-120"); vale a última gravação. */
-export function priorities(b) {
-  if (!isDay(b.day) || !clean(b.venue, 16) || !clean(b.service_id, 32) || !clean(b.place_id, 32)) throw err(400, 'dados');
-  const parsed = parsePrioList(b.spec); if (parsed.error) throw err(400, parsed.error);
-  const ts = Date.now(); conn().q.prioInsert.run(b.day, clean(b.venue, 16), clean(b.service_id, 32), clean(b.place_id, 32), parsed.spec, clean(b.device, 40), ts);
-  notify(b.day, clean(b.venue, 16)); return { ok: true, ts, spec: parsed.spec, count: parsed.nums.length };
+/** Triagem: configuração da fila { day, venue, service_id, place_id, n_prefix, p_prefix, n_from, p_from, n_total, p_total,
+    pattern, device, all }. Com `all: true` grava a mesma configuração em TODAS as filas ativas do local/dia. */
+export function setQueueConfig(b) {
+  const c = ctx(b && b.day, b && b.venue); const { cfg, error } = normalizeCfg(b); if (error) throw err(400, error);
+  const device = clean(b.device, 40); const ts = Date.now(); const { q } = conn();
+  const targets = [];
+  if (b.all) { for (const g of activeQueues(T.ticketQueuesOf(c.venue), extras(c.day, c.venue), disabled(c.day, c.venue))) for (const p of g.places) targets.push([g.service.id, p.id]); }
+  else { const s = clean(b.service_id, 32); const p = clean(b.place_id, 32); if (!s || !p) throw err(400, 'dados'); targets.push([s, p]); }
+  for (const [s, p] of targets) q.cfgInsert.run(c.day, c.venue, s, p, cfg.n_prefix, cfg.p_prefix, cfg.n_from, cfg.p_from, cfg.n_total, cfg.p_total, cfg.pattern, device, ts);
+  notify(c.day, c.venue); return { ok: true, ts, cfg, count: targets.length };
 }
+/** Triagem: quantas senhas de uma série ({ kind: 'n' | 'p' }) já foram entregues na sala; vale a última contagem. */
 export function issued(b) {
-  const count = Number(b.count);
+  const count = Number(b.count); const kind = b.kind === 'p' ? 'p' : 'n';
   if (!isDay(b.day) || !clean(b.venue, 16) || !clean(b.service_id, 32) || !Number.isInteger(count) || count < 0 || count > 100000) throw err(400, 'dados');
-  const ts = Date.now(); conn().q.issuedInsert.run(b.day, clean(b.venue, 16), clean(b.service_id, 32), clean(b.place_id, 32), count, clean(b.device, 40), ts);
-  notify(b.day, clean(b.venue, 16)); return { ok: true, ts };
+  const ts = Date.now(); conn().q.issuedInsert.run(b.day, clean(b.venue, 16), clean(b.service_id, 32), clean(b.place_id, 32), kind, count, clean(b.device, 40), ts);
+  notify(b.day, clean(b.venue, 16)); return { ok: true, ts, kind, count };
 }
 export function call(b) {
   const day = b.day; const venue = clean(b.venue, 16); const s = clean(b.service_id, 32); const p = clean(b.place_id, 32); const ticket = b.ticket == null ? null : Number(b.ticket);
   if (!isDay(day) || !venue || !s || !p || (ticket != null && (!Number.isInteger(ticket) || ticket < 0 || ticket > 100000))) throw err(400, 'dados');
   const { q } = conn(); const now = Date.now();
   const status = ['served', 'absent'].includes(b.status) ? b.status : null;
-  // Prioritária = está na lista da triagem para esta sala (ou veio marcada explicitamente).
-  const priority = b.priority != null ? (b.priority ? 1 : 0) : (ticket != null && parsePrioList(prioSpec(day, venue, s, p)).nums.includes(ticket) ? 1 : 0);
+  const priority = b.priority ? 1 : 0; // série: 1 = prioritária (P), 0 = comum (N); a porta sempre informa
   // Porta da sala: a chamada já é a entrada (status served no ato), e entrar encerra quem estava em atendimento na mesma
   // sala. Uma chamada sem status ("called") fica aguardando e não encerra ninguém.
   if (status === 'served') for (const o of q.openServed.all(day, venue, s, p)) q.callEnd.run(now, o.id);
@@ -201,31 +222,32 @@ export function endCall(idRaw) {
 /** Quadro da TV (público, só leitura): situação de cada sala (senha atual, aguardando) e as últimas chamadas do dia. */
 export function tvBoard(day, venue) {
   const c = ctx(day, venue); const { q } = conn(); const now = Date.now();
-  const issued = rows(q.issuedLatest.all(c.day, c.venue)); const calls = rows(q.callsDay.all(c.day, c.venue));
-  const st = summarize(issued, calls, now);
+  const imap = issuedMap(c.day, c.venue); const calls = rows(q.callsDay.all(c.day, c.venue));
+  const st = summarize(issuedAgg(imap), calls, now);
   // Quem está em atendimento agora em cada sala (entrou e ainda não saiu), além da última chamada (que pode estar na porta).
   const serving = {};
   for (const c of calls) if (c.status === 'served' && !c.ended_at) { const k = c.place_id; if (!serving[k] || c.status_at > serving[k].status_at) serving[k] = { id: c.id, ticket: c.ticket, status_at: c.status_at }; }
-  const places = [];
-  const prios = {}; for (const r of rows(q.prioLatest.all(c.day, c.venue))) prios[`${r.service_id}|${r.place_id}`] = r.spec;
-  const issuedBy = {}; for (const r of issued) issuedBy[r.place_id] = r.count;
+  const places = []; const labels = {};
+  const cfgs = cfgMap(c.day, c.venue);
   const cursors = {}; for (const r of rows(q.cursorAll.all(c.day, c.venue))) cursors[`${r.service_id}|${r.place_id}`] = { normal: num(r.normal_last), prio: num(r.prio_last), ts: num(r.ts) };
   for (const s of st.services) for (const p of s.places) {
-    const spec = prios[`${s.service_id}|${p.place_id}`] || '';
-    const plan = queuePlan({ count: issuedBy[p.place_id] == null ? null : issuedBy[p.place_id], prio: parsePrioList(spec).nums, calls: calls.filter((x) => x.service_id === s.service_id && x.place_id === p.place_id), from: cursors[`${s.service_id}|${p.place_id}`] || null });
+    const key = `${s.service_id}|${p.place_id}`; const cfg = cfgs[key] || DEFAULT_CFG;
+    const plan = queuePlan({ cfg, issued: imap[p.place_id] || null, calls: calls.filter((x) => x.service_id === s.service_id && x.place_id === p.place_id), from: cursors[key] || null });
+    labels[p.place_id] = { n: cfg.n_prefix, p: cfg.p_prefix };
     // seq: o que a TV mostra de cada fila (última e próxima comum/prioritária) — só quando a sala tem prioritárias
-    places.push({ service_id: s.service_id, place_id: p.place_id, issued: p.issued || 0, called: p.called || 0, waiting: p.not_called || 0, in_service: p.in_service || 0, current: p.current || null, serving: serving[p.place_id] && (!p.current || serving[p.place_id].id !== p.current.id) ? serving[p.place_id] : null, seq: plan.has_prio ? { normal: plan.normal, prio: plan.prio, next: plan.next } : null });
+    places.push({ service_id: s.service_id, place_id: p.place_id, issued: p.issued || 0, called: p.called || 0, waiting: p.not_called || 0, in_service: p.in_service || 0, current: p.current || null, serving: serving[p.place_id] && (!p.current || serving[p.place_id].id !== p.current.id) ? serving[p.place_id] : null, labels: labels[p.place_id], seq: plan.has_prio ? { normal: plan.normal, prio: plan.prio, next: plan.next } : null });
   }
+  for (const k of Object.keys(cfgs)) { const pid = k.split('|')[1]; if (!labels[pid]) labels[pid] = { n: cfgs[k].n_prefix, p: cfgs[k].p_prefix }; }
   const recent = calls.slice().sort((a, b) => b.called_at - a.called_at || b.id - a.id).slice(0, 60)
     .map((x) => ({ id: x.id, ticket: x.ticket, service_id: x.service_id, place_id: x.place_id, status: x.status, called_at: x.called_at, recalled_at: x.recalled_at || null, priority: x.priority ? 1 : 0, status_at: x.status_at, ended_at: x.ended_at }));
-  return { day: c.day, venue: c.venue, now, places, recent, extras: extras(c.day, c.venue), disabled: disabled(c.day, c.venue), total: { issued: st.total.issued, called: st.total.called, waiting: st.total.not_called, in_service: st.total.in_service } };
+  return { day: c.day, venue: c.venue, now, places, recent, labels, default_labels: { n: DEFAULT_CFG.n_prefix, p: DEFAULT_CFG.p_prefix }, extras: extras(c.day, c.venue), disabled: disabled(c.day, c.venue), total: { issued: st.total.issued, called: st.total.called, waiting: st.total.not_called, in_service: st.total.in_service } };
 }
 /** Chamadas do dia no local (para o dashboard: séries por hora e linha do tempo). */
 export function callsOfDay(day, venue) { const c = ctx(day, venue); return rows(conn().q.callsDay.all(c.day, c.venue)); }
 export function exportCsv(day) {
   if (!isDay(day)) throw err(400, 'day');
   const list = rows(conn().q.exportDay.all(day)); const iso = (t) => (t ? new Date(t).toISOString() : '');
-  const csv = ['id;dia;local;servico;sala;senha;chamada_em;status;status_em;fim_em;aparelho'].concat(list.map((r) => [r.id, r.day, r.venue, r.service_id, r.place_id, r.ticket ?? '', iso(r.called_at), r.status, iso(r.status_at), iso(r.ended_at), r.device || ''].join(';'))).join('\n');
+  const csv = ['id;dia;local;servico;sala;serie;senha;chamada_em;status;status_em;fim_em;aparelho'].concat(list.map((r) => [r.id, r.day, r.venue, r.service_id, r.place_id, r.priority ? 'P' : 'N', r.ticket ?? '', iso(r.called_at), r.status, iso(r.status_at), iso(r.ended_at), r.device || ''].join(';'))).join('\n');
   return { csv: '﻿' + csv, name: `atendimentos-${day}.csv` };
 }
 
@@ -254,24 +276,24 @@ export function extras(day, venue) {
   const c = ctx(day, venue);
   return rows(conn().q.extraAll.all(c.day, c.venue)).map((r) => ({ id: r.place_id, extra_id: r.id, venue: c.venue, service_id: r.service_id, name: r.name, kind: r.kind, num: r.num, extra: true, created_at: r.created_at }));
 }
-/** Cria uma fila extra { day, venue, service_id, name, kind, num, count, spec, device }: já lança o padrão de senhas
-    entregues (count, ex. 100) e prioritárias (spec, ex. "80-100") para a nova sala. */
+/** Cria uma fila extra { day, venue, service_id, name, kind, num, device, + configuração (n_total, p_total, pattern, prefixos,
+    inícios) e entregues iniciais (issued_n, issued_p) }: a nova sala já nasce configurada para a porta e a TV. */
 export function addExtra(b) {
   const c = ctx(b && b.day, b && b.venue); const sid = clean(b.service_id, 32);
   const name = text(b.name, 60); const kind = EXTRA_KINDS.includes(b.kind) ? b.kind : 'sala'; const num = text(b.num, 8).replace(/[^\w\- ]/g, '');
   if (!sid || !D.services.some((s) => s.id === sid)) throw err(400, 'serviço (pilar) inválido');
   if (name.length < 2) throw err(400, 'informe o nome do atendimento');
-  const count = b.count == null || b.count === '' ? null : Number(b.count);
-  if (count != null && (!Number.isInteger(count) || count < 0 || count > 100000)) throw err(400, 'quantidade de senhas inválida');
-  const parsed = parsePrioList(b.spec || ''); if (parsed.error) throw err(400, parsed.error);
+  const { cfg, error } = normalizeCfg(b); if (error) throw err(400, error);
+  const init = {}; for (const k of ['issued_n', 'issued_p']) { const v = b[k] == null || b[k] === '' ? 0 : Number(b[k]); if (!Number.isInteger(v) || v < 0 || v > 100000) throw err(400, 'quantidade de senhas entregues inválida'); init[k] = v; }
   const { db, q } = conn(); const now = Date.now(); const device = clean(b.device, 40);
   let out;
   db.exec('BEGIN');
   try {
     const r = q.extraInsert.run(c.day, c.venue, sid, '', name, kind, num, device, now); const id = Number(r.lastInsertRowid);
     const place_id = `${c.venue}-x${id}`; q.extraSetPlace.run(place_id, id);
-    if (count != null) q.issuedInsert.run(c.day, c.venue, sid, place_id, count, device, now);
-    if (parsed.nums.length) q.prioInsert.run(c.day, c.venue, sid, place_id, parsed.spec, device, now);
+    q.cfgInsert.run(c.day, c.venue, sid, place_id, cfg.n_prefix, cfg.p_prefix, cfg.n_from, cfg.p_from, cfg.n_total, cfg.p_total, cfg.pattern, device, now);
+    if (init.issued_n) q.issuedInsert.run(c.day, c.venue, sid, place_id, 'n', init.issued_n, device, now);
+    if (init.issued_p) q.issuedInsert.run(c.day, c.venue, sid, place_id, 'p', init.issued_p, device, now);
     db.exec('COMMIT'); out = { ok: true, id, place_id };
   } catch (e) { db.exec('ROLLBACK'); throw e; }
   notify(c.day, c.venue); return out;

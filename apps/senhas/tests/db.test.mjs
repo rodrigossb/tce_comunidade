@@ -18,12 +18,14 @@ test('validação: dia/local/serviço inválidos dão erro 400', () => {
   assert.throws(() => db.setStatus(999, 'served'), (e) => e.status === 404);
   assert.throws(() => db.exportCsv('hoje'), (e) => e.status === 400);
 });
-test('triagem: vale a última contagem por sala', async () => {
+test('triagem: vale a última contagem por sala e por série (N e P somam nas estatísticas)', async () => {
   db.issued({ day: DAY, venue: V, service_id: S, place_id: P, count: 3, device: 'a' }); await sleep(2);
-  db.issued({ day: DAY, venue: V, service_id: S, place_id: P, count: 10, device: 'a' });
+  db.issued({ day: DAY, venue: V, service_id: S, place_id: P, count: 8, device: 'a' }); await sleep(2);
+  db.issued({ day: DAY, venue: V, service_id: S, place_id: P, kind: 'p', count: 2, device: 'a' });
   const st = db.state(DAY, V);
-  assert.equal(st.issued.length, 1); assert.equal(st.issued[0].count, 10); assert.equal(st.stats.total.issued, 10);
-  assert.equal(db.stats(DAY, V).issued_history.length, 2);
+  assert.equal(st.issued.length, 1); assert.equal(st.issued[0].n, 8); assert.equal(st.issued[0].p, 2); assert.equal(st.stats.total.issued, 10);
+  assert.equal(db.stats(DAY, V).issued_history.length, 3);
+  const q = db.queue(DAY, V, S, P); assert.deepEqual(q.issued, { service_id: S, place_id: P, n: 8, p: 2, ts: q.issued.ts }); assert.equal(q.cfg.n_prefix, 'N');
 });
 test('chamadas: a próxima espera na porta (não encerra quem está em atendimento); entrou encerra; faltou/desfazer/finalizar', async () => {
   const c1 = db.call({ day: DAY, venue: V, service_id: S, place_id: P, ticket: 1, status: 'served', device: 'a' });
@@ -31,7 +33,7 @@ test('chamadas: a próxima espera na porta (não encerra quem está em atendimen
   const c2 = db.call({ day: DAY, venue: V, service_id: S, place_id: P, ticket: 2, device: 'a' });
   assert.equal(c2.status, 'called');
   let q = db.queue(DAY, V, S, P);
-  assert.equal(q.calls[0].id, c2.id); assert.equal(q.last_ticket, 2); assert.equal(q.issued.count, 10);
+  assert.equal(q.calls[0].id, c2.id); assert.equal(q.last_ticket, 2); assert.equal(q.issued.n + q.issued.p, 10);
   assert.equal(q.calls.find((x) => x.id === c1.id).ended_at, null, 'chamar a próxima não encerra quem está em atendimento');
   assert.deepEqual(q.open, [c1.id]);
   const tv = db.tvBoard(DAY, V); const pl = tv.places.find((x) => x.place_id === P); assert.equal(pl.current.ticket, 2); assert.equal(pl.serving.ticket, 1);
@@ -47,7 +49,7 @@ test('chamadas: a próxima espera na porta (não encerra quem está em atendimen
 });
 test('CSV do dia com BOM, cabeçalho e uma linha por chamada', () => {
   const { csv, name } = db.exportCsv(DAY);
-  assert.equal(name, `atendimentos-${DAY}.csv`); assert.ok(csv.startsWith('﻿id;dia;local'));
+  assert.equal(name, `atendimentos-${DAY}.csv`); assert.ok(csv.startsWith('﻿id;dia;local;servico;sala;serie;senha'));
   assert.equal(csv.split('\n').length, 3);
   assert.equal(db.exportCsv('2026-11-04').csv.split('\n').length, 1);
 });
@@ -89,20 +91,24 @@ test('senha prioritária: chamada fora da ordem, entra no ato, não avança a se
   assert.equal(tv.recent.find((x) => x.id === pr.id).priority, 1);
 });
 
-test('prioridades da triagem: lista/intervalos gravados, plano intercalado na fila, chamada classificada pelo servidor e seq na TV', async () => {
+test('configuração da fila (fila_cfg): séries N/P, entregues por série, plano pela ordem, chamada marcada pela porta e seq na TV', async () => {
   const P4 = 'jn-r14'; const B = { day: DAY, venue: V, service_id: S, place_id: P4, device: 'a' };
-  db.issued({ ...B, count: 12 });
-  assert.throws(() => db.priorities({ ...B, spec: '3, x' }), (e) => e.status === 400);
-  assert.deepEqual(db.priorities({ ...B, spec: '12-10, 3' }).spec, '3, 10-12');
-  let q = db.queue(DAY, V, S, P4); assert.equal(q.prio_spec, '3, 10-12'); assert.deepEqual(q.plan.next, { ticket: 3, priority: true, why: 'alternado' });
-  const c1 = db.call({ ...B, ticket: 3, status: 'served' }); assert.equal(c1.priority, 1, 'classificada pela lista'); await sleep(2);
+  assert.throws(() => db.setQueueConfig({ ...B, n_prefix: 'X', p_prefix: 'X' }), (e) => e.status === 400);
+  const r = db.setQueueConfig({ ...B, n_total: 8, p_total: 4, pattern: '1:2' }); assert.equal(r.count, 1); assert.equal(r.cfg.pattern, '1:2');
+  db.issued({ ...B, kind: 'n', count: 8 }); db.issued({ ...B, kind: 'p', count: 4 });
+  let q = db.queue(DAY, V, S, P4); assert.equal(q.cfg.n_total, 8); assert.deepEqual(q.plan.next, { ticket: 1, priority: true, why: 'alternado' });
+  const c1 = db.call({ ...B, ticket: 1, status: 'served', priority: 1 }); assert.equal(c1.priority, 1, 'a porta informa a série'); await sleep(2);
   q = db.queue(DAY, V, S, P4); assert.deepEqual(q.plan.next, { ticket: 1, priority: false, why: 'alternado' });
-  const c2 = db.advance({ ...B, ticket: 1, prev_id: c1.id, prev_status: 'served' }); assert.equal(c2.priority, 0);
-  q = db.queue(DAY, V, S, P4); assert.equal(q.plan.next.ticket, 10); assert.equal(q.last_ticket, 1);
+  const c2 = db.advance({ ...B, ticket: 1, prev_id: c1.id, prev_status: 'served' }); assert.equal(c2.priority, 0); await sleep(2);
+  q = db.queue(DAY, V, S, P4); assert.deepEqual(q.plan.next, { ticket: 2, priority: false, why: 'alternado' }, '1P:2N: segunda comum'); assert.equal(q.last_ticket, 1);
   const tv = db.tvBoard(DAY, V); const pl = tv.places.find((x) => x.place_id === P4);
-  assert.deepEqual(pl.seq.normal, { last: 1, next: 2, left: 7, total: 8 }); assert.deepEqual(pl.seq.prio, { last: 3, next: 10, left: 3, total: 4 });
-  assert.equal(db.state(DAY, V).priorities.find((x) => x.place_id === P4).spec, '3, 10-12');
-  assert.equal(tv.places.find((x) => x.place_id === P).seq, null, 'sala sem prioritárias não mostra filas');
+  assert.equal(pl.seq.normal.last, 1); assert.equal(pl.seq.normal.next, 2); assert.equal(pl.seq.normal.left, 7); assert.equal(pl.seq.prio.last, 1); assert.equal(pl.seq.prio.next, 2); assert.equal(pl.seq.prio.left, 3);
+  assert.deepEqual(pl.labels, { n: 'N', p: 'P' }); assert.deepEqual(tv.labels[P4], { n: 'N', p: 'P' });
+  assert.equal(db.state(DAY, V).configs.find((x) => x.place_id === P4).p_total, 4);
+  // "aplicar a todas": grava em todas as filas ativas do local
+  const all = db.setQueueConfig({ day: DAY, venue: V, n_total: 150, p_total: 30, pattern: '1:1', device: 'a', all: true });
+  assert.ok(all.count >= 5); assert.equal(db.queue(DAY, V, 'pilar-1', 'jn-r11').cfg.n_total, 150);
+  assert.ok(all.count >= 5 && db.state(DAY, V).configs.filter((x) => x.n_total === 150).length === all.count, 'uma configuração por fila ativa');
 });
 
 test('lugares do mapa: cria, atualiza, valida e remove', () => {
@@ -123,15 +129,15 @@ test('lugares do mapa: cria, atualiza, valida e remove', () => {
 test('filas extras: criar na triagem já lança o padrão de senhas e prioritárias; entra no estado e na TV; remover tira', () => {
   assert.throws(() => db.addExtra({ day: DAY, venue: V, service_id: 'nada', name: 'Fisioterapia' }), /pilar/);
   assert.throws(() => db.addExtra({ day: DAY, venue: V, service_id: S, name: 'F' }), /nome/);
-  assert.throws(() => db.addExtra({ day: DAY, venue: V, service_id: S, name: 'Fisioterapia', spec: '80-' }), /não entendi/);
-  const r = db.addExtra({ day: DAY, venue: V, service_id: S, name: 'Nutrição <b>', kind: 'sala', num: '19', count: 100, spec: '80-100', device: 't' });
+  assert.throws(() => db.addExtra({ day: DAY, venue: V, service_id: S, name: 'Fisioterapia', n_total: -5 }), /total de comuns/);
+  const r = db.addExtra({ day: DAY, venue: V, service_id: S, name: 'Nutrição <b>', kind: 'sala', num: '19', n_total: 100, p_total: 20, pattern: '1:1', issued_n: 100, issued_p: 20, device: 't' });
   assert.equal(r.place_id, `${V}-x${r.id}`);
   const st = db.state(DAY, V);
   const e = st.extras.find((x) => x.id === r.place_id); assert.ok(e, 'extra no estado'); assert.equal(e.name, 'Nutrição'); assert.equal(e.kind, 'sala'); assert.equal(e.num, '19'); assert.equal(e.service_id, S); assert.equal(e.extra, true);
-  assert.equal(st.issued.find((x) => x.place_id === r.place_id).count, 100);
-  assert.equal(st.priorities.find((x) => x.place_id === r.place_id).spec, '80-100');
-  const q = db.queue(DAY, V, S, r.place_id); assert.equal(q.plan.has_prio, true); assert.equal(q.plan.next.ticket, 80); // intercala: começa pela prioritária
-  const tv = db.tvBoard(DAY, V); assert.ok(tv.extras.some((x) => x.id === r.place_id)); assert.ok(tv.places.some((p) => p.place_id === r.place_id && p.issued === 100));
+  assert.equal(st.issued.find((x) => x.place_id === r.place_id).n, 100); assert.equal(st.issued.find((x) => x.place_id === r.place_id).p, 20);
+  assert.equal(st.configs.find((x) => x.place_id === r.place_id).p_total, 20);
+  const q = db.queue(DAY, V, S, r.place_id); assert.equal(q.plan.has_prio, true); assert.deepEqual(q.plan.next, { ticket: 1, priority: true, why: 'alternado' }); // intercala: começa pela prioritária
+  const tv = db.tvBoard(DAY, V); assert.ok(tv.extras.some((x) => x.id === r.place_id)); assert.ok(tv.places.some((p) => p.place_id === r.place_id && p.issued === 120));
   db.removeExtra(r.id);
   assert.ok(!db.state(DAY, V).extras.some((x) => x.id === r.place_id));
   assert.throws(() => db.removeExtra(r.id), /não encontrada/);
@@ -149,8 +155,7 @@ test('desativar fila na triagem: entra em disabled (estado e TV) e volta ao reat
 
 test('ajustar número atual (fila_cursor): sequência recomeça do informado; chamadas anteriores ficam no histórico', async () => {
   const P2 = 'jn-r15';
-  db.issued({ day: DAY, venue: V, service_id: S, place_id: P2, count: 200, device: 't' });
-  db.priorities({ day: DAY, venue: V, service_id: S, place_id: P2, spec: '180-200', device: 't' });
+  db.setQueueConfig({ day: DAY, venue: V, service_id: S, place_id: P2, n_total: 179, p_from: 180, p_total: 21, device: 't' });
   for (const t of [80, 1, 81, 2, 82]) { db.call({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: t, status: 'served', priority: t >= 80 ? 1 : 0, device: 't' }); await sleep(2); }
   db.call({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 84, status: 'served', device: 't' }); await sleep(2); // avançou errado
   let qd = db.queue(DAY, V, S, P2); assert.equal(qd.plan.normal.last, 84);
@@ -159,7 +164,7 @@ test('ajustar número atual (fila_cursor): sequência recomeça do informado; ch
   await sleep(2); qd = db.queue(DAY, V, S, P2);
   assert.equal(qd.plan.normal.last, 2); assert.equal(qd.plan.normal.next, 3); assert.equal(qd.plan.prio.next, 180); assert.equal(qd.last_ticket, 2);
   assert.equal(qd.cursor.normal, 2); assert.equal(qd.calls.length, 6); // histórico intacto
-  db.call({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 180, status: 'served', device: 't' }); await sleep(2);
+  db.call({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 180, status: 'served', priority: 1, device: 't' }); await sleep(2);
   qd = db.queue(DAY, V, S, P2); assert.deepEqual(qd.plan.next, { ticket: 3, priority: false, why: 'alternado' });
   const tv = db.tvBoard(DAY, V); const pl = tv.places.find((x) => x.place_id === P2); assert.equal(pl.seq.normal.next, 3); assert.equal(pl.seq.prio.last, 180);
   // zerar pela porta
