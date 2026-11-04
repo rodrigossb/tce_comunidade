@@ -146,3 +146,23 @@ test('desativar fila na triagem: entra em disabled (estado e TV) e volta ao reat
   assert.deepEqual(db.state(DAY, V).disabled, []);
   assert.throws(() => db.setQueueEnabled({ day: DAY, venue: V, service_id: S, place_id: '', enabled: false }), /dados/);
 });
+
+test('ajustar número atual (fila_cursor): sequência recomeça do informado; chamadas anteriores ficam no histórico', async () => {
+  const P2 = 'jn-r15';
+  db.issued({ day: DAY, venue: V, service_id: S, place_id: P2, count: 200, device: 't' });
+  db.priorities({ day: DAY, venue: V, service_id: S, place_id: P2, spec: '180-200', device: 't' });
+  for (const t of [80, 1, 81, 2, 82]) { db.call({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: t, status: 'served', priority: t >= 80 ? 1 : 0, device: 't' }); await sleep(2); }
+  db.call({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 84, status: 'served', device: 't' }); await sleep(2); // avançou errado
+  let qd = db.queue(DAY, V, S, P2); assert.equal(qd.plan.normal.last, 84);
+  assert.throws(() => db.setCursor({ day: DAY, venue: V, service_id: S, place_id: P2, normal: -1 }), /última senha comum/);
+  const r = db.setCursor({ day: DAY, venue: V, service_id: S, place_id: P2, normal: 2, prio: 179, device: 't' }); assert.equal(r.ok, true);
+  await sleep(2); qd = db.queue(DAY, V, S, P2);
+  assert.equal(qd.plan.normal.last, 2); assert.equal(qd.plan.normal.next, 3); assert.equal(qd.plan.prio.next, 180); assert.equal(qd.last_ticket, 2);
+  assert.equal(qd.cursor.normal, 2); assert.equal(qd.calls.length, 6); // histórico intacto
+  db.call({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 180, status: 'served', device: 't' }); await sleep(2);
+  qd = db.queue(DAY, V, S, P2); assert.deepEqual(qd.plan.next, { ticket: 3, priority: false, why: 'alternado' });
+  const tv = db.tvBoard(DAY, V); const pl = tv.places.find((x) => x.place_id === P2); assert.equal(pl.seq.normal.next, 3); assert.equal(pl.seq.prio.last, 180);
+  // zerar pela porta
+  db.setCursor({ day: DAY, venue: V, service_id: S, place_id: P2, normal: 0, prio: 0, device: 't' }); await sleep(2);
+  qd = db.queue(DAY, V, S, P2); assert.equal(qd.plan.normal.next, 1); assert.equal(qd.plan.prio.next, 180);
+});

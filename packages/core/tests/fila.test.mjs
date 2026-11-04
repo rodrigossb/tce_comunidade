@@ -38,3 +38,32 @@ test('queuePlan: intercala prioridade e comum; só um tipo quando o outro acabou
   p = queuePlan({ count: null, prio: [], calls: [{ ticket: 7, called_at: 1 }] });
   assert.equal(p.has_prio, false); assert.equal(p.next.ticket, 8);
 });
+
+test('queuePlan: chamada gravada como prioritária continua prioritária quando a triagem troca a lista (não vira comum)', () => {
+  // Manga, sala 06: lista era "80-100"; chamaram 80(P),1,81(P),2,82(P),3,83(P); triagem trocou para "180-200" e chamou 180(P).
+  const prio = parsePrioList('180-200').nums;
+  const calls = [[80, 1], [1, 0], [81, 1], [2, 0], [82, 1], [3, 0], [83, 1], [180, 1]].map(([ticket, priority], i) => ({ id: i + 1, ticket, priority, called_at: i + 1 }));
+  const p = queuePlan({ count: 200, prio, calls });
+  assert.equal(p.normal.last, 3); assert.equal(p.normal.next, 4); // e não 84
+  assert.equal(p.prio.last, 180); assert.equal(p.prio.next, 181);
+  assert.deepEqual(p.next, { ticket: 4, priority: false, why: 'alternado' }); // última foi prioritária → agora comum
+  // registros sem o campo (antigos): cai na lista atual
+  const q = queuePlan({ count: 200, prio, calls: [{ ticket: 80, called_at: 1 }, { ticket: 1, called_at: 2 }] });
+  assert.equal(q.normal.last, 80);
+});
+
+test('queuePlan: ajuste manual do número atual (from) recomeça a sequência e ignora chamadas anteriores ao ajuste', () => {
+  const prio = parsePrioList('180-200').nums;
+  const calls = [[83, 1, 10], [84, 0, 20], [181, 1, 30], [85, 0, 40]].map(([ticket, priority, called_at], i) => ({ id: i + 1, ticket, priority, called_at }));
+  // porta informa: última comum 3, última prioritária 179 (ou seja, próxima prioridade 180), às 50
+  let p = queuePlan({ count: 200, prio, calls, from: { normal: 3, prio: 179, ts: 50 } });
+  assert.equal(p.normal.last, 3); assert.equal(p.normal.next, 4); assert.equal(p.prio.last, 179); assert.equal(p.prio.next, 180);
+  // chamadas depois do ajuste voltam a contar
+  p = queuePlan({ count: 200, prio, calls: calls.concat([{ id: 9, ticket: 180, priority: 1, called_at: 60 }]), from: { normal: 3, prio: 179, ts: 50 } });
+  assert.equal(p.prio.last, 180); assert.deepEqual(p.next, { ticket: 4, priority: false, why: 'alternado' });
+  // zerar: from { normal: 0, prio: 0 } → começa do 1
+  p = queuePlan({ count: 200, prio, calls, from: { normal: 0, prio: 0, ts: 50 } });
+  assert.equal(p.normal.last, null); assert.equal(p.normal.next, 1); assert.equal(p.prio.next, 180);
+  // sem from: comportamento normal
+  assert.equal(queuePlan({ count: 200, prio, calls }).normal.last, 85);
+});

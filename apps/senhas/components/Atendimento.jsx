@@ -15,7 +15,7 @@ const D = T.D;
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const LS = 'tce_at';
 const VER = '2.0';
-const ACTIONS = { setIssued: A.setIssued, setPriorities: A.setPriorities, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall, advance: A.advance, addExtraQueue: A.addExtraQueue, removeExtraQueue: A.removeExtraQueue, setQueueEnabled: A.setQueueEnabled };
+const ACTIONS = { setIssued: A.setIssued, setPriorities: A.setPriorities, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall, advance: A.advance, addExtraQueue: A.addExtraQueue, removeExtraQueue: A.removeExtraQueue, setQueueEnabled: A.setQueueEnabled, setCursor: A.setCursor };
 const EXTRA_BLANK = { service_id: '', name: '', kind: 'sala', num: '', count: '100', spec: '80-100' };
 const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch { return d; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem storage */ } };
@@ -40,6 +40,7 @@ export default function Atendimento() {
   const toastT = useRef(null); const issuedT = useRef({}); const numInput = useRef(null);
   const [prioTxt, setPrioTxt] = useState({}); const prioSaved = useRef({}); // triagem: texto das senhas prioritárias por sala, exatamente como digitado
   const [extraForm, setExtraForm] = useState(null); // triagem: formulário de novo serviço/sala (null = fechado)
+  const [adjust, setAdjust] = useState(null); // porta: formulário "ajustar número atual" { normal, prio } (null = fechado)
   const extrasRef = useRef([]); extrasRef.current = (data && data.extras) || []; // filas criadas no dia (vêm com o estado)
   const disabledRef = useRef([]); disabledRef.current = (data && data.disabled) || []; // filas desativadas na triagem (ids de ambiente)
 
@@ -142,6 +143,15 @@ export default function Atendimento() {
     const parsed = parsePrioList(f.spec); if (parsed.error) { toast(`Senhas prioritárias: ${parsed.error}`, 'alert'); return; }
     const count = f.count.trim() === '' ? null : Number(f.count); if (count != null && (!Number.isInteger(count) || count < 0)) { toast('Quantidade de senhas inválida', 'alert'); return; }
     run(async () => { const r = await post('addExtraQueue', { day: c.day, venue: c.venue, service_id: f.service_id, name: f.name.trim(), kind: f.kind, num: f.num.trim(), count, spec: f.spec, device: st.device }); if (r) { toast(`${f.name.trim()} criado`); setExtraForm(null); } await refresh(); });
+  }
+  // Porta: "o número atual é X" — corrige a sequência quando a porta avançou errado (0 = recomeçar do 1). Texto livre,
+  // validado só ao gravar; as chamadas anteriores ficam no histórico e deixam de contar para a próxima senha.
+  function openAdjust() { const plan = queue && queue.plan; setAdjust({ normal: String((plan && plan.normal.last) || 0), prio: String((plan && plan.prio.last) || 0) }); }
+  function saveAdjust() {
+    const f = adjust; if (!f) return; const c = ctxOf(st); const hasPrio = !!(queue && queue.plan && queue.plan.has_prio);
+    const normal = Number(f.normal.trim()); if (f.normal.trim() === '' || !Number.isInteger(normal) || normal < 0) { toast('Informe a última senha comum chamada (0 = recomeçar do 1)', 'alert'); return; }
+    const prio = hasPrio ? Number(f.prio.trim() === '' ? 0 : f.prio.trim()) : 0; if (!Number.isInteger(prio) || prio < 0) { toast('Última prioritária inválida', 'alert'); return; }
+    run(async () => { const r = await post('setCursor', { day: c.day, venue: c.venue, service_id: st.service, place_id: st.place, normal, prio, device: st.device }); if (r) { toast(hasPrio ? `Ajustado: próxima comum ${normal + 1}, prioritárias a partir de ${prio + 1}` : `Ajustado: próxima senha ${normal + 1}`); setAdjust(null); } await refresh(); });
   }
   const setEnabled = (p, sid, enabled) => { const c = ctxOf(st); run(async () => { await post('setQueueEnabled', { day: c.day, venue: c.venue, service_id: sid, place_id: p.id, enabled, device: st.device }); toast(enabled ? `${p.name} reativado` : `${p.name} desativado: saiu da porta e da TV`); await refresh(); }); };
   const removeExtra = (p) => { if (!confirm(`Remover "${p.name}" da triagem, da porta e da TV? As chamadas já feitas ficam no histórico.`)) return; run(async () => { await post('removeExtraQueue', p.extra_id); toast(`${p.name} removido`); await refresh(); }); };
@@ -362,8 +372,20 @@ export default function Atendimento() {
           ) : (cur && !atDoor ? <div className="door-serving muted"><span className="lbl">{cur.status === 'served' ? I('check') : I('x')}Última</span><b>{cur.ticket ?? '—'}</b><small>{cur.status === 'served' ? `entrou às ${fmtT(cur.status_at)}` : 'não compareceu'}</small></div> : null)}
           <div className="door-tools">
             <button className="btn btn-ghost" data-act="call-other" onClick={act.callOther}>{I('ticket')}Outro número</button>
+            <button className="btn btn-ghost" data-act="adjust" onClick={() => (adjust ? setAdjust(null) : openAdjust())}>{I('sliders')}Ajustar número</button>
             {cur ? <button className="btn btn-ghost" data-act="undo" onClick={() => act.undo(cur.id)}>{I('back')}Desfazer</button> : null}
           </div>
+          {adjust ? (
+            <form className="tri-new-form door-adjust" onSubmit={(e) => { e.preventDefault(); saveAdjust(); }}>
+              <h3 className="tri-h" style={{ '--c': s.color }}>{I('sliders')}Qual é o número atual?</h3>
+              <p className="door-hint" style={{ textAlign: 'left' }}>Informe a <b>última senha já chamada</b>; a próxima será a seguinte. Use <b>0</b> para recomeçar do 1. As chamadas anteriores ficam no histórico.</p>
+              <div className="row2">
+                <label>Última comum chamada<input type="text" inputMode="numeric" value={adjust.normal} autoComplete="off" autoFocus onFocus={(e) => e.target.select()} onChange={(e) => setAdjust((f) => Object.assign({}, f, { normal: e.target.value }))} /></label>
+                {plan && plan.has_prio ? <label>Última prioritária chamada<input type="text" inputMode="numeric" value={adjust.prio} autoComplete="off" onFocus={(e) => e.target.select()} onChange={(e) => setAdjust((f) => Object.assign({}, f, { prio: e.target.value }))} /></label> : null}
+              </div>
+              <div className="actions"><button type="button" className="btn btn-ghost" onClick={() => setAdjust(null)}>Cancelar</button><button type="submit" className="btn btn-primary" data-act="adjust-save" disabled={busy}>{I('check')}Gravar</button></div>
+            </form>
+          ) : null}
           <div className="door-kpi"><div><small>Entregues</small><b>{issued == null ? '—' : issued}</b></div><div><small>Chamadas</small><b>{called}</b></div><div><small>Aguardando</small><b>{issued == null ? '—' : Math.max(0, issued - called)}</b></div></div>
           {calls.length > 1 ? (
             <>

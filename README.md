@@ -162,6 +162,12 @@ histórico de chamadas. **Desativar** (link em cada linha da triagem) tira a fil
 uma linha por ambiente); ela fica no bloco "Desativados hoje" da triagem, com "Reativar". Junção com as filas fixas em
 `apps/senhas/lib/filas-extra.js` (`activeQueues` = fixas + extras − desativadas).
 
+**Sequência da porta.** A próxima senha sai de `queuePlan` (`packages/core/src/fila.js`): cada chamada antiga conta como foi
+gravada (`calls.priority`), não pela lista de prioritárias atual — a triagem pode trocar "80-100" por "180-200" no meio do dia
+sem que as prioritárias já chamadas virem comuns (e a próxima comum "pular" para depois delas). **Ajustar número** (porta) grava
+"a última comum/prioritária chamada é X" na tabela `fila_cursor`; a sequência recomeça dali e só as chamadas posteriores ao
+ajuste contam (as anteriores ficam no histórico e no painel). 0 = recomeçar do 1.
+
 **Dashboard de resultados** (`https://dev.gerenciahub.com.br/tce-senhas/dashboard`, público, 16:9, mesmo formato da TV):
 números do dia de serviços para projetar no encerramento da ação ou acompanhar ao vivo. Quatro telas que alternam a cada
 15 s (ou `?tela=geral|servicos|salas|horas` fixa; `?auto=0` para não alternar; setas ←/→ trocam): **Resultados do dia**

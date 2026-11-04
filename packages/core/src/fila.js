@@ -34,19 +34,27 @@ export function formatPrioList(nums) {
 /**
  * Plano da fila de uma sala.
  * count: total de senhas entregues (1..count) ou null (triagem ainda não lançou) · prio: números prioritários ·
- * calls: chamadas da sala [{ ticket, called_at }] (qualquer ordem).
+ * calls: chamadas da sala [{ ticket, called_at, priority? }] (qualquer ordem; `priority` gravado na chamada prevalece sobre a lista atual).
+ * from: ajuste manual { normal, prio, ts } — última comum/prioritária informada na porta; chamadas até `ts` são ignoradas na sequência.
  * Devolve { normal: { last, next, left, total }, prio: { last, next, left, total }, has_prio,
  *           next: { ticket, priority, why } } — `why`: 'alternado' | 'so-normais' | 'so-prioridade' | 'sem-registro' (acabou o
  * que a triagem lançou: chama a comum seguinte mesmo assim, porque a contagem pode estar atrasada).
  */
-export function queuePlan({ count, prio, calls }) {
+export function queuePlan({ count, prio, calls, from }) {
   const total = Number.isInteger(count) && count >= 0 ? count : null;
   const pset = new Set((prio || []).filter((n) => Number.isInteger(n) && n > 0));
   const isP = (t) => pset.has(t);
-  const list = (calls || []).filter((c) => c && c.ticket != null);
-  let lastN = 0; let lastP = 0; let lastCall = null;
+  // Ajuste manual na porta ("o número atual é X"): a sequência recomeça do que foi informado e só as chamadas feitas
+  // DEPOIS do ajuste contam para a sequência (as anteriores continuam no histórico/estatística).
+  const base = from && (Number.isInteger(from.normal) || Number.isInteger(from.prio)) ? { normal: Math.max(0, from.normal | 0), prio: Math.max(0, from.prio | 0), ts: Number(from.ts) || 0 } : null;
+  // Chamada antiga: vale como foi registrada na hora (priority 1/0). A lista da triagem pode mudar durante o dia
+  // ("80-100" → "180-200") e as senhas já chamadas como prioridade não podem virar comuns — senão a próxima comum
+  // "pula" para depois delas. Sem o campo gravado (registros antigos), cai na lista atual.
+  const wasP = (c) => (c.priority != null ? !!Number(c.priority) : isP(c.ticket));
+  const list = (calls || []).filter((c) => c && c.ticket != null && (!base || (c.called_at || 0) > base.ts));
+  let lastN = base ? base.normal : 0; let lastP = base ? base.prio : 0; let lastCall = null;
   for (const c of list) {
-    if (isP(c.ticket)) lastP = Math.max(lastP, c.ticket); else lastN = Math.max(lastN, c.ticket);
+    if (wasP(c)) lastP = Math.max(lastP, c.ticket); else lastN = Math.max(lastN, c.ticket);
     if (!lastCall || (c.called_at || 0) > (lastCall.called_at || 0) || ((c.called_at || 0) === (lastCall.called_at || 0) && (c.id || 0) > (lastCall.id || 0))) lastCall = c;
   }
   // próxima comum: menor número não prioritário acima de lastN (dentro do entregue, se a contagem existe)
@@ -58,7 +66,7 @@ export function queuePlan({ count, prio, calls }) {
   const totalN = total == null ? null : Math.max(0, total - prioIssued.length);
   const leftN = total == null ? null : Math.max(0, totalN - [...Array(Math.max(0, Math.min(lastN, total))).keys()].filter((i) => !isP(i + 1)).length);
   let next = null;
-  if (nextN != null && nextP != null) { const lastWasP = lastCall ? isP(lastCall.ticket) : false; next = lastWasP ? { ticket: nextN, priority: false, why: 'alternado' } : { ticket: nextP, priority: true, why: 'alternado' }; }
+  if (nextN != null && nextP != null) { const lastWasP = lastCall ? wasP(lastCall) : false; next = lastWasP ? { ticket: nextN, priority: false, why: 'alternado' } : { ticket: nextP, priority: true, why: 'alternado' }; }
   else if (nextP != null) next = { ticket: nextP, priority: true, why: 'so-prioridade' };
   else if (nextN != null) next = { ticket: nextN, priority: false, why: 'so-normais' };
   else next = { ticket: nextNormalFrom(lastN, null), priority: false, why: 'sem-registro' };

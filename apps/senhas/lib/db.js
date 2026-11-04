@@ -27,7 +27,9 @@ CREATE TABLE IF NOT EXISTS inscritos_snap (id INTEGER PRIMARY KEY, ts INTEGER NO
 CREATE TABLE IF NOT EXISTS lugares (id INTEGER PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, address TEXT, lat REAL NOT NULL, lng REAL NOT NULL, note TEXT, phone TEXT, device TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS filas_extra (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL DEFAULT '', name TEXT NOT NULL, kind TEXT NOT NULL, num TEXT NOT NULL DEFAULT '', device TEXT, created_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS filas_off (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, device TEXT, ts INTEGER NOT NULL);
-CREATE UNIQUE INDEX IF NOT EXISTS filas_off_key ON filas_off(day, venue, place_id);`;
+CREATE UNIQUE INDEX IF NOT EXISTS filas_off_key ON filas_off(day, venue, place_id);
+CREATE TABLE IF NOT EXISTS fila_cursor (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, normal_last INTEGER NOT NULL DEFAULT 0, prio_last INTEGER NOT NULL DEFAULT 0, device TEXT, ts INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS fila_cursor_key ON fila_cursor(day, venue, service_id, place_id, ts);`;
 
 function open(file) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -42,7 +44,7 @@ function open(file) {
     prioLatest: db.prepare(`SELECT service_id, place_id, spec, ts FROM prio_log p WHERE day=? AND venue=? AND ts=(SELECT MAX(ts) FROM prio_log WHERE day=p.day AND venue=p.venue AND service_id=p.service_id AND place_id=p.place_id)`),
     prioInsert: db.prepare(`INSERT INTO prio_log (day, venue, service_id, place_id, spec, device, ts) VALUES (?,?,?,?,?,?,?)`),
     prioOf: db.prepare(`SELECT spec FROM prio_log WHERE day=? AND venue=? AND service_id=? AND place_id=? ORDER BY ts DESC, id DESC LIMIT 1`),
-    callsAllPlace: db.prepare(`SELECT id, ticket, called_at FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=?`),
+    callsAllPlace: db.prepare(`SELECT id, ticket, called_at, priority FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=?`),
     issuedHistory: db.prepare(`SELECT service_id, place_id, count, ts FROM issued_log WHERE day=? AND venue=? ORDER BY ts`),
     callsDay: db.prepare(`SELECT * FROM calls WHERE day=? AND venue=? ORDER BY called_at, id`),
     callsPlace: db.prepare(`SELECT * FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=? ORDER BY called_at DESC, id DESC LIMIT ?`),
@@ -71,6 +73,9 @@ function open(file) {
     offAll: db.prepare(`SELECT service_id, place_id, ts FROM filas_off WHERE day=? AND venue=? ORDER BY ts`),
     offInsert: db.prepare(`INSERT OR REPLACE INTO filas_off (day, venue, service_id, place_id, device, ts) VALUES (?,?,?,?,?,?)`),
     offDelete: db.prepare(`DELETE FROM filas_off WHERE day=? AND venue=? AND place_id=?`),
+    cursorOf: db.prepare(`SELECT normal_last, prio_last, ts FROM fila_cursor WHERE day=? AND venue=? AND service_id=? AND place_id=? ORDER BY ts DESC, id DESC LIMIT 1`),
+    cursorAll: db.prepare(`SELECT service_id, place_id, normal_last, prio_last, ts FROM fila_cursor f WHERE day=? AND venue=? AND id=(SELECT MAX(id) FROM fila_cursor WHERE day=f.day AND venue=f.venue AND service_id=f.service_id AND place_id=f.place_id)`),
+    cursorInsert: db.prepare(`INSERT INTO fila_cursor (day, venue, service_id, place_id, normal_last, prio_last, device, ts) VALUES (?,?,?,?,?,?,?,?)`),
   };
   return { db, q, file };
 }
@@ -104,19 +109,35 @@ export function queue(day, venue, service, place) {
   const { q } = conn();
   const issuedRow = rows(q.issuedLatest.all(c.day, c.venue)).find((x) => x.place_id === p) || null;
   const spec = prioSpec(c.day, c.venue, s, p);
+  const plan = planOf(c.day, c.venue, s, p, issuedRow ? issuedRow.count : null, spec);
   return {
     calls: rows(q.callsPlace.all(c.day, c.venue, s, p, 30)),
     open: q.openServed.all(c.day, c.venue, s, p).map((x) => num(x.id)),
-    last_ticket: num(q.lastTicket.get(c.day, c.venue, s, p).t),
+    last_ticket: plan.normal.last || 0, // última comum segundo o plano (respeita o ajuste manual da porta)
     issued: issuedRow,
     prio_spec: spec,
-    plan: planOf(c.day, c.venue, s, p, issuedRow ? issuedRow.count : null, spec),
+    cursor: cursorOf(c.day, c.venue, s, p),
+    plan,
   };
 }
 /** Lista de senhas prioritárias da sala (texto normalizado) ou ''. */
 function prioSpec(day, venue, s, p) { const r = conn().q.prioOf.get(day, venue, s, p); return r ? String(r.spec) : ''; }
 /** Plano da fila (próxima comum/prioritária, intercalação) a partir de tudo que já foi chamado na sala. */
-function planOf(day, venue, s, p, count, spec) { return queuePlan({ count: count == null ? null : num(count), prio: parsePrioList(spec || '').nums, calls: rows(conn().q.callsAllPlace.all(day, venue, s, p)) }); }
+function planOf(day, venue, s, p, count, spec) { return queuePlan({ count: count == null ? null : num(count), prio: parsePrioList(spec || '').nums, calls: rows(conn().q.callsAllPlace.all(day, venue, s, p)), from: cursorOf(day, venue, s, p) }); }
+/** Último ajuste manual do número atual da sala ({ normal, prio, ts }) ou null. */
+function cursorOf(day, venue, s, p) { const r = conn().q.cursorOf.get(day, venue, s, p); return r ? { normal: num(r.normal_last), prio: num(r.prio_last), ts: num(r.ts) } : null; }
+/** Porta da sala: "o número atual é X" — corrige a sequência quando avançou errado (ou volta ao início com 0).
+    normal = última senha comum chamada; prio = última prioritária chamada (opcional, 0 = nenhuma). As chamadas
+    anteriores ficam no histórico/estatística; só deixam de contar para a próxima senha. */
+export function setCursor(b) {
+  const day = b.day; const venue = clean(b.venue, 16); const s = clean(b.service_id, 32); const p = clean(b.place_id, 32);
+  const normal = Number(b.normal); const prio = b.prio == null || b.prio === '' ? 0 : Number(b.prio);
+  if (!isDay(day) || !venue || !s || !p) throw err(400, 'dados');
+  if (!Number.isInteger(normal) || normal < 0 || normal > 100000) throw err(400, 'informe a última senha comum chamada (0 = recomeçar do 1)');
+  if (!Number.isInteger(prio) || prio < 0 || prio > 100000) throw err(400, 'última prioritária inválida');
+  const ts = Date.now(); conn().q.cursorInsert.run(day, venue, s, p, normal, prio, clean(b.device, 40), ts);
+  notify(day, venue); return { ok: true, ts, normal, prio };
+}
 /** Triagem: senhas prioritárias da sala ("5, 12, 100-120"); vale a última gravação. */
 export function priorities(b) {
   if (!isDay(b.day) || !clean(b.venue, 16) || !clean(b.service_id, 32) || !clean(b.place_id, 32)) throw err(400, 'dados');
@@ -188,9 +209,10 @@ export function tvBoard(day, venue) {
   const places = [];
   const prios = {}; for (const r of rows(q.prioLatest.all(c.day, c.venue))) prios[`${r.service_id}|${r.place_id}`] = r.spec;
   const issuedBy = {}; for (const r of issued) issuedBy[r.place_id] = r.count;
+  const cursors = {}; for (const r of rows(q.cursorAll.all(c.day, c.venue))) cursors[`${r.service_id}|${r.place_id}`] = { normal: num(r.normal_last), prio: num(r.prio_last), ts: num(r.ts) };
   for (const s of st.services) for (const p of s.places) {
     const spec = prios[`${s.service_id}|${p.place_id}`] || '';
-    const plan = queuePlan({ count: issuedBy[p.place_id] == null ? null : issuedBy[p.place_id], prio: parsePrioList(spec).nums, calls: calls.filter((x) => x.service_id === s.service_id && x.place_id === p.place_id) });
+    const plan = queuePlan({ count: issuedBy[p.place_id] == null ? null : issuedBy[p.place_id], prio: parsePrioList(spec).nums, calls: calls.filter((x) => x.service_id === s.service_id && x.place_id === p.place_id), from: cursors[`${s.service_id}|${p.place_id}`] || null });
     // seq: o que a TV mostra de cada fila (última e próxima comum/prioritária) — só quando a sala tem prioritárias
     places.push({ service_id: s.service_id, place_id: p.place_id, issued: p.issued || 0, called: p.called || 0, waiting: p.not_called || 0, in_service: p.in_service || 0, current: p.current || null, serving: serving[p.place_id] && (!p.current || serving[p.place_id].id !== p.current.id) ? serving[p.place_id] : null, seq: plan.has_prio ? { normal: plan.normal, prio: plan.prio, next: plan.next } : null });
   }

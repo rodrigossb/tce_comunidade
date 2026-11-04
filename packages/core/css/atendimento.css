@@ -213,3 +213,7 @@
 .tri-off{margin-top:1.4em}
 .tri-row.off{grid-template-columns:auto minmax(0,1fr) auto;opacity:.85;background:color-mix(in srgb,var(--card) 70%,#f1f5f9)}
 .tri-row.off .nm b{text-decoration:line-through;color:var(--mut)}
+
+/* porta: ajustar número atual */
+.door-adjust{border-left-color:#b45309}
+.door-adjust .door-hint{font-size:.9em}
