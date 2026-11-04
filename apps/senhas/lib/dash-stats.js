@@ -28,14 +28,14 @@ export function hourByService(calls) {
   return by;
 }
 
-const nameOf = (pid) => { const p = T.placeInfo(pid); return p ? p.name : pid; };
-const roomOf = (pid) => { const p = T.placeInfo(pid); return p ? (p.num ? `${p.kind === 'sala' ? 'Sala' : p.kind === 'tenda' ? 'Tenda' : 'Ambiente'} ${p.num}` : p.kind) : ''; };
+const nameOf = (pid, extras) => { const p = T.placeInfo(pid) || (extras || []).find((e) => e.id === pid); return p ? p.name : pid; };
+const roomOf = (pid, extras) => { const p = T.placeInfo(pid) || (extras || []).find((e) => e.id === pid); return p ? (p.num ? `${p.kind === 'sala' ? 'Sala' : p.kind === 'tenda' ? 'Tenda' : 'Ambiente'} ${p.num}` : p.kind) : ''; };
 const svcOf = (sid) => D.services.find((s) => s.id === sid) || { id: sid, short: sid, title: sid, color: '#94a3b8', icon: 'ticket' };
 
 /** Linhas do ranking de salas/especialidades, com serviço, nome e sala. */
-export function placeRows(stats) {
+export function placeRows(stats, extras) {
   const rows = [];
-  for (const s of (stats && stats.services) || []) for (const p of s.places || []) rows.push({ key: `${s.service_id}|${p.place_id}`, service: svcOf(s.service_id), place_id: p.place_id, name: nameOf(p.place_id), room: roomOf(p.place_id), issued: p.issued || 0, called: p.called || 0, served: p.served || 0, absent: p.absent || 0, pending: p.pending_result || 0, avg_min: p.avg_min, median_min: p.median_min, samples: p.samples || 0, absent_rate: p.called ? Math.round((100 * p.absent) / p.called) : null });
+  for (const s of (stats && stats.services) || []) for (const p of s.places || []) rows.push({ key: `${s.service_id}|${p.place_id}`, service: svcOf(s.service_id), place_id: p.place_id, name: nameOf(p.place_id, extras), room: roomOf(p.place_id, extras), issued: p.issued || 0, called: p.called || 0, served: p.served || 0, absent: p.absent || 0, pending: p.pending_result || 0, avg_min: p.avg_min, median_min: p.median_min, samples: p.samples || 0, absent_rate: p.called ? Math.round((100 * p.absent) / p.called) : null });
   return rows;
 }
 export function serviceRows(stats) {
@@ -48,7 +48,7 @@ export function highlights(stats, calls) {
   const list = (calls || []).slice().sort((a, b) => a.called_at - b.called_at);
   const first = list[0] || null; const last = list[list.length - 1] || null;
   const series = hourSeries(list); const peak = series.reduce((b, x) => (!b || x.called > b.called ? x : b), null);
-  const rows = placeRows(stats);
+  const rows = placeRows(stats, stats && stats.extras);
   const busiest = rows.slice().sort((a, b) => b.served - a.served || b.called - a.called)[0] || null;
   const fastest = rows.filter((r) => r.avg_min != null && r.samples >= 3).sort((a, b) => a.avg_min - b.avg_min)[0] || null;
   const slowest = rows.filter((r) => r.avg_min != null && r.samples >= 3).sort((a, b) => b.avg_min - a.avg_min)[0] || null;

@@ -17,6 +17,7 @@ import { TCE as T } from '@tce/core';
 import { TCEMap as M } from '@tce/core/map';
 import Icon from '@/components/Icon';
 import { selectQueues } from '@/lib/tv-grupos';
+import { extraQueues, placeOf } from '@/lib/filas-extra';
 import { pickVoice, voiceState, voiceLabel, clipsFor } from '@/lib/voz';
 
 const D = T.D;
@@ -211,9 +212,12 @@ function Board() {
     const svcIdx = (s) => D.services.findIndex((x) => x.id === s.id);
     const numOf = (p) => (p.num ? Number(p.num) || 0 : 999);
     // Ordem: serviço (é o que está na senha impressa) e, dentro dele, sala/tenda por número.
-    return sel.queues.map((q) => ({ key: q.place.id, place: q.place, service: q.service, stat: byPlace.get(q.place.id) || null }))
+    // Filas extras criadas na triagem entram quando a TV não está limitada a salas específicas (?salas=); ?servicos= filtra também elas.
+    const svcFilter = new Set(String(sp.get('servicos') || '').split(/[,;+ ]+/).filter(Boolean));
+    const extra = sp.get('salas') ? [] : extraQueues((data && data.extras) || [], svcFilter);
+    return sel.queues.concat(extra).map((q) => ({ key: q.place.id, place: q.place, service: q.service, stat: byPlace.get(q.place.id) || null }))
       .sort((a, b) => svcIdx(a.service) - svcIdx(b.service) || numOf(a.place) - numOf(b.place) || String(a.place.name).localeCompare(String(b.place.name), 'pt-BR'));
-  }, [sel, data]);
+  }, [sel, data, sp]);
   const selected = useMemo(() => new Set(rows.map((r) => r.key)), [rows]);
   const recent = useMemo(() => ((data && data.recent) || []).filter((c) => selected.has(c.place_id)), [data, selected]);
   const waitingTotal = rows.reduce((n, r) => n + (r.stat ? r.stat.waiting : 0), 0);
@@ -250,7 +254,7 @@ function Board() {
     for (const c of fresh) {
       seen.current.add(keyOf(c));
       if (c.ticket == null || Date.now() - stamp(c) > 60000) continue; // chamada antiga (ex.: recarga) não pisca
-      queue.current.push({ id: c.id, ticket: c.ticket, place: T.placeInfo(c.place_id), service: D.services.find((x) => x.id === c.service_id), again: !!c.recalled_at, priority: !!c.priority });
+      queue.current.push({ id: c.id, ticket: c.ticket, place: placeOf(c.place_id, data && data.extras), service: D.services.find((x) => x.id === c.service_id), again: !!c.recalled_at, priority: !!c.priority });
     }
     if (!showing.current && queue.current.length) next();
   }, [data, recent, next]);
@@ -317,13 +321,13 @@ function Board() {
         <aside className="sq-side">
           <div className="sq-recent">
             <span className="mb-title"><Icon name="list" />Chamadas anteriores</span>
-            {recent.length > 1 ? <ol>{recent.slice(1, portrait ? 4 : 6).map((c) => { const p = T.placeInfo(c.place_id); const s = D.services.find((x) => x.id === c.service_id); return (
+            {recent.length > 1 ? <ol>{recent.slice(1, portrait ? 4 : 6).map((c) => { const p = placeOf(c.place_id, data && data.extras); const s = D.services.find((x) => x.id === c.service_id); return (
               <li key={c.id} className={c.status} style={{ '--c': s ? s.color : '#94a3b8' }}><b>{c.ticket ?? '—'}{c.priority ? <i className="sq-prio mini">P</i> : null}</b><span><strong>{p ? svcName(p) : c.place_id}</strong><small>{p ? roomLine(p) : ''}</small></span><em>{fmtT(c.called_at)}</em></li>
             ); })}</ol> : <p className="sq-none">{recent.length ? 'Só uma chamada até agora.' : 'Nenhuma chamada ainda hoje.'}</p>}
           </div>
           {(() => {
             const c = recent[0]; if (!c) return <div className="sq-now idle"><small className="sq-now-k"><Icon name="ticket" />Senha atual</small><b className="sq-now-num">—</b><div className="sq-now-room"><b>Aguardando</b><span>a primeira chamada do dia</span></div></div>;
-            const p = T.placeInfo(c.place_id); const s = D.services.find((x) => x.id === c.service_id);
+            const p = placeOf(c.place_id, data && data.extras); const s = D.services.find((x) => x.id === c.service_id);
             const k = c.status === 'called' ? 'calling' : c.status === 'served' ? 'serving' : c.status === 'absent' ? 'absent' : 'done';
             const label = k === 'calling' ? 'chamando' : k === 'serving' ? 'em atendimento' : k === 'absent' ? 'não compareceu' : 'atendida';
             return (

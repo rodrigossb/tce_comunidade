@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { TCE as T } from '@tce/core';
 import { parsePrioList, whyLabel } from '@tce/core/fila';
 import { placeLabel } from '@tce/core/map';
+import { mergeExtras, placeOf } from '@/lib/filas-extra';
 import Icon from './Icon';
 import * as A from '@/app/actions';
 
@@ -14,7 +15,8 @@ const D = T.D;
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const LS = 'tce_at';
 const VER = '2.0';
-const ACTIONS = { setIssued: A.setIssued, setPriorities: A.setPriorities, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall, advance: A.advance };
+const ACTIONS = { setIssued: A.setIssued, setPriorities: A.setPriorities, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall, advance: A.advance, addExtraQueue: A.addExtraQueue, removeExtraQueue: A.removeExtraQueue };
+const EXTRA_BLANK = { service_id: '', name: '', kind: 'sala', num: '', count: '100', spec: '80-100' };
 const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch { return d; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem storage */ } };
 const fmtT = (ms) => T.partsOf(new Date(ms)).time;
@@ -36,7 +38,9 @@ export default function Atendimento() {
   const [numVal, setNumVal] = useState('');
   const [busy, setBusy] = useState(false); // evita toque duplo nos botões de chamada
   const toastT = useRef(null); const issuedT = useRef({}); const numInput = useRef(null);
-  const [prioTxt, setPrioTxt] = useState({}); const prioT = useRef({}); // triagem: texto das senhas prioritárias por sala (enquanto digita)
+  const [prioTxt, setPrioTxt] = useState({}); const prioSaved = useRef({}); // triagem: texto das senhas prioritárias por sala, exatamente como digitado
+  const [extraForm, setExtraForm] = useState(null); // triagem: formulário de novo serviço/sala (null = fechado)
+  const extrasRef = useRef([]); extrasRef.current = (data && data.extras) || []; // filas criadas no dia (vêm com o estado)
 
   // ---------- início ----------
   useEffect(() => {
@@ -52,8 +56,8 @@ export default function Atendimento() {
   const dayDefault = (c) => (T.serviceDayOf(c.date) || T.nextServiceDay(c.date) || T.serviceDays()[T.serviceDays().length - 1]);
   const ctxOf = (s, c) => { const d = T.serviceDays().find((x) => x.date === s.day) || dayDefault(c || T.now()); return { day: d.date, venue: d.venue, place: d.place }; };
   const svc = (id) => T.serviceById(id);
-  const placeName = (id) => { const p = T.placeInfo(id); return p ? (p.kind === 'area' && !p.num ? p.name : `${placeLabel(p)} · ${p.name}`) : id; };
-  const queues = () => T.ticketQueuesOf(ctxOf(stRef.current).venue); // só filas que distribuem senha (D.senhas)
+  const placeName = (id) => { const p = placeOf(id, extrasRef.current); return p ? (p.kind === 'area' && !p.num ? p.name : `${placeLabel(p)} · ${p.name}`) : id; };
+  const queues = () => mergeExtras(T.ticketQueuesOf(ctxOf(stRef.current).venue), extrasRef.current); // filas fixas (D.senhas) + extras criadas na triagem
   const queueById = (id) => { for (const g of queues()) for (const p of g.places) if (p.id === id) return Object.assign({ svc: g.service }, p); return null; };
 
   // ---------- servidor (server actions) + fila offline ----------
@@ -116,14 +120,27 @@ export default function Atendimento() {
     clearTimeout(issuedT.current[id]);
     issuedT.current[id] = setTimeout(() => run(async () => { await post('setIssued', { day: c.day, venue: c.venue, service_id: sid, place_id: id, count, device }); await refresh(); }), 700);
   }
-  // Senhas prioritárias da sala (triagem): texto livre "5, 12, 100-120"; grava 900 ms depois de parar de digitar (ou ao sair do campo).
+  // Senhas prioritárias da sala (triagem): texto livre "5, 12, 100-120". O campo mostra exatamente o que foi digitado
+  // (sem formatação automática); a validação e a gravação acontecem só ao sair do campo ou no Enter.
   const prioOf = (pid) => { if (prioTxt[pid] != null) return prioTxt[pid]; const r = ((data && data.priorities) || []).find((x) => x.place_id === pid); return r ? r.spec : ''; };
-  function setPrio(id, sid, text, now) {
-    const c = ctxOf(st); const device = st.device; setPrioTxt((p) => Object.assign({}, p, { [id]: text }));
-    clearTimeout(prioT.current[id]);
-    const save = () => run(async () => { const parsed = parsePrioList(text); if (parsed.error) { toast(parsed.error, 'alert'); return; } await post('setPriorities', { day: c.day, venue: c.venue, service_id: sid, place_id: id, spec: parsed.spec, device }); setPrioTxt((p) => { const n = Object.assign({}, p); delete n[id]; return n; }); await refresh(); });
-    if (now) save(); else prioT.current[id] = setTimeout(save, 900);
+  const typePrio = (id, text) => setPrioTxt((p) => Object.assign({}, p, { [id]: text }));
+  function savePrio(id, sid) {
+    const text = prioTxt[id]; if (text == null || prioSaved.current[id] === text) return; // nada digitado ou já gravado igual
+    const c = ctxOf(st); const device = st.device;
+    const parsed = parsePrioList(text); if (parsed.error) { toast(`Senhas prioritárias: ${parsed.error}`, 'alert'); return; }
+    prioSaved.current[id] = text;
+    run(async () => { await post('setPriorities', { day: c.day, venue: c.venue, service_id: sid, place_id: id, spec: parsed.spec, device }); toast(parsed.nums.length ? `Prioritárias gravadas: ${parsed.spec}` : 'Sem senhas prioritárias nesta sala'); await refresh(); });
   }
+  // Novo serviço/sala na triagem (fila extra): nome, pilar, tipo e número; já nasce com o padrão de senhas e prioritárias.
+  function saveExtra() {
+    const f = extraForm; if (!f) return; const c = ctxOf(st);
+    if (!f.service_id) { toast('Escolha o serviço (pilar) em que a sala entra', 'alert'); return; }
+    if (f.name.trim().length < 2) { toast('Informe o nome do atendimento', 'alert'); return; }
+    const parsed = parsePrioList(f.spec); if (parsed.error) { toast(`Senhas prioritárias: ${parsed.error}`, 'alert'); return; }
+    const count = f.count.trim() === '' ? null : Number(f.count); if (count != null && (!Number.isInteger(count) || count < 0)) { toast('Quantidade de senhas inválida', 'alert'); return; }
+    run(async () => { const r = await post('addExtraQueue', { day: c.day, venue: c.venue, service_id: f.service_id, name: f.name.trim(), kind: f.kind, num: f.num.trim(), count, spec: f.spec, device: st.device }); if (r) { toast(`${f.name.trim()} criado`); setExtraForm(null); } await refresh(); });
+  }
+  const removeExtra = (p) => { if (!confirm(`Remover "${p.name}" da triagem, da porta e da TV? As chamadas já feitas ficam no histórico.`)) return; run(async () => { await post('removeExtraQueue', p.extra_id); toast(`${p.name} removido`); await refresh(); }); };
   function askNumber(title, value, cb) { setNumAsk({ title, cb }); setNumVal(String(value)); }
   useEffect(() => { if (numAsk && numInput.current) { numInput.current.focus(); numInput.current.select(); } }, [numAsk]);
   function numKey(k) {
@@ -222,18 +239,39 @@ export default function Atendimento() {
               {g.places.map((p) => { const n = cnt(p.id); const stt = statOf(g.service.id, p.id); return (
                 <div key={p.id} className="tri-row" style={{ '--c': g.service.color }}>
                   <span className="ic">{I(p.kind === 'tenda' ? 'tent' : 'door')}</span>
-                  <span className="nm"><b>{p.name}</b><small>{placeLabel(p)}{stt ? ` · ${stt.called} chamada${stt.called === 1 ? '' : 's'} · ${stt.served} atendida${stt.served === 1 ? '' : 's'}` : ''}</small></span>
+                  <span className="nm"><b>{p.name}</b><small>{placeLabel(p)}{stt ? ` · ${stt.called} chamada${stt.called === 1 ? '' : 's'} · ${stt.served} atendida${stt.served === 1 ? '' : 's'}` : ''}{p.extra ? <> · criado na triagem · <button type="button" className="link rm" data-act="extra-rm" onClick={() => removeExtra(p)}>remover</button></> : null}</small></span>
                   <button className="minus" data-id={p.id} aria-label="Menos um" onClick={() => setIssued(p.id, g.service.id, n - 1)}>{I('x')}</button>
                   <button className="cnt" data-id={p.id} aria-label="Digitar o total entregue" onClick={() => askNumber(`${p.name}: total de senhas entregues`, n, (v) => setIssued(p.id, g.service.id, v))}><b>{n}</b><small>{I('sliders')}digitar</small></button>
                   <button className="plus" data-id={p.id} onClick={() => setIssued(p.id, g.service.id, n + 1)}>+1</button>
                   {(() => { const txt = prioOf(p.id); const parsed = parsePrioList(txt); const inRange = parsed.nums.filter((x) => !n || x <= n).length; return (
-                    <div className="tri-prio"><label htmlFor={`prio-${p.id}`}>{I('star')}Senhas prioritárias</label><input id={`prio-${p.id}`} type="text" inputMode="text" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} enterKeyHint="done" placeholder="ex.: 5, 12, 80-100" value={txt} onChange={(e) => setPrio(p.id, g.service.id, e.target.value)} onBlur={(e) => { if (prioTxt[p.id] != null) setPrio(p.id, g.service.id, e.target.value, true); }} /><small className={parsed.error ? 'err' : ''}>{parsed.error ? parsed.error : parsed.nums.length ? `${parsed.nums.length} prioritária${parsed.nums.length === 1 ? '' : 's'}${n && inRange !== parsed.nums.length ? ` (${inRange} entre as ${n} entregues)` : ''} · a porta chama intercalando com as comuns` : 'números ou intervalos separados por vírgula; a porta intercala prioridade e comum'}</small></div>
+                    <div className="tri-prio"><label htmlFor={`prio-${p.id}`}>{I('star')}Senhas prioritárias</label><input id={`prio-${p.id}`} type="text" inputMode="text" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} enterKeyHint="done" placeholder="ex.: 5, 12, 80-100" value={txt} onChange={(e) => typePrio(p.id, e.target.value)} onBlur={() => savePrio(p.id, g.service.id)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }} /><small className={parsed.error ? 'err' : ''}>{parsed.error ? `${parsed.error} · corrija antes de sair do campo` : parsed.nums.length ? `${parsed.nums.length} prioritária${parsed.nums.length === 1 ? '' : 's'}${n && inRange !== parsed.nums.length ? ` (${inRange} entre as ${n} entregues)` : ''}${prioTxt[p.id] != null && prioSaved.current[p.id] !== prioTxt[p.id] ? ' · grava ao sair do campo' : ' · a porta chama intercalando com as comuns'}` : 'números ou intervalos separados por vírgula (ex.: 5, 12, 80-100); grava ao sair do campo'}</small></div>
                   ); })()}
                 </div>
               ); })}
             </div>
           </div>
         ))}
+        <div className="tri-new">
+          {!extraForm ? (
+            <button type="button" className="btn btn-ghost" data-act="extra-new" onClick={() => setExtraForm(Object.assign({}, EXTRA_BLANK, { service_id: (queues()[0] || { service: { id: '' } }).service.id }))}>{I('calendarplus')}Novo serviço / sala</button>
+          ) : (
+            <form className="tri-new-form" onSubmit={(e) => { e.preventDefault(); saveExtra(); }}>
+              <h3 className="tri-h" style={{ '--c': '#1f3b9a' }}>{I('calendarplus')}Novo serviço / sala</h3>
+              <p className="tiny muted">Para um atendimento que não estava na planta. Ele entra na triagem, na porta da sala e na TV deste local, hoje.</p>
+              <label>Atendimento<input type="text" value={extraForm.name} autoComplete="off" placeholder="ex.: Fisioterapia" maxLength={60} onChange={(e) => setExtraForm((f) => Object.assign({}, f, { name: e.target.value }))} /></label>
+              <label>Serviço (pilar)<select value={extraForm.service_id} onChange={(e) => setExtraForm((f) => Object.assign({}, f, { service_id: e.target.value }))}><option value="">escolha…</option>{D.services.filter((x) => (D.senhas && D.senhas.services ? D.senhas.services.includes(x.id) : true)).map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}</select></label>
+              <div className="row2">
+                <label>Tipo<select value={extraForm.kind} onChange={(e) => setExtraForm((f) => Object.assign({}, f, { kind: e.target.value }))}><option value="sala">Sala</option><option value="tenda">Tenda</option><option value="area">Outro ambiente</option></select></label>
+                <label>Número / identificação<input type="text" value={extraForm.num} autoComplete="off" placeholder="ex.: 19 ou A" maxLength={8} onChange={(e) => setExtraForm((f) => Object.assign({}, f, { num: e.target.value }))} /></label>
+              </div>
+              <div className="row2">
+                <label>Senhas entregues (inicial)<input type="text" inputMode="numeric" value={extraForm.count} autoComplete="off" placeholder="ex.: 100" onChange={(e) => setExtraForm((f) => Object.assign({}, f, { count: e.target.value }))} /></label>
+                <label>Senhas prioritárias<input type="text" inputMode="text" value={extraForm.spec} autoComplete="off" autoCorrect="off" spellCheck={false} placeholder="ex.: 80-100" onChange={(e) => setExtraForm((f) => Object.assign({}, f, { spec: e.target.value }))} /></label>
+              </div>
+              <div className="actions"><button type="button" className="btn btn-ghost" onClick={() => setExtraForm(null)}>Cancelar</button><button type="submit" className="btn btn-primary" data-act="extra-save">{I('check')}Criar</button></div>
+            </form>
+          )}
+        </div>
       </>
     );
   }

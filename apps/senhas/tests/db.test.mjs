@@ -119,3 +119,20 @@ test('lugares do mapa: cria, atualiza, valida e remove', () => {
   db.deleteLugar(b.id); assert.equal(db.lugares().length, 1);
   assert.throws(() => db.deleteLugar(b.id), (e) => e.status === 404);
 });
+
+test('filas extras: criar na triagem já lança o padrão de senhas e prioritárias; entra no estado e na TV; remover tira', () => {
+  assert.throws(() => db.addExtra({ day: DAY, venue: V, service_id: 'nada', name: 'Fisioterapia' }), /pilar/);
+  assert.throws(() => db.addExtra({ day: DAY, venue: V, service_id: S, name: 'F' }), /nome/);
+  assert.throws(() => db.addExtra({ day: DAY, venue: V, service_id: S, name: 'Fisioterapia', spec: '80-' }), /não entendi/);
+  const r = db.addExtra({ day: DAY, venue: V, service_id: S, name: 'Nutrição <b>', kind: 'sala', num: '19', count: 100, spec: '80-100', device: 't' });
+  assert.equal(r.place_id, `${V}-x${r.id}`);
+  const st = db.state(DAY, V);
+  const e = st.extras.find((x) => x.id === r.place_id); assert.ok(e, 'extra no estado'); assert.equal(e.name, 'Nutrição'); assert.equal(e.kind, 'sala'); assert.equal(e.num, '19'); assert.equal(e.service_id, S); assert.equal(e.extra, true);
+  assert.equal(st.issued.find((x) => x.place_id === r.place_id).count, 100);
+  assert.equal(st.priorities.find((x) => x.place_id === r.place_id).spec, '80-100');
+  const q = db.queue(DAY, V, S, r.place_id); assert.equal(q.plan.has_prio, true); assert.equal(q.plan.next.ticket, 80); // intercala: começa pela prioritária
+  const tv = db.tvBoard(DAY, V); assert.ok(tv.extras.some((x) => x.id === r.place_id)); assert.ok(tv.places.some((p) => p.place_id === r.place_id && p.issued === 100));
+  db.removeExtra(r.id);
+  assert.ok(!db.state(DAY, V).extras.some((x) => x.id === r.place_id));
+  assert.throws(() => db.removeExtra(r.id), /não encontrada/);
+});

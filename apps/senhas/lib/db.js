@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { summarize } from '@tce/core/stats';
 import { parsePrioList, queuePlan } from '@tce/core/fila';
 import { normalizeLugar } from '@tce/core/lugares';
+import { TCE as T } from '@tce/core';
 import { notify } from './bus.js';
 
 export class ApiError extends Error { constructor(status, message) { super(message); this.status = status; } }
@@ -23,7 +24,8 @@ CREATE INDEX IF NOT EXISTS calls_day ON calls(day, venue, service_id, place_id, 
 CREATE TABLE IF NOT EXISTS prio_log (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, spec TEXT NOT NULL, device TEXT, ts INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS prio_day ON prio_log(day, venue, service_id, place_id, ts);
 CREATE TABLE IF NOT EXISTS inscritos_snap (id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, painel_info TEXT, source TEXT, data TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS lugares (id INTEGER PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, address TEXT, lat REAL NOT NULL, lng REAL NOT NULL, note TEXT, phone TEXT, device TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0);`;
+CREATE TABLE IF NOT EXISTS lugares (id INTEGER PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, address TEXT, lat REAL NOT NULL, lng REAL NOT NULL, note TEXT, phone TEXT, device TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS filas_extra (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL DEFAULT '', name TEXT NOT NULL, kind TEXT NOT NULL, num TEXT NOT NULL DEFAULT '', device TEXT, created_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0);`;
 
 function open(file) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -59,6 +61,11 @@ function open(file) {
     lugarInsert: db.prepare(`INSERT INTO lugares (name, kind, address, lat, lng, note, phone, device, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`),
     lugarUpdate: db.prepare(`UPDATE lugares SET name=?, kind=?, address=?, lat=?, lng=?, note=?, phone=?, device=?, updated_at=? WHERE id=?`),
     lugarDelete: db.prepare(`UPDATE lugares SET deleted=1, updated_at=? WHERE id=?`),
+    extraAll: db.prepare(`SELECT id, service_id, place_id, name, kind, num, created_at FROM filas_extra WHERE day=? AND venue=? AND deleted=0 ORDER BY id`),
+    extraGet: db.prepare(`SELECT * FROM filas_extra WHERE id=?`),
+    extraInsert: db.prepare(`INSERT INTO filas_extra (day, venue, service_id, place_id, name, kind, num, device, created_at) VALUES (?,?,?,?,?,?,?,?,?)`),
+    extraSetPlace: db.prepare(`UPDATE filas_extra SET place_id=? WHERE id=?`),
+    extraDelete: db.prepare(`UPDATE filas_extra SET deleted=1 WHERE id=?`),
   };
   return { db, q, file };
 }
@@ -70,6 +77,7 @@ export function conn() {
 }
 export function close() { const g = globalThis; if (g.__tceSenhas) { try { g.__tceSenhas.db.close(); } catch { /* */ } g.__tceSenhas = null; } }
 
+const D = T.D;
 const num = (x) => (typeof x === 'bigint' ? Number(x) : x);
 const rows = (list) => list.map((r) => { const o = {}; for (const k of Object.keys(r)) o[k] = num(r[k]); return o; });
 
@@ -79,7 +87,7 @@ function ctx(day, venue) { const v = clean(venue, 16); if (!isDay(day) || !v) th
 export function state(day, venue) {
   const c = ctx(day, venue); const { q } = conn();
   const issued = rows(q.issuedLatest.all(c.day, c.venue)); const calls = rows(q.callsDay.all(c.day, c.venue));
-  return { day: c.day, venue: c.venue, now: Date.now(), issued, priorities: rows(q.prioLatest.all(c.day, c.venue)), stats: summarize(issued, calls, Date.now()) };
+  return { day: c.day, venue: c.venue, now: Date.now(), issued, priorities: rows(q.prioLatest.all(c.day, c.venue)), stats: summarize(issued, calls, Date.now()), extras: extras(c.day, c.venue) };
 }
 export function stats(day, venue) {
   const st = state(day, venue); const { q } = conn();
@@ -183,7 +191,7 @@ export function tvBoard(day, venue) {
   }
   const recent = calls.slice().sort((a, b) => b.called_at - a.called_at || b.id - a.id).slice(0, 60)
     .map((x) => ({ id: x.id, ticket: x.ticket, service_id: x.service_id, place_id: x.place_id, status: x.status, called_at: x.called_at, recalled_at: x.recalled_at || null, priority: x.priority ? 1 : 0, status_at: x.status_at, ended_at: x.ended_at }));
-  return { day: c.day, venue: c.venue, now, places, recent, total: { issued: st.total.issued, called: st.total.called, waiting: st.total.not_called, in_service: st.total.in_service } };
+  return { day: c.day, venue: c.venue, now, places, recent, extras: extras(c.day, c.venue), total: { issued: st.total.issued, called: st.total.called, waiting: st.total.not_called, in_service: st.total.in_service } };
 }
 /** Chamadas do dia no local (para o dashboard: séries por hora e linha do tempo). */
 export function callsOfDay(day, venue) { const c = ctx(day, venue); return rows(conn().q.callsDay.all(c.day, c.venue)); }
@@ -209,6 +217,43 @@ export function saveInscritos({ byId, painelInfo, source }) {
 export function latestInscritos() {
   const { q } = conn(); const r = q.snapLatest.get(); if (!r) return null;
   return { updatedAt: num(r.ts), painelInfo: r.painel_info || '', source: r.source || 'coletor', byId: JSON.parse(r.data) };
+}
+
+// ---- filas extras (triagem): serviços/salas criados no dia, além das filas fixas da planta (T.ticketQueuesOf) ----
+const EXTRA_KINDS = ['sala', 'tenda', 'area'];
+const text = (s, n) => String(s == null ? '' : s).replace(/<[^>]*>/g, '').replace(/[<>\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
+/** Filas extras do dia/local no formato de ambiente da planta (+ service_id e extra: true), para somar às filas fixas. */
+export function extras(day, venue) {
+  const c = ctx(day, venue);
+  return rows(conn().q.extraAll.all(c.day, c.venue)).map((r) => ({ id: r.place_id, extra_id: r.id, venue: c.venue, service_id: r.service_id, name: r.name, kind: r.kind, num: r.num, extra: true, created_at: r.created_at }));
+}
+/** Cria uma fila extra { day, venue, service_id, name, kind, num, count, spec, device }: já lança o padrão de senhas
+    entregues (count, ex. 100) e prioritárias (spec, ex. "80-100") para a nova sala. */
+export function addExtra(b) {
+  const c = ctx(b && b.day, b && b.venue); const sid = clean(b.service_id, 32);
+  const name = text(b.name, 60); const kind = EXTRA_KINDS.includes(b.kind) ? b.kind : 'sala'; const num = text(b.num, 8).replace(/[^\w\- ]/g, '');
+  if (!sid || !D.services.some((s) => s.id === sid)) throw err(400, 'serviço (pilar) inválido');
+  if (name.length < 2) throw err(400, 'informe o nome do atendimento');
+  const count = b.count == null || b.count === '' ? null : Number(b.count);
+  if (count != null && (!Number.isInteger(count) || count < 0 || count > 100000)) throw err(400, 'quantidade de senhas inválida');
+  const parsed = parsePrioList(b.spec || ''); if (parsed.error) throw err(400, parsed.error);
+  const { db, q } = conn(); const now = Date.now(); const device = clean(b.device, 40);
+  let out;
+  db.exec('BEGIN');
+  try {
+    const r = q.extraInsert.run(c.day, c.venue, sid, '', name, kind, num, device, now); const id = Number(r.lastInsertRowid);
+    const place_id = `${c.venue}-x${id}`; q.extraSetPlace.run(place_id, id);
+    if (count != null) q.issuedInsert.run(c.day, c.venue, sid, place_id, count, device, now);
+    if (parsed.nums.length) q.prioInsert.run(c.day, c.venue, sid, place_id, parsed.spec, device, now);
+    db.exec('COMMIT'); out = { ok: true, id, place_id };
+  } catch (e) { db.exec('ROLLBACK'); throw e; }
+  notify(c.day, c.venue); return out;
+}
+/** Remove (lógico) uma fila extra; as chamadas já feitas ficam no histórico. */
+export function removeExtra(idRaw) {
+  const id = Number(idRaw); if (!Number.isInteger(id) || id <= 0) throw err(400, 'id');
+  const { q } = conn(); const cur = q.extraGet.get(id); if (!cur || num(cur.deleted)) throw err(404, 'fila não encontrada');
+  q.extraDelete.run(id); notify(cur.day, cur.venue); return { ok: true, id };
 }
 
 // ---- lugares do mapa (mapa-eventos.html): cadastro da equipe, além dos locais fixos do evento (D.geo) ----

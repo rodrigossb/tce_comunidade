@@ -82,12 +82,12 @@ function Dash() {
   const screen = fixed || SCREENS[idx];
 
   // ---- derivados ----
-  const stats = data ? { total: data.total, services: data.services, per_hour: data.per_hour } : null;
+  const stats = data ? { total: data.total, services: data.services, per_hour: data.per_hour, extras: data.extras || [] } : null;
   const calls = (data && data.calls) || [];
   const total = (data && data.total) || { issued: 0, called: 0, served: 0, absent: 0, pending_result: 0, in_service: 0, not_called: 0, avg_min: null, absent_rate: null };
   const series = useMemo(() => hourSeries(calls), [calls]);
   const hl = useMemo(() => (stats ? highlights(stats, calls) : null), [stats, calls]);
-  const rows = useMemo(() => (stats ? placeRows(stats) : []), [stats]);
+  const rows = useMemo(() => (stats ? placeRows(stats, stats.extras) : []), [stats]);
   const svcs = useMemo(() => (stats ? serviceRows(stats) : []), [stats]);
   const empty = data && !calls.length && !total.issued;
 
