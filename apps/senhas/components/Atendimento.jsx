@@ -253,7 +253,7 @@ export default function Atendimento() {
         <p className="page-lead">Tudo o que você lançar (senhas entregues e chamadas) vale para o local escolhido aqui, no dia de hoje.</p>
         <div className="roles">
           {Object.keys(D.maps || {}).map((venue) => { const v = D.venues[venue]; const sd = T.serviceDays().find((d) => d.venue === venue); const td = T.ticketDay(clock ? clock.date : T.now().date, venue); const today = !!(clock && td && td.date === clock.date); return (
-            <button key={venue} className="role" style={{ '--c': today ? '#16a34a' : '#1f3b9a' }} data-act="local" data-id={venue} onClick={() => act.local(venue)}><i>{I('pin')}</i><span><b>{v ? v.name : venue}</b><small>{today ? (td.service_day ? `Hoje · dia de serviços gratuitos` : `Hoje · filas criadas na triagem${sd ? ` (serviços gratuitos ${T.fmtDate(sd.date, 'wd')})` : ''}`) : sd ? `Serviços gratuitos · ${T.fmtDate(sd.date, 'wdlong')}` : ''}</small></span>{I('right')}</button>
+            <button key={venue} className="role" style={{ '--c': today ? '#16a34a' : '#1f3b9a' }} data-act="local" data-id={venue} onClick={() => act.local(venue)}><i>{I('pin')}</i><span><b>{v ? v.name : venue}</b><small>{today ? (td.service_day ? `Hoje · dia de serviços gratuitos` : `Hoje${sd ? ` · serviços gratuitos ${T.fmtDate(sd.date, 'wd')}` : ''}`) : sd ? `Serviços gratuitos · ${T.fmtDate(sd.date, 'wdlong')}` : ''}</small></span>{I('right')}</button>
           ); })}
         </div>
         <p className="tiny muted">Aparelho {st.device} · <button className="link" data-act="logout" onClick={act.logout}>sair</button></p>
@@ -329,7 +329,7 @@ export default function Atendimento() {
     const serviceOptions = D.services.filter((x) => (D.senhas && D.senhas.services ? D.senhas.services.includes(x.id) : true));
     return (
       <>
-        {top('Triagem · senhas', `${c.place} · ${T.fmtDate(c.day, 'wdlong')}${c.service_day ? '' : ' · filas criadas aqui'}`, act.home)}
+        {top('Triagem · senhas', `${c.place} · ${T.fmtDate(c.day, 'wdlong')}${c.service_day ? ' · dia de serviços' : ''}`, act.home)}
         <p className="page-lead">Toque em <b>+1</b> a cada senha entregue. Toque no número para <b>digitar o total</b>. Em <b>editar</b> você muda nome, sala e o que é oferecido; em <b>padrão</b>, a numeração e a ordem de chamada.</p>
         {qs.map((g) => (
           <div key={g.service.id}>
@@ -364,7 +364,7 @@ export default function Atendimento() {
           <div className="tri-empty">
             <span className="ic">{I('ticket')}</span>
             <b>Nenhuma fila {c.service_day ? 'ativa' : 'criada'} hoje em {c.place}.</b>
-            <small>{c.service_day ? 'As filas da planta estão desativadas (veja abaixo) ou ainda não há salas.' : 'Hoje não é dia de serviços gratuitos neste local: crie a fila do atendimento que vai distribuir senha (ex.: Consulta Médica).'}</small>
+            <small>{off.length ? 'Todas as filas da planta estão desativadas hoje (reative abaixo) ou crie uma nova.' : 'Crie a fila do atendimento que vai distribuir senha (ex.: Consulta Médica).'}</small>
             {!extraForm ? <button type="button" className="btn btn-primary" data-act="extra-new" onClick={newForm}>{I('calendarplus')}Criar serviço / sala</button> : null}
           </div>
         ) : null}

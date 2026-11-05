@@ -160,9 +160,9 @@ abaixo, **o que é oferecido** ali — por padrão o que a programação diz par
 muda nome do atendimento, tipo/número da sala e o texto do que é oferecido (um item por linha ou separados por ";"); vale para
 a triagem, a porta, a TV e o painel do dia, em todos os aparelhos (tabela `fila_info`, última linha por ambiente; a planta e o
 site público não mudam). As salas fixas editadas vêm na lista `extras` do estado/TV com `override: true` (só atualizam a fila
-existente; nunca criam fila). **Dia de trabalho** (`T.ticketDay`): no dia de serviços do local valem as filas da planta; nos
-outros dias do evento o app, a TV e o painel trabalham com **a data de hoje** e só com as filas criadas na triagem (ex.: Consulta
-Médica em 05 e 06/11 na Joaquim Nabuco), sem misturar com as senhas de 07/11; fora do evento, o próximo/último dia de serviços.
+existente; nunca criam fila). **Dia de trabalho** (`T.ticketDay`): no dia de serviços do local é ele; nos outros dias do evento o app, a TV e o
+painel trabalham com **a data de hoje** (contagens, chamadas, desativações e edições são por dia, sem misturar com 07/11); as
+salas da planta aparecem em qualquer dia e a triagem desativa as que não atendem; fora do evento, o próximo/último dia de serviços.
 Contagem de entregues: o aparelho mostra o que digitou até o servidor confirmar aquele envio (sem comparar relógios), e os
 envios saem em fila, na ordem — corrige o caso em que a contagem "voltava" ao valor anterior (a versão anterior guardava a
 contagem local na mesma chave do local do aparelho).
@@ -232,7 +232,7 @@ Itens de serviço aceitam `only: 'AAAA-MM-DD'` (só naquele dia de serviços) e 
 (dias e turnos em que acontecem; `T.itemsOn(s, data, turno)`, `T.itemWhenLabel(it)` → "qui 05/11 à tarde · sex 06/11 manhã e
 tarde"). O serviço **Consulta Médica** (`consulta`, 05 a 07/11 na Joaquim Nabuco, `days`) usa isso: ginecologia, psiquiatria e
 urologia (qui à tarde), ginecologia, pediatria, cardiologia, urologia e exames (sex de manhã; sem exames à tarde), clínico geral
-(sáb) e psicologia todos os dias. Ele entra em `D.senhas.services`; a sala é criada na triagem no dia ("Novo serviço / sala").
+(sáb) e psicologia todos os dias. Ele entra em `D.senhas.services` e fica na sala 09 da Joaquim Nabuco (na triagem, em 05 e 06/11, crie a fila por "Novo serviço / sala" ou edite a sala 09).
 `packages/core/src/data.js` é a fonte única (evento, locais, cursos com sessões, serviços por pilar), transcrita de
 `Tabela com links COM AJUSTES FINAIS LEON.pdf` ("Programação por Curso", versão de 29/10/2026, que
 substituiu o `.docx` anterior) e `SERVIÇOS DO TCE NA COMUNIDADE 1.pdf`.

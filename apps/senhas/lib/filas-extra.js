@@ -20,9 +20,10 @@ export function mergeExtras(groups, extras) {
   }
   return out;
 }
-/** Filas fixas da planta (D.senhas) de um local num dia: só no dia de serviços daquele local; nos outros dias do evento
-    valem só as filas criadas na triagem (extras). Sem `day`, todas (compatibilidade/testes). */
-export const fixedQueues = (venue, day) => { if (!day) return T.ticketQueuesOf(venue); const sd = T.serviceDayOf(day); return sd && sd.venue === venue ? T.ticketQueuesOf(venue) : []; };
+/** Filas fixas da planta (D.senhas) de um local. Valem em qualquer dia do evento (a triagem desativa as que não atendem
+    naquele dia; contagens, chamadas e desativações são por dia). `day` fica para quem quiser restringir no futuro. */
+// eslint-disable-next-line no-unused-vars
+export const fixedQueues = (venue, day) => T.ticketQueuesOf(venue);
 /** Ambiente por id: o que o dia tem (extra criada ou sala fixa editada na triagem) e, senão, a planta. */
 export const placeOf = (id, extras) => { const e = (extras || []).find((x) => x.id === id); const p = T.placeInfo(id); return e && p ? Object.assign({}, p, e, { id }) : e || p || null; };
 /** Lista plana [{ service, place }] das extras (formato das filas da TV), filtrada por serviços quando há filtro. */

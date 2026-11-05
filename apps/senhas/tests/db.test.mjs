@@ -193,5 +193,5 @@ test('setQueueInfo: triagem edita nome, sala e oferta de uma fila fixa (override
   assert.equal(db.state(DAYI, VI).extras.filter((e) => e.id === a.place_id).length, 1);
   // override numa sala fixa fora do dia de serviços do local não vira fila (fixedQueues vazio) mas placeOf a acha
   const { fixedQueues } = await import('../lib/filas-extra.js');
-  assert.equal(fixedQueues('jn', '2026-11-05').length, 0); assert.ok(fixedQueues('jn', '2026-11-07').length > 0); assert.ok(fixedQueues('jn').length > 0);
+  assert.ok(fixedQueues('jn', '2026-11-05').length > 0, 'salas da planta valem em qualquer dia do evento'); assert.ok(fixedQueues('jn').length > 0);
 });
