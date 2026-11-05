@@ -58,6 +58,8 @@ test('ics e QR geram saída válida', () => {
 test('conflitos de sala são conhecidos (mesma sala, dia e horário)', () => {
   const seen = new Map(); const conflicts = [];
   for (const x of T.allSessions()) { if (!x.room) continue; const k = `${x.date} ${x.time} ${x.venue} ${x.room}`; if (seen.has(k)) conflicts.push(`${k}: ${seen.get(k)} × ${x.course.id}`); else seen.set(k, x.course.id); }
-  // 02/11: a organização moveu o Videomaker (145) do Lab I para o Lab II em 05/11 14h; lá já está o Rios do Saber (156). Conflito conhecido, informado no resumo.
-  assert.deepEqual(conflicts, ['2026-11-05 14:00 jn Laboratório II: 145 × 156']);
+  // 05/11: o Rios do Saber (156) ocupa os dois laboratórios manhã e tarde (informado pela organização em 05/11); no Lab I há o
+  // Controle Social e Ouvidoria (152) às 8h e o Tecnologia e Direito das Mulheres (125) às 14h; no Lab II, o Videomaker (145,
+  // movido em 02/11) às 14h. Conflitos conhecidos, informados no resumo.
+  assert.deepEqual(conflicts, ['2026-11-05 08:00 jn Laboratório I: 152 × 156', '2026-11-05 14:00 jn Laboratório I: 125 × 156', '2026-11-05 14:00 jn Laboratório II: 145 × 156']);
 });

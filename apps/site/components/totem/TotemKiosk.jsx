@@ -1,7 +1,7 @@
 'use client';
 /* Totem = o app do celular em modo quiosque (components/app/App.jsx com a prop `kiosk`). Configuração pela URL, lida
    uma vez no cliente:
-     ?local=jn|manga|sebrae|auditorio|iaparra  local onde o totem está (programação inicial e mapa padrão)
+     ?local=jn|manga|sebrae|auditorio|camara|ifap|iaparra  local onde o totem está (programação inicial e mapa padrão)
      ?entrada=a1|a2|a3 | <id da sala, ex. jn-r11> | <x,y em px da planta>   posição do totem = origem de todos os caminhos
      ?ocioso=90   segundos sem toque para voltar ao início (mín. 20)      ?descanso=0   sem tela de descanso
      ?zoom=1.3    escala da letra (1 = celular; 1.3 bom para 42" em 1080×1920)   ?t=HH:MM&d=AAAA-MM-DD  simulação

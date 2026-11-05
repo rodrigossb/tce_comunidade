@@ -2,11 +2,11 @@
 import { TCE as T } from '@tce/core';
 
 const D = T.D;
-export const VENUE_ORDER = ['jn', 'manga', 'sebrae', 'auditorio', 'iaparra'];
+export const VENUE_ORDER = ['jn', 'manga', 'sebrae', 'auditorio', 'camara', 'ifap', 'iaparra'];
 export const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 export const sameSet = (a, b) => !!a && !!b && a.size === b.size && [...a].every((x) => b.has(x));
-/** ?local= → Set de locais (ou null = todos). Aceita ids (jn, manga, sebrae, auditorio, iaparra), vários com vírgula,
-    e as cidades: "oiapoque" (Joaquim Nabuco, SEBRAE e auditório) e "manga" (Distrito do Manga e Escola Jorge Iaparrá). */
+/** ?local= → Set de locais (ou null = todos). Aceita ids (jn, manga, sebrae, auditorio, camara, ifap, iaparra), vários com vírgula,
+    e as cidades: "oiapoque" (Joaquim Nabuco, SEBRAE, auditório, Câmara e IFAP) e "manga" (Distrito do Manga e Escola Jorge Iaparrá). */
 export function venueFilter(q) {
   const out = new Set();
   for (const raw of String(q || '').toLowerCase().split(/[,+ ]+/).filter(Boolean)) {

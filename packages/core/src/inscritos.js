@@ -90,7 +90,7 @@ function parseAny(text) {
 const STOP = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o', 'as', 'os', 'em', 'no', 'na', 'nos', 'nas', 'para', 'com', 'x', 'ou', 'ao', 'aos', 'um', 'uma', 'curso', 'oiapoque', 'manga', 'suas', 'seu', 'sua', 'que', 'por']);
 const stem = (w) => (w.length > 5 ? w.slice(0, 5) : w);
 const tokens = (s) => new Set(norm(s).split(' ').filter((w) => w.length >= 2 && !STOP.has(w) && !/^\d+$/.test(w)).map(stem));
-const MANGA = ['manga', 'iaparra']; const OIAPOQUE = ['jn', 'sebrae', 'auditorio'];
+const MANGA = ['manga', 'iaparra']; const OIAPOQUE = ['jn', 'sebrae', 'auditorio', 'camara', 'ifap'];
 const linkIdOf = (c, sess) => { const m = String((sess && sess.link) || c.link || '').match(/cursos\/(\d+)/); return m ? m[1] : String(c.id); };
 const groupKey = (c, sess) => `${c.id}@${sess.venue}@${linkIdOf(c, sess)}`;
 /** Turmas de um curso (por local e id da ESCON), com os dias do mês em que acontecem. */

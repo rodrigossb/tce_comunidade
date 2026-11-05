@@ -10,7 +10,7 @@ import SyncInscritos from './SyncInscritos';
 const D = T.D;
 const MemoMap = memo(PlanMap);
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-const VENUE_ORDER = ['jn', 'manga', 'sebrae', 'auditorio', 'iaparra'];
+const VENUE_ORDER = ['jn', 'manga', 'sebrae', 'auditorio', 'camara', 'ifap', 'iaparra'];
 const svcDay = (venue) => T.serviceDays().find((d) => d.venue === venue);
 const at = (sd, long) => `${sd.venue === 'jn' ? 'na' : 'no'} ${(long && sd.placeLong) || sd.place}`; // "na Escola…" / "no Distrito…"
 const servicesAt = (p) => D.services.filter((s) => (!p.svc || p.svc === s.id) && T.placesOf(s, p.venue).includes(p.id));
@@ -181,7 +181,9 @@ function IndexAZ({ all }) {
 // ---- 5. Pendências e fontes ----
 const PEND = [
   ['Cursos', 'Curso 109 (Brinquedistas): a tabela oficial traz link administrativo; o site usa escon/cursos/109.'],
-  ['Salas', 'Laboratório II – Joaquim Nabuco (Sala 02), 05/11 às 14h: em 02/11 o Videomaker (145) saiu do Laboratório I e foi para o Laboratório II, onde no mesmo horário está o Rios do Saber (156, até 100 participantes). Confirmar a divisão do laboratório.'],
+  ['Salas', 'Laboratórios I e II – Joaquim Nabuco (Salas 01 e 02), 05/11: o Rios do Saber (156, até 100 participantes) ocupa os dois laboratórios manhã e tarde (informado em 05/11). No mesmo horário a tabela ainda traz Controle Social e Ouvidoria (152, Lab I 8h), Tecnologia e Direito das Mulheres (125, Lab I 14h) e Videomaker (145, Lab II 14h). Confirmar onde ficam essas turmas.'],
+  ['Salas', 'Tomada de Contas (122), 05/11: saiu da Joaquim Nabuco (Sala V); manhã na Câmara Municipal de Oiapoque (Av. Veiga Cabral, 390, pino aproximado) e tarde no IFAP – Campus Avançado Oiapoque (Rua Joaquim Caetano da Silva, 870). Informado em 05/11.'],
+  ['Cursos', 'Como vender pela internet (150): era 06/11 às 14h no SEBRAE; em 05/11 passou para 05/11 às 19h (até 22h), mesmo local.'],
   ['Cursos', 'Cidadania Conectada: duas turmas com links diferentes (154 em 05/11 e 158 em 07/11).'],
   ['Cursos', 'Extensão de Cílios (127): cabeçalho diz 05 e 06/11, tabela lista 04, 05 e 06/11 (mantidos os três).'],
   ['Salas', 'Gestão Financeira nas Escolas (112): na Escola Jorge Iaparrá (Manga), sem sala definida; cabeçalho diz 1 ocorrência, tabela lista 8h e 14h.'],

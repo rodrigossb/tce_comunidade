@@ -23,7 +23,7 @@ export default function Lanches() {
 function Doc() {
   const [enr, setEnr] = useInscritos(); // API do tce-senhas (coletor dentro da rede do TCE) → inscritos.json publicado → cópia local
   const [copied, setCopied] = useState('');
-  // ?local= (jn, manga, sebrae, auditorio, iaparra, oiapoque; vários com vírgula) · ?dia=04 (ou 04/11, 2026-11-04)
+  // ?local= (jn, manga, sebrae, auditorio, camara, ifap, iaparra, oiapoque; vários com vírgula) · ?dia=04 (ou 04/11, 2026-11-04)
   const sel = useMemo(() => venueFilter(T.params.get('local')), []);
   const dsel = useMemo(() => dayFilter(T.params.get('dia')), []);
   const sessions = useMemo(() => T.allSessions().filter((s) => (!sel || sel.has(s.venue)) && (!dsel || dsel.has(s.date))), [sel, dsel]);

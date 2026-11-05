@@ -48,6 +48,9 @@ const venues = {
   auditorio: { id: 'auditorio', name: 'Auditório Joaquim Caetano', short: 'Aud. Joaquim Caetano', city: 'Oiapoque', rooms: [] },
   // Nome lido do PDF "Programação por Curso" (texto da célula saiu embaralhado): conferir com a organização.
   iaparra: { id: 'iaparra', name: 'Escola Estadual Indígena Jorge Iaparrá', short: 'Esc. Jorge Iaparrá', city: 'Aldeia do Manga', rooms: [] },
+  // Informados pela organização em 05/11 (Tomada de Contas saiu da Joaquim Nabuco).
+  camara: { id: 'camara', name: 'Câmara Municipal de Oiapoque', short: 'Câmara de Vereadores', city: 'Oiapoque', rooms: [] },
+  ifap: { id: 'ifap', name: 'IFAP · Campus Avançado Oiapoque', short: 'IFAP', city: 'Oiapoque', rooms: [] },
 };
 
 const tags = {
@@ -136,7 +139,8 @@ const courses = [
     audience: 'Professores e gestores escolares do ensino público que atuam em escolas indígenas, ribeirinhas, insulares e periurbanas dos municípios do Amapá e da região da foz do Rio Amazonas', seats: 30,
     note: 'Previsão de até 100 participantes, ou o limite comportado pelo espaço disponível com computadores.',
     link: ESCON + '156/oiapoque-rios-do-saber-formacao-de-docentes-e-gestores-escolares-em-inteligencia-artificial-generativa-metodologias-ativas-de-ensino-e-inovacao-pedagogica-para-escolas-publicas-amazonica', tags: ['educacao', 'tecnologia'],
-    sessions: [s('05', '08:00', 'jn', 'Laboratório II'), s('05', '14:00', 'jn', 'Laboratório II')] },
+    // 05/11: a organização informou que a turma ocupa os dois laboratórios ao mesmo tempo (salas 01 e 02 na planta), manhã e tarde.
+    sessions: [s('05', '08:00', 'jn', 'Laboratório I'), s('05', '08:00', 'jn', 'Laboratório II'), s('05', '14:00', 'jn', 'Laboratório I'), s('05', '14:00', 'jn', 'Laboratório II')] },
   { id: 154, title: 'Cidadania Conectada: Capacitação Tecnológica e Inserção Profissional', short: 'Cidadania Conectada', hours: 8,
     audience: 'Estudantes', seats: 20,
     link: ESCON + '154/cidadania-conectada-capacitacao-tecnologica-e-insercao-profissional', tags: ['tecnologia', 'educacao'],
@@ -151,7 +155,8 @@ const courses = [
   { id: 122, title: 'Tomada de Contas Ordinária e Tomada de Contas Especial', short: 'Tomada de Contas', hours: 8,
     audience: 'Servidores municipais e estaduais', seats: 20,
     link: ESCON + '122/oiapoque-tomada-de-contas-ordinaria-e-tomada-de-contas-especial', tags: ['gestao-publica'],
-    sessions: [s('05', '08:00', 'jn', 'Sala V'), s('05', '14:00', 'jn', 'Sala V')] },
+    // 05/11: saiu da Joaquim Nabuco (Sala V) — manhã na Câmara de Vereadores e tarde no IFAP (informado pela organização em 05/11).
+    sessions: [s('05', '08:00', 'camara', ''), s('05', '14:00', 'ifap', '')] },
   { id: 127, title: 'Extensão de Cílios', hours: 12,
     audience: 'Empreendedores, autônomos, profissionais da área da beleza', seats: 20,
     link: ESCON + '127/oiapoque-extensao-de-cilios', tags: ['empreendedorismo'],
@@ -183,7 +188,8 @@ const courses = [
   { id: 150, title: 'Como vender pela internet', hours: 3,
     audience: 'Empreendedores, autônomos, sociedade civil', seats: 20,
     link: ESCON + '150/oiapoque-como-vender-pela-internet', tags: ['empreendedorismo', 'tecnologia'],
-    sessions: [s('06', '14:00', 'sebrae', '')] },
+    // Era 06/11 às 14h; em 05/11 a organização passou para 05/11 às 19h (3h, até 22h), no mesmo local.
+    sessions: [s('05', '19:00', 'sebrae', '', { end: '22:00' })] },
 ];
 
 // ---- Serviços (sem inscrição) ----
@@ -420,6 +426,12 @@ const geo = [
   { id: 'auditorio', venues: ['auditorio'], kind: 'escola', name: 'Auditório Joaquim Caetano', short: 'Aud. Joaquim Caetano', city: 'Oiapoque',
     address: 'Escola Estadual Joaquim Caetano da Silva · Av. Coaracy Nunes, 40 – Centro, Oiapoque/AP', lat: 3.8385419, lng: -51.8302762, approx: true,
     note: 'Local a confirmar com a organização.' },
+  { id: 'camara', venues: ['camara'], kind: 'outro', name: 'Câmara Municipal de Oiapoque', short: 'Câmara de Vereadores', city: 'Oiapoque',
+    address: 'Av. Veiga Cabral, 390 – Centro, Oiapoque/AP', lat: 3.8334567, lng: -51.831057, approx: true,
+    note: 'Tomada de Contas na manhã de 05/11. Ponto da avenida (OpenStreetMap), não da porta.' },
+  { id: 'ifap', venues: ['ifap'], kind: 'escola', name: 'IFAP · Campus Avançado Oiapoque', short: 'IFAP', city: 'Oiapoque',
+    address: 'Rua Joaquim Caetano da Silva, 870 – Centro, Oiapoque/AP', lat: 3.8486466, lng: -51.8323517, approx: false,
+    note: 'Tomada de Contas na tarde de 05/11.' },
 ];
 
 export const TCE_DATA = { event, venues, tags, courses, services, maps, senhas, geo };

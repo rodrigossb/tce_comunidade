@@ -17,5 +17,5 @@ export const TCE_COURSE_ROOMS = {
     'Laboratório I': 'mg-r12',  // Laboratório de informática = 12
     'Sala 13': 'mg-r13',        // a programação já usa o número da planta (confirmado em 02/11)
   },
-  // sebrae e auditorio: locais sem planta.
+  // sebrae, auditorio, camara e ifap: locais sem planta.
 };

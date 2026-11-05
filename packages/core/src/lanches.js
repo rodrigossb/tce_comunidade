@@ -6,7 +6,7 @@ import { TCE_DATA as D } from './data.js';
 import { allSessions, SHIFT_ORDER, toMin } from './shared.js';
 import { groupKey, groupsOf, numbersOf } from './inscritos.js';
 
-const VENUE_ORDER = ['jn', 'manga', 'sebrae', 'auditorio', 'iaparra'];
+const VENUE_ORDER = ['jn', 'manga', 'sebrae', 'auditorio', 'camara', 'ifap', 'iaparra'];
 const emptyTot = () => ({ lanches: 0, inscritos: 0, vagas: 0, turmas: 0, estimadas: 0 });
 const addTo = (t, c) => { t.lanches += c.lanches; t.inscritos += c.inscritos; t.vagas += c.vagas; t.turmas += c.turmas; t.estimadas += c.estimadas; return t; };
 const shiftsTot = () => Object.fromEntries(SHIFT_ORDER.map((s) => [s, emptyTot()]));

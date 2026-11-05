@@ -24,7 +24,7 @@ assets em caminho relativo (`assetPrefix: './'`); por isso todas as páginas fic
 ## Modo TV (`tv.html`)
 | Parâmetro | Efeito |
 | --- | --- |
-| `?local=jn` (padrão) · `manga` · `sebrae` · `auditorio` · `iaparra` · `todos` | Local onde a TV está: filtra o quadro do dia e os destaques; o QR já abre o app nesse local |
+| `?local=jn` (padrão) · `manga` · `sebrae` · `auditorio` · `camara` · `ifap` · `iaparra` · `todos` | Local onde a TV está: filtra o quadro do dia e os destaques; o QR já abre o app nesse local |
 | `?t=09:15&d=2026-11-05` | Simula data/hora (demonstração; mostra o selo "demonstração") |
 | `?zoom=0.9` · `?theme=light` · `?orientation=portrait` | Escala do texto, tema claro, orientação forçada |
 
@@ -36,10 +36,10 @@ programação ("Sala IV") embaixo; os cartões crescem para preencher a coluna e
 quando a coluna já diz isso. Lateral com 2 destaques ("agora" e "a seguir") e QR Code; faixa de serviços no rodapé.
 
 ## Mapa dos locais (`mapa-eventos.html`)
-Um pino numerado por local do evento (Joaquim Nabuco, Aldeia do Manga/Jorge Iaparrá, SEBRAE, Auditório Joaquim Caetano),
+Um pino numerado por local do evento (Joaquim Nabuco, Aldeia do Manga/Jorge Iaparrá, SEBRAE, Auditório Joaquim Caetano, Câmara de Vereadores, IFAP),
 em Leaflet + OpenStreetMap, com endereço, o que acontece ali (dias com cursos, dia de serviços) e botões de rota: Google
 Maps (`maps/dir/?api=1&destination=`), Waze (`waze.com/ul?ll=…&navigate=yes`) e `geo:` para outro app. "Minha
-localização" mostra a distância em linha reta. `?local=jn|manga|sebrae|auditorio` abre focado. Coordenadas em `D.geo`
+localização" mostra a distância em linha reta. `?local=jn|manga|sebrae|auditorio|camara|ifap` abre focado. Coordenadas em `D.geo`
 (`packages/core/src/data.js`): escolas pelo prédio (OpenStreetMap); SEBRAE (Rua Santos Dumont, 228) e Auditório (Escola
 Joaquim Caetano da Silva, Av. Coaracy Nunes, 40) pelo ponto da rua, marcados `approx` e com aviso na página. Links para cá:
 ferramentas do resumo e botão "Como chegar" na folha de cada local do app.
@@ -72,7 +72,7 @@ caminhos do mapa fixa na posição do totem ("Você está aqui"). Parâmetros na
 
 | Parâmetro | Função |
 |---|---|
-| `?local=jn` | local onde o totem está (`jn`, `manga`, `sebrae`, `auditorio`, `iaparra`): programação inicial e mapa padrão |
+| `?local=jn` | local onde o totem está (`jn`, `manga`, `sebrae`, `auditorio`, `camara`, `ifap`, `iaparra`): programação inicial e mapa padrão |
 | `?entrada=` | **posição do totem na planta** = origem das rotas: um acesso (`a1`, `a2`, `a3`), o id de uma sala em frente à qual ele fica (ex.: `jn-r11`) ou coordenadas `x,y` em pixels da planta (ex.: `900,1100`; planta JN 1800×1208, Manga 1600×1484) |
 | `?ocioso=90` | segundos sem toque até voltar ao início (mín. 20) · `?descanso=0` desliga a tela de descanso |
 | `?zoom=1.3` | escala da letra (1 = celular; 1,3 fica bom em 42" 1080×1920) |
@@ -99,7 +99,7 @@ serviços com sala), plantas com o uso de cada sala, cursos A–Z e pendências.
 ## Resumo de cursos e inscrições (`resumo-cursos.html`)
 Cursos por dia e local e de A a Z com vagas, inscritos e vagas restantes por turma, totais por tabela, seção "Totais"
 (por local e por dia, com total geral) e alertas (lotados, quase lotados, baixa procura). `?local=` filtra o documento
-inteiro por local: `jn`, `manga`, `sebrae`, `auditorio`, `iaparra` (vários com vírgula) ou as cidades `oiapoque` e `manga`
+inteiro por local: `jn`, `manga`, `sebrae`, `auditorio`, `camara`, `ifap`, `iaparra` (vários com vírgula) ou as cidades `oiapoque` e `manga`
 (ex.: `resumo-cursos.html?local=jn`); a barra "Local" no topo da página troca o filtro.
 **Resumo total** (`resumo-total.html`, mesmo componente com `variant="total"`): só os totais (por local e por dia, com
 total geral) e uma tabela por local com uma linha por turma (quando, curso, sala, vagas, inscritos, restam, ocupação) e
@@ -261,7 +261,9 @@ uso de cada sala (serviços em 04/07 e cursos nos outros dias), DE → PARA e pe
 
 Pontos a conferir com a organização:
 - Curso 109 (Brinquedistas): a tabela traz um link administrativo; usamos `escon/cursos/109`.
-- Laboratório I – Joaquim Nabuco, 05/11 às 14h: a tabela trazia dois cursos (125 e 145); em 02/11 a organização moveu o Videomaker (145) para o Laboratório II (sala 02), onde no mesmo horário está o Rios do Saber (156).
+- Laboratórios I e II – Joaquim Nabuco, 05/11: o Rios do Saber (156, até 100 participantes) ocupa os dois laboratórios (salas 01 e 02) manhã e tarde, por informação da organização em 05/11. No mesmo prédio e horário a tabela ainda traz o Controle Social e Ouvidoria (152, Lab I às 8h), o Tecnologia e Direito das Mulheres (125, Lab I às 14h) e o Videomaker (145, Lab II às 14h, movido em 02/11); confirmar onde essas três turmas ficam.
+- Tomada de Contas (122), 05/11: saiu da Joaquim Nabuco (Sala V); manhã na Câmara Municipal de Oiapoque (Av. Veiga Cabral, 390 — pino aproximado) e tarde no IFAP – Campus Avançado Oiapoque (Rua Joaquim Caetano da Silva, 870). Informado pela organização em 05/11.
+- Como vender pela internet (150): era 06/11 às 14h no SEBRAE; em 05/11 a organização passou para 05/11 às 19h (até 22h), mesmo local.
 - Cidadania Conectada: duas turmas com links diferentes (154 em 05/11 e 158 em 07/11).
 - Extensão de Cílios (127): o cabeçalho diz "2 ocorrências, 05 e 06/11", mas a tabela lista 04, 05 e 06/11; mantivemos os três dias.
 - Gestão Financeira nas Escolas (112): o nome da escola saiu embaralhado no PDF; lemos como "Escola Estadual Indígena Jorge Iaparrá, Aldeia do Manga" (local `iaparra`). O PDF diz "1 ocorrência" mas lista 8h e 14h; mantivemos as duas.

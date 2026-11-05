@@ -37,7 +37,7 @@ export default function Tv() {
 
 function TvLive() {
   const root = useRef(null);
-  // Local da TV: ?local=jn|manga|sebrae|auditorio|todos (padrão: Escola Joaquim Nabuco).
+  // Local da TV: ?local=jn|manga|sebrae|auditorio|camara|ifap|todos (padrão: Escola Joaquim Nabuco).
   const { venueSel, venueName } = useMemo(() => {
     const localParam = T.params.get('local') || 'jn';
     const sel = localParam === 'todos' ? null : (D.venues[localParam] ? localParam : 'jn');
