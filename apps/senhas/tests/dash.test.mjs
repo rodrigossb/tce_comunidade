@@ -59,3 +59,27 @@ test('countEvents: senhas de filas "só contagem" viram atendimentos no horário
   const sv = serviceRows(st2).find((r) => r.service.id === 'amprev'); assert.equal(sv.count_rooms, 1); assert.equal(sv.counted, 5);
   assert.ok(highlights(st2, all).mostAbsent == null || !highlights(st2, all).mostAbsent.count_only);
 });
+
+test('filterData: sem filtro devolve os números do servidor; com turno/serviço recalcula (entregues = contagem no fim do turno − anterior)', async () => {
+  const { filterData, filterDays, normFilters, hasFilters, shiftOfHour } = await import('../lib/dash-stats.js');
+  assert.equal(shiftOfHour(8), 'manha'); assert.equal(shiftOfHour(13), 'tarde'); assert.equal(shiftOfHour(18), 'noite');
+  assert.equal(hasFilters({}), false); assert.equal(hasFilters({ shift: 'tarde' }), true); assert.equal(normFilters({ svcs: 'a,b' }).svcs.size, 2);
+  const t13 = Date.UTC(2026, 10, 7, 16, 0); // 13:00 em Belém
+  const issued_history = [
+    { service_id: 'pilar-1', place_id: 'jn-r11', kind: 'n', count: 10, ts: min(5) }, { service_id: 'pilar-1', place_id: 'jn-r11', kind: 'n', count: 30, ts: t13 + 60000 },
+    { service_id: 'pilar-2', place_id: 'jn-r20', kind: 'n', count: 4, ts: min(6) },
+  ];
+  const callsDay = calls.concat([{ id: 9, service_id: 'pilar-1', place_id: 'jn-r11', ticket: 11, called_at: t13 + 120000, status: 'served', status_at: t13 + 130000, ended_at: t13 + 300000 }]);
+  const data = { total: { issued: 34, called: callsDay.length }, services: [{ service_id: 'pilar-1' }], per_hour: {}, calls: callsDay, issued_history, count_only: ['jn-r20'], now: t13 + 600000 };
+  const all = filterData(data, {});
+  assert.equal(all.filtered, false); assert.equal(all.stats.total.issued, 34, 'sem filtro: total do servidor'); assert.equal(all.countedTotal, 4); assert.equal(all.events.length, callsDay.length + 4);
+  const tarde = filterData(data, { shift: 'tarde' });
+  assert.equal(tarde.filtered, true); assert.equal(tarde.stats.total.issued, 20, 'entregues à tarde: 30 − 10'); assert.equal(tarde.stats.total.called, 1); assert.equal(tarde.events.length, 1); assert.equal(tarde.countedTotal, 0);
+  const manha = filterData(data, { shift: 'manha' });
+  assert.equal(manha.stats.total.issued, 14, 'manhã: 10 + 4 (contagem)'); assert.equal(manha.countedTotal, 4);
+  const svc = filterData(data, { svcs: ['pilar-2'] });
+  assert.equal(svc.stats.total.issued, 4); assert.equal(svc.stats.services[0].places.find((p) => p.place_id === 'jn-r20').served, 4, 'só contagem: served = entregues'); assert.equal(svc.stats.services.length, 1); assert.equal(svc.events.every((e) => e.service_id === 'pilar-2'), true);
+  const days = filterDays([{ day: '2026-11-04', venue: 'manga' }, { day: '2026-11-05', venue: 'jn' }], 'jn');
+  assert.equal(days[0].date, '2026-11-03'); const d4 = days.find((d) => d.date === '2026-11-04'); assert.equal(d4.service_day, false); assert.equal(d4.has_data, false); assert.deepEqual(d4.venues, ['manga']);
+  const d5 = days.find((d) => d.date === '2026-11-05'); assert.equal(d5.has_data, true); const d7 = days.find((d) => d.date === '2026-11-07'); assert.equal(d7.service_day, true); assert.equal(d7.venue, 'jn');
+});

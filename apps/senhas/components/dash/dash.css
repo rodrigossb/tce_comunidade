@@ -108,3 +108,52 @@
 /* dashboard: filas "só contagem" */
 .dash .tag-count{display:inline-flex;align-items:center;gap:.25em;font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#fcd34d;background:rgba(252,211,77,.12);border:1px solid rgba(252,211,77,.45);border-radius:999px;padding:.08em .55em;vertical-align:middle}
 .dash .tag-count .ico{width:1em;height:1em}
+
+/* ===== filtros (dia, local, turno, serviços) ===== */
+.dash-flt{display:inline-flex;align-items:center;gap:.35em;border:0;background:none;color:var(--mut);font:inherit;font-size:.82em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;padding:.45em .9em;border-radius:999px;cursor:pointer;margin-left:.2em;border-left:1px solid var(--line);border-radius:0 999px 999px 0}
+.dash-flt .ico{width:1.1em;height:1.1em}
+.dash-flt.on{color:var(--accent)}
+.dash-flt b{display:inline-grid;place-items:center;min-width:1.5em;height:1.5em;border-radius:999px;background:var(--accent);color:#1f1300;font-family:var(--font-display);font-size:.9em}
+.dash-filters{position:relative;z-index:3;margin:0 1.2em .4em;background:rgba(7,15,34,.92);border:1px solid var(--line);border-radius:.9em;padding:.6em .9em;display:flex;flex-direction:column;gap:.45em;box-shadow:0 18px 50px rgba(0,0,0,.45);backdrop-filter:blur(10px);cursor:auto}
+.df-row{display:grid;grid-template-columns:6.5em 1fr;gap:.5em;align-items:start}
+.df-row>small{display:inline-flex;align-items:center;gap:.4em;font-size:.75em;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);padding-top:.55em}
+.df-chips{display:flex;flex-wrap:wrap;gap:.35em}
+.df-chips button,.df-foot button{display:inline-flex;align-items:center;gap:.35em;border:1px solid var(--line);background:var(--chip);color:var(--ink);font:inherit;font-size:.85em;font-weight:700;padding:.35em .8em;border-radius:999px;cursor:pointer;line-height:1.2}
+.df-chips button .ico,.df-foot button .ico{width:1em;height:1em}
+.df-chips button small{font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin-left:.15em}
+.df-chips button.dim{opacity:.5}.df-chips button.dim.on{opacity:1}
+.df-chips button.on{background:var(--accent);border-color:var(--accent);color:#1f1300}.df-chips button.on small{color:#1f1300;opacity:.75}
+.df-chips button.on.c{background:var(--c);border-color:var(--c);color:#fff}
+.df-chips button.clear,.df-foot button.clear{border-style:dashed;color:#fca5a5;background:none}
+.df-foot{display:flex;align-items:center;gap:.6em;flex-wrap:wrap;color:var(--mut);font-size:.8em;border-top:1px solid var(--line);padding-top:.45em}
+.df-foot span{flex:1;min-width:12em}
+.dash.filters-open{cursor:auto}
+
+/* ===== celular / tela estreita: empilha e rola (o dashboard é 16:9 para TV, mas também serve no telefone) ===== */
+@media (max-width:760px){
+  .dash{position:static;min-height:100vh;height:auto;overflow:visible;font-size:14px;cursor:auto;user-select:text}
+  .dash .tv-head{flex-wrap:wrap;gap:.5em;padding:.6em .9em .2em}
+  .dash .tv-brand{flex:1 1 100%}.dash .tv-brand small{white-space:normal}
+  .dash .tv-clock{display:none}
+  .dash-nav{order:3;flex:1 1 100%;overflow-x:auto;scrollbar-width:none;border-radius:999px}.dash-nav::-webkit-scrollbar{display:none}
+  .dash-nav button{white-space:nowrap;font-size:.78em;padding:.45em .7em}
+  .dash-filters{margin:0 .9em .4em}
+  .df-row{grid-template-columns:1fr}.df-row>small{padding-top:0}
+  .dash-body{padding:.2em .9em 1em;flex:none;display:block}
+  .g-geral,.g-salas,.g-horas,.g-servicos{display:flex !important;flex-direction:column;gap:.7em;min-height:0}
+  .g-geral .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:.5em}
+  .dash .kpi b{font-size:2.2em}
+  .donut-wrap{grid-template-columns:1fr 1fr}
+  .hbars{min-height:11em;padding-top:1.6em}
+  .g-geral .his{grid-template-columns:1fr 1fr}
+  .hi b{font-size:1.2em}
+  .svc{grid-template-rows:auto auto auto auto}.spark{max-height:4em;min-height:3em}
+  .g-salas .col2{display:flex;flex-direction:column}
+  .rank ol{justify-content:flex-start;gap:.5em}
+  .rank li{grid-template-columns:1.4em minmax(6em,1fr) 1fr auto;gap:.4em}
+  .tl{padding:1.4em .5em .4em}
+  .tl-kpis{grid-template-columns:repeat(3,1fr)}
+  .dash .tv-foot{flex-wrap:wrap;gap:.3em .8em;position:static}
+  .dash .tv-progress{display:none}
+}
+@media (max-width:420px){.g-geral .his{grid-template-columns:1fr}.donut-wrap{grid-template-columns:1fr}.legend{flex-direction:row;flex-wrap:wrap;gap:.4em 1em}}

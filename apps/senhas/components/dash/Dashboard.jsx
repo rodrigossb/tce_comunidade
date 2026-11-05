@@ -6,11 +6,13 @@
      salas    → ranking de salas/especialidades por atendimentos, mais rápidas e com mais faltas
      horas    → movimento por hora empilhado por serviço e linha do tempo (primeira chamada, pico, última)
    Parâmetros: ?local=jn|manga ?dia=AAAA-MM-DD ?tela=geral|servicos|salas|horas ?auto=0 ?zoom=1.1 ?t=&d= · tecla F = tela cheia.
-   Dados: GET /api/stats (público, só leitura), a cada 30 s. */
+   Filtros (botão "Filtros" no cabeçalho; também na URL, para compartilhar): ?dia= ?local= ?turno=manha|tarde|noite
+   ?servicos=pilar-1,consulta — turno e serviços recalculam os números no navegador (lib/dash-stats.filterData).
+   Dados: GET /api/stats (público, só leitura), a cada 30 s. Em tela estreita (celular) o layout empilha e rola. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TCE as T } from '@tce/core';
 import Icon from '@/components/Icon';
-import { hourSeries, hourByService, placeRows, serviceRows, highlights, defaultDay, arcPath, fmtT, fmtMin, pct, allEvents } from '@/lib/dash-stats';
+import { hourSeries, hourByService, placeRows, serviceRows, highlights, defaultDay, arcPath, fmtT, fmtMin, pct, filterData, filterDays, SHIFT_FILTERS } from '@/lib/dash-stats';
 
 const D = T.D;
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -44,7 +46,10 @@ export default function Dashboard() {
 }
 
 function Dash() {
-  const sp = useMemo(() => new URLSearchParams(location.search), []);
+  // Parâmetros da URL em estado: os filtros mudam a URL (replaceState) sem recarregar, e o link continua compartilhável.
+  const [sp, setSp] = useState(() => new URLSearchParams(location.search));
+  const setParam = useCallback((patch) => setSp((prev) => { const n = new URLSearchParams(prev.toString()); for (const [k, v] of Object.entries(patch)) { if (v == null || v === '' || v === 'all') n.delete(k); else n.set(k, v); } try { history.replaceState(null, '', `${location.pathname}${n.toString() ? `?${n}` : ''}`); } catch { /* */ } return n; }), []);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [clock, setClock] = useState(() => T.now());
   useEffect(() => { const id = setInterval(() => setClock(T.now()), 1000); return () => clearInterval(id); }, []);
   // ?dia=AAAA-MM-DD e ?local= forçam; senão o dia de trabalho das senhas (dash-stats.defaultDay).
@@ -55,6 +60,9 @@ function Dash() {
   const auto = !fixed && sp.get('auto') !== '0';
   const [zoom, setZoom] = useState(() => Math.min(1.6, Math.max(0.6, asScale(sp.get('zoom')) || 1)));
   const live = day === clock.date;
+  // filtros de recorte (turno e serviços): recalculados no navegador a partir das chamadas e do histórico de senhas
+  const shift = SHIFT_FILTERS.some((x) => x.id === sp.get('turno')) ? sp.get('turno') : 'all';
+  const svcSel = useMemo(() => (sp.get('servicos') || '').split(',').map((x) => x.trim()).filter((id) => D.services.some((s) => s.id === id)), [sp]);
 
   // ---- dados ----
   const [data, setData] = useState(null); const [offline, setOffline] = useState(false);
@@ -69,7 +77,9 @@ function Dash() {
   useEffect(() => { if (!auto) return undefined; const id = setInterval(() => setIdx((i) => (i + 1) % SCREENS.length), SCREEN_SECS * 1000); return () => clearInterval(id); }, [auto]);
   useEffect(() => {
     const fs = () => { const el = document.documentElement; if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(() => {}); };
+    const fsTap = (e) => { if (e.target && e.target.closest && e.target.closest('.dash-ui')) return; fs(); }; // toques nos filtros/menu não forçam tela cheia
     const onKey = (e) => {
+      if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
       if (e.key.toLowerCase() === 'f') fs();
       if (e.key === 'ArrowRight' || e.key === ' ') setIdx((i) => (i + 1) % SCREENS.length);
       if (e.key === 'ArrowLeft') setIdx((i) => (i + SCREENS.length - 1) % SCREENS.length);
@@ -77,37 +87,56 @@ function Dash() {
       if (e.key === '-') setZoom((z) => Math.max(0.6, Math.round((z - 0.05) * 100) / 100));
       if (e.key === '0') setZoom(1);
     };
-    window.addEventListener('keydown', onKey); window.addEventListener('pointerdown', fs);
-    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('pointerdown', fs); };
+    window.addEventListener('keydown', onKey); window.addEventListener('pointerdown', fsTap);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('pointerdown', fsTap); };
   }, []);
   const screen = fixed || SCREENS[idx];
 
-  // ---- derivados ----
-  const stats = data ? { total: data.total, services: data.services, per_hour: data.per_hour, extras: data.extras || [] } : null;
+  // ---- derivados (com os filtros de turno/serviços aplicados) ----
+  const fd = useMemo(() => (data ? filterData(data, { svcs: svcSel, shift }) : null), [data, svcSel, shift]);
+  const stats = fd ? { total: fd.stats.total, services: fd.stats.services, per_hour: fd.stats.per_hour, extras: data.extras || [] } : null;
   // Chamadas reais + filas "só contagem" (cada senha entregue conta como atendimento no horário do lançamento).
-  const calls = useMemo(() => (data ? allEvents(data.calls || [], data.issued_history || [], new Set(data.count_only || [])) : []), [data]);
-  const countedTotal = useMemo(() => calls.filter((c) => c.counted).length, [calls]);
-  const total = (data && data.total) || { issued: 0, called: 0, served: 0, absent: 0, pending_result: 0, in_service: 0, not_called: 0, avg_min: null, absent_rate: null };
+  const calls = fd ? fd.events : [];
+  const countedTotal = fd ? fd.countedTotal : 0;
+  const total = (fd && fd.stats.total) || { issued: 0, called: 0, served: 0, absent: 0, pending_result: 0, in_service: 0, not_called: 0, avg_min: null, absent_rate: null };
   const series = useMemo(() => hourSeries(calls), [calls]);
   const hl = useMemo(() => (stats ? highlights(stats, calls) : null), [stats, calls]);
   const rows = useMemo(() => (stats ? placeRows(stats, stats.extras) : []), [stats]);
   const svcs = useMemo(() => (stats ? serviceRows(stats) : []), [stats]);
   const empty = data && !calls.length && !total.issued;
+  const filtered = !!(fd && fd.filtered);
+  const shiftLabel = SHIFT_FILTERS.find((x) => x.id === shift).label;
+  const filterSummary = [shift !== 'all' ? shiftLabel : '', svcSel.length ? svcSel.map((id) => D.services.find((s) => s.id === id).short).join(', ') : ''].filter(Boolean).join(' · ');
+  // opções dos filtros: dias do evento + dias com registros (de qualquer local); locais com planta; serviços com senha no local ou com registros
+  const dayOpts = useMemo(() => filterDays((data && data.data_days) || [], null), [data]);
+  const venues = Object.keys(D.maps || {}).filter((v) => D.venues[v]);
+  const svcOpts = useMemo(() => { const ids = new Set(); for (const g of T.ticketQueuesOf(venue)) ids.add(g.service.id); for (const s of (data && data.services) || []) ids.add(s.service_id); return [...ids].map((id) => D.services.find((s) => s.id === id)).filter(Boolean); }, [venue, data]);
+  const toggleSvc = (id) => { const next = svcSel.includes(id) ? svcSel.filter((x) => x !== id) : svcSel.concat([id]); setParam({ servicos: next.join(',') }); };
+  const nFilters = (shift !== 'all' ? 1 : 0) + (svcSel.length ? 1 : 0);
 
   const View = { geral: ViewGeral, servicos: ViewServicos, salas: ViewSalas, horas: ViewHoras }[screen];
   const viewProps = { total, series, hl, svcs, rows, calls, countedTotal };
   return (
-    <div className={`tv tv-dark dash`} style={{ '--tv-zoom': zoom }}>
+    <div className={`tv tv-dark dash ${filtersOpen ? 'filters-open' : ''}`} style={{ '--tv-zoom': zoom }}>
       <header className="tv-head">
-        <div className="tv-brand"><span className="tv-mark"><img src={`${BP}/img/tce-mark.png`} alt="" /></span><div><b>TCE NA COMUNIDADE</b><small>{D.event.edition} · {venueName} · {cap(T.fmtDate(day, 'wdlong'))}{offline ? <span className="tv-live off"><i />sem conexão</span> : live ? <span className="tv-live"><i />ao vivo</span> : <span className="tv-live done"><i />resultado final</span>}</small></div></div>
-        <div className="dash-nav" aria-label="Telas">{SCREENS.map((s, k) => <button key={s} className={s === screen ? 'on' : ''} onClick={() => setIdx(k)}>{TITLES[s]}</button>)}</div>
+        <div className="tv-brand"><span className="tv-mark"><img src={`${BP}/img/tce-mark.png`} alt="" /></span><div><b>TCE NA COMUNIDADE</b><small>{D.event.edition} · {venueName} · {cap(T.fmtDate(day, 'wdlong'))}{filterSummary ? ` · ${filterSummary}` : ''}{offline ? <span className="tv-live off"><i />sem conexão</span> : live ? <span className="tv-live"><i />ao vivo</span> : <span className="tv-live done"><i />resultado final</span>}</small></div></div>
+        <div className="dash-nav dash-ui" aria-label="Telas">{SCREENS.map((s, k) => <button key={s} className={s === screen ? 'on' : ''} onClick={() => setIdx(k)}>{TITLES[s]}</button>)}<button className={`dash-flt ${filtersOpen || nFilters ? 'on' : ''}`} data-act="filters" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v) => !v)} title="Filtros: dia, local, turno, serviços"><Icon name="sliders" />Filtros{nFilters ? <b>{nFilters}</b> : null}</button></div>
         <div className="tv-clock"><b>{clock.time}</b><small>{T.fmtDate(clock.date, 'wdlong')}</small></div>
       </header>
+      {filtersOpen ? (
+        <section className="dash-filters dash-ui" aria-label="Filtros">
+          <div className="df-row"><small><Icon name="calendar" />Dia</small><div className="df-chips">{dayOpts.map((d) => <button key={d.date} className={`${d.date === day ? 'on' : ''} ${d.has_data || d.service_day ? '' : 'dim'}`} data-day={d.date} onClick={() => setParam({ dia: d.date })} title={d.venues.length ? `registros: ${d.venues.map((v) => (D.venues[v] ? D.venues[v].short : v)).join(', ')}` : 'sem registros'}>{T.fmtDate(d.date, 'wd')}{d.date === clock.date ? <small>hoje</small> : d.venues.length ? <small>{d.venues.map((v) => (D.venues[v] ? D.venues[v].short : v)).join(' · ')}</small> : null}</button>)}</div></div>
+          {venues.length > 1 ? <div className="df-row"><small><Icon name="pin" />Local</small><div className="df-chips">{venues.map((v) => <button key={v} className={v === venue ? 'on' : ''} data-venue={v} onClick={() => setParam({ local: v, servicos: '' })}>{D.venues[v].short}</button>)}</div></div> : null}
+          <div className="df-row"><small><Icon name="clock" />Turno</small><div className="df-chips">{SHIFT_FILTERS.map((x) => <button key={x.id} className={shift === x.id ? 'on' : ''} data-shift={x.id} onClick={() => setParam({ turno: x.id })}>{x.label}</button>)}</div></div>
+          <div className="df-row"><small><Icon name="layers" />Serviços</small><div className="df-chips">{svcOpts.map((x) => <button key={x.id} className={svcSel.includes(x.id) ? 'on c' : ''} style={{ '--c': x.color }} data-svc={x.id} onClick={() => toggleSvc(x.id)}><Icon name={x.icon} />{x.short}</button>)}{svcSel.length ? <button className="clear" onClick={() => setParam({ servicos: '' })}><Icon name="x" />todos</button> : null}</div></div>
+          <div className="df-foot"><span>{filtered ? 'Números recalculados para o recorte (senhas entregues no turno = contagem ao fim do turno menos a anterior).' : 'Sem recorte: números do dia inteiro.'}</span>{nFilters ? <button className="clear" data-act="clear" onClick={() => setParam({ turno: '', servicos: '' })}><Icon name="x" />Limpar filtros</button> : null}<button data-act="close" onClick={() => setFiltersOpen(false)}>Fechar</button></div>
+        </section>
+      ) : null}
       <main className="dash-body" key={screen}>
-        {!data ? <p className="cb-empty">{offline ? 'Sem conexão com o controle de senhas.' : 'Carregando…'}</p> : empty ? <p className="cb-empty">Ainda não há senhas registradas em {venueName} no dia {T.fmtDate(day, 'wd')}.</p> : <View {...viewProps} />}
+        {!data ? <p className="cb-empty">{offline ? 'Sem conexão com o controle de senhas.' : 'Carregando…'}</p> : empty ? <p className="cb-empty">{filtered ? `Sem registros em ${venueName} no dia ${T.fmtDate(day, 'wd')} com estes filtros.` : `Ainda não há senhas registradas em ${venueName} no dia ${T.fmtDate(day, 'wd')}.`}</p> : <View {...viewProps} />}
       </main>
       {auto ? <div className="tv-progress" key={`p${idx}`} style={{ animationDuration: `${SCREEN_SECS}s` }} /> : null}
-      <footer className="tv-foot"><span>{D.event.organizer} · {D.event.datesLabel}</span><span className="tv-foot-msg">Serviços gratuitos · {venueName} · {T.fmtDate(day, 'wd')}{data ? ` · atualizado ${fmtT(data.now)}` : ''}</span><span className="dash-dots">{SCREENS.map((s, k) => <i key={s} className={k === SCREENS.indexOf(screen) ? 'on' : ''} />)}</span></footer>
+      <footer className="tv-foot"><span>{D.event.organizer} · {D.event.datesLabel}</span><span className="tv-foot-msg">Serviços gratuitos · {venueName} · {T.fmtDate(day, 'wd')}{filterSummary ? ` · ${filterSummary}` : ''}{data ? ` · atualizado ${fmtT(data.now)}` : ''}</span><span className="dash-dots">{SCREENS.map((s, k) => <i key={s} className={k === SCREENS.indexOf(screen) ? 'on' : ''} />)}</span></footer>
     </div>
   );
 }
@@ -235,7 +264,7 @@ function ViewHoras({ series, calls, hl, svcs }) {
           {peakAt ? <div className="tl-mark peak" style={{ left: posOf(peakAt.called_at) }}><b>{hl.peak.hour}h</b><small>pico · {hl.peak.called} chamadas</small></div> : null}
           <div className="tl-mark end" style={{ left: posOf(last) }}><b>{fmtT(last)}</b><small>última chamada</small></div>
         </div></div> : <p className="sq-none">Sem chamadas.</p>}
-        <div className="tl-kpis"><div><small>Duração</small><b>{hl ? fmtMin(hl.spanMin) : '—'}</b></div><div><small>Ritmo</small><b>{hl ? hl.perHour : 0}<small> chamadas/h</small></b></div><div><small>Hora mais calma</small><b>{series.length ? `${series.filter((x) => x.called > 0).sort((a, b) => a.called - b.called)[0]?.hour ?? '—'}h` : '—'}</b></div></div>
+        <div className="tl-kpis"><div><small>Duração</small><b>{hl ? fmtMin(hl.spanMin) : '—'}</b></div><div><small>Ritmo</small><b>{hl && hl.perHour != null ? hl.perHour : '—'}<small> chamadas/h</small></b></div><div><small>Hora mais calma</small><b>{series.length ? `${series.filter((x) => x.called > 0).sort((a, b) => a.called - b.called)[0]?.hour ?? '—'}h` : '—'}</b></div></div>
       </div>
     </div>
   );

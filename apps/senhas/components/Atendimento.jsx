@@ -9,14 +9,14 @@ import { whyLabel, PATTERNS, MODES, DEFAULT_CFG, normalizeCfg, ticketLabel } fro
 import { placeLabel } from '@tce/core/map';
 import { mergeExtras, withoutDisabled, placeOf, fixedQueues } from '@/lib/filas-extra';
 import { can, ROLE_LABEL } from '@/lib/roles';
-import { countEvents, hourOf } from '@/lib/dash-stats';
+import { hourOf, filterData, filterDays, SHIFT_FILTERS } from '@/lib/dash-stats';
 import Icon from './Icon';
 import * as A from '@/app/actions';
 
 const D = T.D;
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const LS = 'tce_at';
-const VER = '2.1';
+const VER = '2.2';
 const KIND_LABEL = { sala: 'Sala', tenda: 'Tenda', area: 'Ambiente' };
 /** Texto livre da triagem ("o que é oferecido") → itens: uma linha ou ponto e vírgula por item. */
 const splitOffer = (txt) => String(txt || '').split(/\n|;/).map((x) => x.trim()).filter(Boolean);
@@ -53,6 +53,10 @@ export default function Atendimento() {
   const [adding, setAdding] = useState(false); // porta: escolhendo mais uma sala para a mesma tela
   const [picking, setPicking] = useState(false); // triagem/porta: escolhendo os serviços que este aparelho lança (botão "Serviços")
   const [pickSel, setPickSel] = useState([]);
+  // painel: filtros (dia e local além dos do aparelho, turno, serviços, só com movimento, ordem). Só em memória.
+  const PF0 = { day: null, venue: null, shift: 'all', svcs: [], only: false, sort: 'planta', open: false };
+  const [pf, setPfRaw] = useState(PF0); const pfRef = useRef(pf); pfRef.current = pf;
+  const setPf = (patch) => setPfRaw((p) => Object.assign({}, p, typeof patch === 'function' ? patch(p) : patch));
   const extrasRef = useRef([]); extrasRef.current = (data && data.extras) || []; // filas criadas no dia (vêm com o estado)
   const disabledRef = useRef([]); disabledRef.current = (data && data.disabled) || []; // filas desativadas na triagem (ids de ambiente)
 
@@ -101,7 +105,8 @@ export default function Atendimento() {
     try {
       await flush();
       if (s.mode === 'porta' && s.rooms && s.rooms.length) { const list = await Promise.all(s.rooms.map((r) => A.getQueue(c.day, c.venue, r.service_id, r.id))); const m = {}; s.rooms.forEach((r, i) => { m[r.id] = fail(list[i]); }); setQmap(m); }
-      setData(fail(await (s.mode === 'painel' ? A.getStats(c.day, c.venue) : A.getState(c.day, c.venue))));
+      const f = pfRef.current; // painel: dia/local escolhidos nos filtros (padrão: os do aparelho)
+      setData(fail(await (s.mode === 'painel' ? A.getStats(f.day || c.day, f.venue || c.venue) : A.getState(c.day, c.venue))));
       setSync((p) => (p === 'off' ? p : 'ok'));
     } catch (e) { if (e.status === 401) setSt({ role: null, msg: 'PIN recusado. Entre de novo.' }); else if (!e.status) setSync('off'); else setSync('err'); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,7 +130,9 @@ export default function Atendimento() {
   useEffect(() => { if (screen === 'role' && allowedModes().length === 1) setSt({ mode: allowedModes()[0] }); // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen]);
   const goHome = () => (allowedModes().length === 1 ? act.localClear() : act.home());
-  const pollKey = st ? `${screen}|${ctxOf(st).day}|${st.local}|${rooms.map((r) => r.id).join(',')}` : '';
+  const pollKey = st ? `${screen}|${ctxOf(st).day}|${st.local}|${rooms.map((r) => r.id).join(',')}|${pf.day || ''}|${pf.venue || ''}` : '';
+  // Saindo do painel, o dia/local dos filtros voltam aos do aparelho (os outros filtros ficam para a próxima vez).
+  useEffect(() => { if (screen !== 'painel') setPfRaw((p) => (p.day || p.venue ? Object.assign({}, p, { day: null, venue: null }) : p)); }, [screen]);
   useEffect(() => {
     // porta-setup (lista de salas) também: as filas criadas/desativadas na triagem vêm com o estado do servidor.
     if (!['triagem', 'painel', 'porta', 'porta-setup', 'svc-pick'].includes(screen)) return undefined;
@@ -625,42 +632,94 @@ export default function Atendimento() {
     );
   }
   function viewPainel() {
-    const c = ctxOf(st); const S = data && data.stats; if (!S) return top('Painel', 'carregando…', goHome);
-    const t = S.total; const countOnly = new Set(data.count_only || []);
-    // por hora: chamadas reais (S.per_hour) + senhas de filas "só contagem" no horário do lançamento
-    const perHour = Object.assign({}, S.per_hour); for (const e of countEvents(data.issued_history || [], countOnly)) { const h = hourOf(e.called_at); perHour[h] = (perHour[h] || 0) + 1; }
-    const hours = Object.keys(perHour).map(Number).sort((a, b) => a - b); const max = Math.max(1, ...hours.map((h) => perHour[h]));
+    const c = ctxOf(st); const day = pf.day || c.day; const venue = pf.venue || c.venue; const vn = D.venues[venue] || {};
+    const today = clock.date; const ready = data && data.stats && data.day === day && data.venue === venue;
+    const sub = `${vn.short || venue} · ${T.fmtDate(day, 'wdlong')} · atualiza a cada 15 s`;
+    // dias para o filtro: dias do evento + dias com registros neste local; locais com planta
+    const days = filterDays((data && data.data_days) || [], venue); const venues = Object.keys(D.maps || {}).filter((v) => D.venues[v]);
+    const all = ready ? mergeExtras(fixedQueues(venue, day), data.extras || []) : []; const live = ready ? withoutDisabled(all, data.disabled || []) : [];
+    const svcList = live.map((g) => g.service);
+    const selSvcs = new Set(pf.svcs.filter((id) => svcList.some((x) => x.id === id)));
+    const nFilters = (pf.shift !== 'all' ? 1 : 0) + (selSvcs.size ? 1 : 0) + (pf.only ? 1 : 0) + (pf.sort !== 'planta' ? 1 : 0);
+    const toggleSvc = (id) => setPf((p) => ({ svcs: p.svcs.includes(id) ? p.svcs.filter((x) => x !== id) : p.svcs.concat([id]) }));
+    const filters = (
+      <div className="pf">
+        <div className="chips scroll pf-days" aria-label="Dia">
+          {days.map((d) => <button key={d.date} type="button" className={`chip ${d.date === day ? 'on' : ''} ${d.has_data || d.service_day ? '' : 'dim'}`} data-day={d.date} onClick={() => setPf({ day: d.date })} title={d.service_day ? 'dia de serviços' : d.has_data ? 'tem registros' : 'sem registros'}>{I('calendar')}{T.fmtDate(d.date, 'wd')}{d.date === today ? <small>hoje</small> : d.service_day ? <small>serviços</small> : null}</button>)}
+        </div>
+        <div className="pf-bar">
+          <button type="button" className={`chip ${pf.open ? 'on' : ''}`} data-act="pf-toggle" onClick={() => setPf({ open: !pf.open })}>{I('sliders')}Filtros{nFilters ? <b className="pf-n">{nFilters}</b> : null}</button>
+          <div className="pf-sum">
+            {venues.length > 1 ? <span className="chip static">{I('pin')}{vn.short || venue}</span> : null}
+            {pf.shift !== 'all' ? <span className="chip static">{SHIFT_FILTERS.find((x) => x.id === pf.shift).label}</span> : null}
+            {[...selSvcs].map((id) => { const x = svc(id); return x ? <span key={id} className="chip static c" style={{ '--c': x.color }}>{x.short}</span> : null; })}
+            {pf.only ? <span className="chip static">só com movimento</span> : null}
+          </div>
+          {canDo('csv') ? <a className="chip" href={`${BP}/api/export.csv?day=${day}`} download={`atendimentos-${day}.csv`} data-act="csv">{I('download')}CSV</a> : null}
+        </div>
+        {pf.open ? (
+          <div className="pf-more">
+            {venues.length > 1 ? <div className="pf-row"><small>Local</small><div className="chips">{venues.map((v) => <button key={v} type="button" className={`chip ${v === venue ? 'on' : ''}`} data-venue={v} onClick={() => setPf({ venue: v, svcs: [] })}>{I('pin')}{D.venues[v].short}</button>)}</div></div> : null}
+            <div className="pf-row"><small>Turno</small><div className="chips">{SHIFT_FILTERS.map((x) => <button key={x.id} type="button" className={`chip ${pf.shift === x.id ? 'on' : ''}`} data-shift={x.id} onClick={() => setPf({ shift: x.id })}>{x.label}</button>)}</div></div>
+            <div className="pf-row"><small>Serviços</small><div className="chips">{svcList.map((x) => <button key={x.id} type="button" className={`chip ${selSvcs.has(x.id) ? 'on c' : ''}`} style={{ '--c': x.color }} data-svc={x.id} onClick={() => toggleSvc(x.id)}>{I(x.icon)}{x.short}</button>)}{selSvcs.size ? <button type="button" className="chip clear" onClick={() => setPf({ svcs: [] })}>{I('x')}todos</button> : null}</div></div>
+            <div className="pf-row"><small>Mostrar</small><div className="chips"><button type="button" className={`chip ${pf.only ? 'on' : ''}`} data-act="pf-only" onClick={() => setPf({ only: !pf.only })}>{I('check')}só salas com movimento</button><button type="button" className={`chip ${pf.sort === 'atend' ? 'on' : ''}`} data-act="pf-sort" onClick={() => setPf({ sort: pf.sort === 'atend' ? 'planta' : 'atend' })}>{I('arrowup')}mais atendidas primeiro</button></div></div>
+            {nFilters ? <div className="pf-row"><small></small><div className="chips"><button type="button" className="chip clear" data-act="pf-clear" onClick={() => setPf({ shift: 'all', svcs: [], only: false, sort: 'planta' })}>{I('x')}Limpar filtros</button></div></div> : null}
+          </div>
+        ) : null}
+      </div>
+    );
+    if (!ready) return <>{top('Painel de acompanhamento', sub, goHome)}{filters}<p className="tri-info">{I('hourglass')}Carregando {T.fmtDate(day, 'wd')} · {vn.short || venue}…</p></>;
+    const fd = filterData(data, { svcs: [...selSvcs], shift: pf.shift }); const S = fd.stats; const countOnly = fd.countOnly;
     const empty = { issued: 0, called: 0, served: 0, absent: 0, pending_result: 0, not_called: 0, in_service: 0, avg_min: null, est_wait_min: null, current: null };
+    const t = Object.assign({}, empty, { absent_rate: null, samples: 0 }, S.total || {});
+    // por hora: chamadas reais + senhas de filas "só contagem" no horário do lançamento (já com os filtros)
+    const perHour = {}; for (const e of fd.events) { const h = hourOf(e.called_at); perHour[h] = (perHour[h] || 0) + 1; }
+    const hs = Object.keys(perHour).map(Number); const hours = []; if (hs.length) for (let h = Math.min(...hs); h <= Math.max(...hs); h++) hours.push(h);
+    const max = Math.max(1, ...hours.map((h) => perHour[h] || 0));
+    const groups = (selSvcs.size ? live.filter((g) => selSvcs.has(g.service.id)) : live).map((g) => {
+      const x = S.services.find((y) => y.service_id === g.service.id) || Object.assign({ places: [] }, empty);
+      let rows = g.places.map((p) => Object.assign({ place: p }, x.places.find((y) => y.place_id === p.id) || empty));
+      if (pf.only) rows = rows.filter((r) => r.issued || r.called);
+      if (pf.sort === 'atend') rows = rows.slice().sort((a, b) => b.served - a.served || b.issued - a.issued);
+      return { g, x, rows };
+    }).filter((o) => !pf.only || o.rows.length);
+    const sorted = pf.sort === 'atend' ? groups.slice().sort((a, b) => b.x.served - a.x.served || b.x.issued - a.x.issued) : groups;
+    const cell = (label, v, extra) => <div><small>{label}</small><b>{v}</b>{extra || null}</div>;
     return (
       <>
-        {top('Painel de acompanhamento', `${c.place} · ${T.fmtDate(c.day, 'wdlong')} · atualiza a cada 15 s`, goHome)}
-        <div className="chips"><span className="chip on">{I('calendar')}{T.fmtDate(c.day, 'wd')} · {c.place}</span>{canDo('csv') ? <a className="chip" href={`${BP}/api/export.csv?day=${c.day}`} download={`atendimentos-${c.day}.csv`} data-act="csv">{I('download')}Exportar CSV</a> : null}</div>
+        {top('Painel de acompanhamento', sub, goHome)}
+        {filters}
+        {fd.filtered ? <p className="pf-note">{I('info')}Números do recorte: {pf.shift !== 'all' ? SHIFT_FILTERS.find((x) => x.id === pf.shift).label.toLowerCase() : 'dia todo'}{selSvcs.size ? ` · ${selSvcs.size} serviço${selSvcs.size > 1 ? 's' : ''}` : ''}.</p> : null}
         <div className="kpis">
           <div className="kpi hi"><small>Senhas entregues</small><b>{t.issued}</b><em>triagem</em></div>
           <div className="kpi"><small>Chamadas</small><b>{t.called}</b><em>{t.not_called} aguardando chamada</em></div>
-          <div className="kpi"><small>Atendidas</small><b>{t.served}</b><em>{t.in_service} em atendimento agora</em></div>
+          <div className="kpi"><small>Atendidas</small><b>{t.served}</b><em>{fd.countedTotal ? `${fd.countedTotal} por contagem` : `${t.in_service} em atendimento agora`}</em></div>
           <div className="kpi"><small>Não compareceram</small><b>{t.absent}</b><em>{t.absent_rate == null ? '—' : `${t.absent_rate}% das chamadas`}</em></div>
           <div className="kpi"><small>Tempo médio de atendimento</small><b>{t.avg_min == null ? '—' : `${t.avg_min} min`}</b><em>{t.samples} atendimento{t.samples === 1 ? '' : 's'} medido{t.samples === 1 ? '' : 's'}</em></div>
           <div className="kpi"><small>Sem registro de resultado</small><b>{t.pending_result}</b><em>chamadas sem entrou/faltou</em></div>
         </div>
         {hours.length ? (
-          <div className="chart"><b style={{ fontFamily: 'var(--font-display)' }}>Chamadas por hora</b>
-            <svg viewBox={`0 0 ${Math.max(300, hours.length * 46)} 150`}>{hours.map((h, k) => { const v = perHour[h]; const bh = Math.round((v / max) * 100); return <g key={h}><rect x={k * 46 + 8} y={120 - bh} width="30" height={bh} rx="4" /><text className="lbl" x={k * 46 + 23} y={114 - bh} textAnchor="middle">{v}</text><text x={k * 46 + 23} y="140" textAnchor="middle">{h}h</text></g>; })}</svg>
+          <div className="chart"><b style={{ fontFamily: 'var(--font-display)' }}>Atendimentos por hora</b>{fd.countedTotal ? <small className="pn-leg"> · chamadas + senhas por contagem</small> : null}
+            <div className="pn-bars" role="img" aria-label="Atendimentos por hora">{hours.map((h) => { const v = perHour[h] || 0; return <div key={h} className="pn-hb"><span className="pn-hv">{v || ''}</span><i style={{ height: `${Math.max(v ? 3 : 0, Math.round((100 * v) / max))}%` }} /><small>{h}h</small></div>; })}</div>
           </div>
         ) : null}
         <h2 style={{ margin: '1.2em 0 .5em' }}>Por serviço</h2>
+        {!sorted.length ? <p className="tri-info">{I('info')}Nada para mostrar com estes filtros.</p> : null}
         <div className="stack">
-          {queues().map((g) => { const s = g.service; const x = S.services.find((y) => y.service_id === s.id) || Object.assign({ places: [] }, empty);
-            const rows = g.places.map((p) => Object.assign({ place: p }, x.places.find((y) => y.place_id === p.id) || empty));
-            return (
-              <div key={s.id} className="svc-stat" style={{ '--c': s.color }}>
-                <div className="hd"><i>{I(s.icon)}</i><b>{s.title}</b><small>{x.issued} entregues · {x.served} atendidas{x.avg_min != null ? ` · ${x.avg_min} min` : ''}{rows.some((r) => countOnly.has(r.place.id)) ? ' · há salas só por contagem' : ''}</small></div>
-                <table className="qt"><thead><tr><th>Sala / instituição</th><th>Entr.</th><th>Cham.</th><th>Atend.</th><th>Faltas</th><th>Aguard.</th><th>Média</th><th>Agora</th></tr></thead>
-                  <tbody>{rows.map((r) => { const base = Math.max(1, r.issued, r.called); const w = (n) => `${Math.round((100 * n) / base)}%`; const live = r.current && r.current.status === 'served' && r.current.in_service_min != null; return (
-                    <tr key={r.place.id}><td><b>{r.place.name}</b><small>{placeLabel(r.place)}{countOnly.has(r.place.id) ? <> · <em className="tag-count">{I('list')}contagem</em></> : ''}</small><div className="bar mini"><i className="s" style={{ width: w(r.served) }}></i><i className="a" style={{ width: w(r.absent) }}></i><i className="p" style={{ width: w(r.pending_result) }}></i></div></td><td>{r.issued}</td><td>{r.called}</td><td>{r.served}</td><td>{r.absent}</td><td>{r.not_called}{r.est_wait_min != null ? <small>~{r.est_wait_min} min</small> : null}</td><td>{r.avg_min == null ? '—' : `${r.avg_min}′`}</td><td>{r.current ? <span className={`badge ${live ? 'served' : r.current.status}`}>{r.current.ticket ?? '—'}</span> : '—'}</td></tr>
-                  ); })}</tbody></table>
-              </div>
-            ); })}
+          {sorted.map(({ g, x, rows }) => { const s = g.service; return (
+            <div key={s.id} className="svc-stat" style={{ '--c': s.color }}>
+              <div className="hd"><i>{I(s.icon)}</i><b>{s.title}</b><small>{x.issued} entr. · {x.served} atend.{x.avg_min != null ? ` · ${x.avg_min} min` : ''}</small></div>
+              <div className="pls">{rows.map((r) => { const base = Math.max(1, r.issued, r.called); const w = (n) => `${Math.round((100 * n) / base)}%`; const live2 = r.current && r.current.status === 'served' && r.current.in_service_min != null; const co = countOnly.has(r.place.id); return (
+                <div key={r.place.id} className={`pl ${co ? 'co' : ''}`} data-place={r.place.id}>
+                  <div className="pl-h"><div className="pl-who"><b>{r.place.name}</b><small>{placeLabel(r.place)}{co ? <> · <em className="tag-count">{I('list')}contagem</em></> : null}</small></div>{r.current ? <span className={`badge ${live2 ? 'served' : r.current.status}`}>{r.current.ticket ?? '—'}{live2 ? <small> {r.current.in_service_min}′</small> : null}</span> : null}</div>
+                  <div className="bar mini"><i className="s" style={{ width: w(r.served) }}></i><i className="a" style={{ width: w(r.absent) }}></i><i className="p" style={{ width: w(r.pending_result) }}></i></div>
+                  <div className="pl-n">
+                    {cell('Entregues', r.issued)}{cell('Chamadas', co ? '—' : r.called)}{cell('Atendidas', r.served)}{cell('Faltas', co ? '—' : r.absent)}{cell('Aguardando', co ? '—' : r.not_called, r.est_wait_min != null && !co ? <small>~{r.est_wait_min} min</small> : null)}{cell('Média', r.avg_min == null ? '—' : `${r.avg_min}′`)}
+                  </div>
+                </div>
+              ); })}</div>
+            </div>
+          ); })}
         </div>
       </>
     );

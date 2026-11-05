@@ -1,6 +1,7 @@
 // Cálculos puros do dashboard de resultados (sem banco, sem DOM): séries por hora, resultados, rankings e destaques.
 // Entrada: `stats` (summarize() do core: total, services[].places[]) e `calls` (chamadas do dia). Usado pela tela e pelos testes.
 import { TCE as T } from '@tce/core';
+import { summarize } from '@tce/core/stats';
 
 const D = T.D;
 const HOUR = 3600000;
@@ -29,6 +30,61 @@ export function countEvents(issuedHistory, countOnly) {
 }
 /** Chamadas reais + eventos de contagem, em ordem de horário (entrada das séries por hora e da linha do tempo). */
 export const allEvents = (calls, issuedHistory, countOnly) => (calls || []).concat(countEvents(issuedHistory, countOnly)).sort((a, b) => a.called_at - b.called_at);
+
+/** Turno de uma hora do evento: manhã (< 13h), tarde (13–17h) ou noite. */
+export const shiftOfHour = (h) => (h < 13 ? 'manha' : h < 18 ? 'tarde' : 'noite');
+export const SHIFT_FILTERS = [{ id: 'all', label: 'Dia todo' }, { id: 'manha', label: 'Manhã' }, { id: 'tarde', label: 'Tarde' }, { id: 'noite', label: 'Noite' }];
+const SHIFT_RANK = { manha: 0, tarde: 1, noite: 2 };
+
+/** Normaliza os filtros: { svcs: Set|null, places: Set|null, shift: 'all'|'manha'|'tarde'|'noite' }. */
+export function normFilters(f) {
+  const set = (v) => { const a = v instanceof Set ? [...v] : Array.isArray(v) ? v : typeof v === 'string' ? v.split(/[,; ]+/) : []; const s = new Set(a.map((x) => String(x || '').trim()).filter(Boolean)); return s.size ? s : null; };
+  const shift = f && SHIFT_RANK[f.shift] != null ? f.shift : 'all';
+  return { svcs: set(f && f.svcs), places: set(f && f.places), shift };
+}
+export const hasFilters = (f) => { const n = normFilters(f); return !!(n.svcs || n.places || n.shift !== 'all'); };
+
+/**
+ * Aplica filtros (serviços, salas, turno) aos dados do dia (formato do GET /api/stats ou do getStats do app:
+ * { total|stats.total, services, per_hour, calls, issued_history, count_only, now }) e devolve
+ * { stats: { total, services, per_hour }, events, countOnly, countedTotal, filtered }.
+ *  - events: chamadas reais + pseudo-chamadas das filas "só contagem", já filtradas (séries por hora, linha do tempo);
+ *  - sem filtro, devolve os números do servidor como vieram; com filtro, recalcula com summarize() do core:
+ *    senhas entregues no turno = contagem ao fim do turno − contagem antes do turno (por sala e série).
+ */
+export function filterData(data, filters) {
+  const f = normFilters(filters); const base = (data && data.stats) || data || {};
+  const countOnly = new Set((data && data.count_only) || []);
+  const svcOk = (sid) => !f.svcs || f.svcs.has(sid); const placeOk = (pid) => !f.places || f.places.has(pid);
+  const shiftOk = (ms) => f.shift === 'all' || shiftOfHour(hourOf(ms)) === f.shift;
+  const keep = (c) => svcOk(c.service_id) && placeOk(c.place_id) && shiftOk(c.called_at);
+  const events = allEvents((data && data.calls) || [], (data && data.issued_history) || [], countOnly).filter(keep);
+  const countedTotal = events.filter((c) => c.counted).length;
+  if (!f.svcs && !f.places && f.shift === 'all') return { stats: { total: base.total, services: base.services || [], per_hour: base.per_hour || {} }, events, countOnly, countedTotal, filtered: false };
+  // entregues por sala no recorte: última contagem até o fim do turno − última contagem antes do turno (por série)
+  const last = {}; const before = {};
+  for (const r of ((data && data.issued_history) || []).slice().sort((a, b) => a.ts - b.ts)) {
+    if (!svcOk(r.service_id) || !placeOk(r.place_id)) continue;
+    const k = `${r.service_id}|${r.place_id}|${r.kind || 'n'}`; const rank = SHIFT_RANK[shiftOfHour(hourOf(r.ts))];
+    if (f.shift === 'all' || rank <= SHIFT_RANK[f.shift]) last[k] = r;
+    if (f.shift !== 'all' && rank < SHIFT_RANK[f.shift]) before[k] = r;
+  }
+  const agg = {};
+  for (const [k, r] of Object.entries(last)) { const n = Math.max(0, Number(r.count) - (before[k] ? Number(before[k].count) : 0)); const pk = `${r.service_id}|${r.place_id}`; const o = (agg[pk] = agg[pk] || { service_id: r.service_id, place_id: r.place_id, count: 0, ts: 0 }); o.count += n; o.ts = Math.max(o.ts, r.ts); }
+  const calls = ((data && data.calls) || []).filter(keep);
+  const stats = summarize(Object.values(agg), calls, (data && data.now) || Date.now(), countOnly);
+  return { stats, events, countOnly, countedTotal, filtered: true };
+}
+
+/** Dias para o filtro de data: dias do evento + dias com registros (data_days do servidor), em ordem; cada um com
+    { date, venue (dia de serviços), service_day, has_data, venues (com registros) }. */
+export function filterDays(dataDays, venue) {
+  const by = {}; const add = (d) => (by[d] = by[d] || { date: d, service_day: false, has_data: false, venues: [] });
+  for (const d of T.eventDays()) add(d);
+  for (const sd of T.serviceDays()) { const o = add(sd.date); if (!venue || sd.venue === venue) { o.service_day = true; o.venue = sd.venue; } }
+  for (const r of dataDays || []) { if (!r || !r.day) continue; const o = add(r.day); if (!o.venues.includes(r.venue)) o.venues.push(r.venue); if (!venue || r.venue === venue) o.has_data = true; }
+  return Object.values(by).sort((a, b) => a.date.localeCompare(b.date));
+}
 
 /** Por hora: chamadas, atendidas (entrou), faltas e "por contagem", do primeiro ao último horário com movimento (mín. 8h–17h). */
 export function hourSeries(calls) {
@@ -77,7 +133,8 @@ export function highlights(stats, calls) {
   const mostAbsent = rows.filter((r) => r.called >= 5 && !r.count_only).sort((a, b) => (b.absent_rate || 0) - (a.absent_rate || 0))[0] || null;
   const total = (stats && stats.total) || {};
   const spanMin = first && last ? Math.round((last.called_at - first.called_at) / 60000) : 0;
-  const perHour = spanMin > 0 ? Math.round((total.called || 0) / Math.max(1, spanMin / 60)) : total.called || 0;
+  // ritmo só com pelo menos 10 min de ação (senão um lote lançado de uma vez viraria "200 por hora")
+  const perHour = spanMin >= 10 ? Math.round((total.called || 0) / (spanMin / 60)) : null;
   return { first, last, peak: peak && peak.called ? peak : null, busiest, fastest, slowest, topService, mostAbsent, spanMin, perHour, activeRooms: rows.filter((r) => r.called > 0).length, rooms: rows.length };
 }
 

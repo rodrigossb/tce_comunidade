@@ -56,6 +56,7 @@ function open(file) {
     cfgAll: db.prepare(`SELECT * FROM fila_cfg f WHERE day=? AND venue=? AND id=(SELECT MAX(id) FROM fila_cfg WHERE day=f.day AND venue=f.venue AND service_id=f.service_id AND place_id=f.place_id)`),
     cfgInsert: db.prepare(`INSERT INTO fila_cfg (day, venue, service_id, place_id, n_prefix, p_prefix, n_from, p_from, n_total, p_total, pattern, mode, device, ts) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`),
     callsDay: db.prepare(`SELECT * FROM calls WHERE day=? AND venue=? ORDER BY called_at, id`),
+    dataDays: db.prepare(`SELECT day, venue FROM issued_log UNION SELECT day, venue FROM calls ORDER BY day, venue`), // dias/locais com registros (filtro de data)
     callsPlace: db.prepare(`SELECT * FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=? ORDER BY called_at DESC, id DESC LIMIT ?`),
     callInsert: db.prepare(`INSERT INTO calls (day, venue, service_id, place_id, ticket, called_at, status, device, priority) VALUES (?,?,?,?,?,?,'called',?,?)`),
     callGet: db.prepare(`SELECT * FROM calls WHERE id=?`),
@@ -136,6 +137,8 @@ export function state(day, venue) {
 export function stats(day, venue) {
   const st = state(day, venue); const { q } = conn();
   st.issued_history = rows(q.issuedHistory.all(st.day, st.venue));
+  st.calls = rows(q.callsDay.all(st.day, st.venue)).map((c) => ({ id: c.id, service_id: c.service_id, place_id: c.place_id, ticket: c.ticket, priority: c.priority, status: c.status, called_at: c.called_at, status_at: c.status_at, ended_at: c.ended_at }));
+  st.data_days = rows(q.dataDays.all()); // [{ day, venue }] com algum registro (filtro de data do painel e do dashboard)
   return st;
 }
 export function queue(day, venue, service, place) {
