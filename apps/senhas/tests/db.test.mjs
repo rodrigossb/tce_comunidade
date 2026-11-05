@@ -66,7 +66,7 @@ test('chamar novamente: marca recalled_at na senha que está chamando, aparece n
 
 test('chamar a próxima (advance): a anterior sai como atendida contando desde a chamada, ou como falta; e a próxima é chamada', async () => {
   const P2 = 'jn-r12';
-  const a = db.call({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 1, device: 'a' }); await sleep(5);
+  const a = db.call({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 1, device: 'a' }); await sleep(20); // folga: setTimeout pode disparar ~1 ms antes
   const r = db.advance({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 2, device: 'a', prev_id: a.id, prev_status: 'served' });
   assert.equal(r.status, 'served', 'a próxima entra no ato');
   let q = db.queue(DAY, V, S, P2); const pa = q.calls.find((x) => x.id === a.id);
