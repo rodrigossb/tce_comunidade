@@ -214,3 +214,22 @@ test('setQueueInfo com itens por dia/turno e senhas por dia: grava items (JSON),
   assert.ok(db.extras('2026-11-06', VI).some((e) => e.id === a.place_id)); assert.ok(!db.extras('2026-11-04', VI).some((e) => e.id === a.place_id));
   db.removeExtra(a.id); assert.ok(!db.extras('2026-11-06', VI).some((e) => e.id === a.place_id));
 });
+
+test('modo "só contagem" por dia: senhas entregues contam como atendidas, a fila some da TV e o modo sobrevive ao padrão para todas', () => {
+  const D5 = '2026-11-05'; const VI = 'jn'; const SID = 'amprev';
+  const a = db.addExtra({ day: D5, venue: VI, service_id: SID, name: 'AMPREV', kind: 'sala', num: '4', device: 't' });
+  db.issued({ day: D5, venue: VI, service_id: SID, place_id: a.place_id, kind: 'n', count: 37, device: 't' });
+  db.issued({ day: D5, venue: VI, service_id: SID, place_id: a.place_id, kind: 'p', count: 3, device: 't' });
+  let st = db.state(D5, VI); let sv = st.stats.services.find((x) => x.service_id === SID); assert.equal(sv.served, 0); assert.ok(db.tvBoard(D5, VI).places.some((p) => p.place_id === a.place_id));
+  assert.equal(db.setQueueMode({ day: D5, venue: VI, service_id: SID, place_id: a.place_id, mode: 'contagem', device: 't' }).mode, 'contagem');
+  st = db.state(D5, VI); sv = st.stats.services.find((x) => x.service_id === SID); const pl = sv.places.find((p) => p.place_id === a.place_id);
+  assert.equal(pl.served, 40); assert.equal(pl.called, 40); assert.equal(pl.not_called, 0); assert.ok(pl.count_only); assert.equal(sv.served, 40); assert.equal(sv.not_called, 0);
+  assert.deepEqual(st.count_only, [a.place_id]); assert.equal(st.cfg_days[a.place_id][D5].mode, 'contagem'); assert.equal(db.queue(D5, VI, SID, a.place_id).cfg.mode, 'contagem');
+  const tv = db.tvBoard(D5, VI); assert.ok(!tv.places.some((p) => p.place_id === a.place_id)); assert.ok(tv.disabled.includes(a.place_id)); assert.equal(tv.total.served, undefined);
+  // amanhã continua "chamada" (é por dia); o padrão para todas não mexe no modo; setQueueInfo totals.mode muda
+  assert.equal(db.queue('2026-11-06', VI, SID, a.place_id).cfg.mode, 'chamada');
+  db.setQueueConfig({ day: D5, venue: VI, all: true, n_total: 60, device: 't' }); assert.equal(db.queue(D5, VI, SID, a.place_id).cfg.mode, 'contagem'); assert.equal(db.queue(D5, VI, SID, a.place_id).cfg.n_total, 60);
+  db.setQueueInfo({ day: D5, venue: VI, service_id: SID, place_id: a.place_id, name: 'AMPREV', totals: { '2026-11-06': { mode: 'contagem' }, [D5]: { mode: 'chamada' } }, device: 't' });
+  assert.equal(db.queue('2026-11-06', VI, SID, a.place_id).cfg.mode, 'contagem'); assert.equal(db.queue(D5, VI, SID, a.place_id).cfg.mode, 'chamada');
+  db.removeExtra(a.id);
+});

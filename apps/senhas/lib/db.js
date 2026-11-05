@@ -45,6 +45,7 @@ function open(file) {
   if (!db.prepare(`PRAGMA table_info(calls)`).all().some((c) => c.name === 'priority')) db.exec(`ALTER TABLE calls ADD COLUMN priority INTEGER NOT NULL DEFAULT 0`); // senha prioritária, chamada fora da ordem (não avança a sequência)
   if (!db.prepare(`PRAGMA table_info(issued_log)`).all().some((c) => c.name === 'kind')) db.exec(`ALTER TABLE issued_log ADD COLUMN kind TEXT NOT NULL DEFAULT 'n'`); // série: 'n' comuns, 'p' prioritárias
   if (!db.prepare(`PRAGMA table_info(fila_info)`).all().some((c) => c.name === 'items')) db.exec(`ALTER TABLE fila_info ADD COLUMN items TEXT`); // oferta por dia/turno: JSON [{ t, when }]
+  if (!db.prepare(`PRAGMA table_info(fila_cfg)`).all().some((c) => c.name === 'mode')) db.exec(`ALTER TABLE fila_cfg ADD COLUMN mode TEXT NOT NULL DEFAULT 'chamada'`); // 'chamada' | 'contagem' (por dia)
   const q = {
     // última contagem por sala E série (kind 'n'/'p'); vale o lançamento mais recente (id)
     issuedLatest: db.prepare(`SELECT service_id, place_id, kind, count, ts FROM issued_log i WHERE day=? AND venue=? AND id=(SELECT MAX(id) FROM issued_log WHERE day=i.day AND venue=i.venue AND service_id=i.service_id AND place_id=i.place_id AND kind=i.kind)`),
@@ -53,7 +54,7 @@ function open(file) {
     issuedHistory: db.prepare(`SELECT service_id, place_id, kind, count, ts FROM issued_log WHERE day=? AND venue=? ORDER BY ts`),
     cfgOf: db.prepare(`SELECT * FROM fila_cfg WHERE day=? AND venue=? AND service_id=? AND place_id=? ORDER BY id DESC LIMIT 1`),
     cfgAll: db.prepare(`SELECT * FROM fila_cfg f WHERE day=? AND venue=? AND id=(SELECT MAX(id) FROM fila_cfg WHERE day=f.day AND venue=f.venue AND service_id=f.service_id AND place_id=f.place_id)`),
-    cfgInsert: db.prepare(`INSERT INTO fila_cfg (day, venue, service_id, place_id, n_prefix, p_prefix, n_from, p_from, n_total, p_total, pattern, device, ts) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`),
+    cfgInsert: db.prepare(`INSERT INTO fila_cfg (day, venue, service_id, place_id, n_prefix, p_prefix, n_from, p_from, n_total, p_total, pattern, mode, device, ts) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`),
     callsDay: db.prepare(`SELECT * FROM calls WHERE day=? AND venue=? ORDER BY called_at, id`),
     callsPlace: db.prepare(`SELECT * FROM calls WHERE day=? AND venue=? AND service_id=? AND place_id=? ORDER BY called_at DESC, id DESC LIMIT ?`),
     callInsert: db.prepare(`INSERT INTO calls (day, venue, service_id, place_id, ticket, called_at, status, device, priority) VALUES (?,?,?,?,?,?,'called',?,?)`),
@@ -114,7 +115,9 @@ function issuedMap(day, venue) {
 }
 /** Linhas agregadas (n+p) no formato que summarize() espera: [{ service_id, place_id, count, ts }]. */
 const issuedAgg = (map) => Object.values(map).map((o) => ({ service_id: o.service_id, place_id: o.place_id, count: o.n + o.p, ts: o.ts }));
-const cfgRow = (r) => (r ? { n_prefix: r.n_prefix, p_prefix: r.p_prefix, n_from: num(r.n_from), p_from: num(r.p_from), n_total: num(r.n_total), p_total: num(r.p_total), pattern: r.pattern } : null);
+const cfgRow = (r) => (r ? { n_prefix: r.n_prefix, p_prefix: r.p_prefix, n_from: num(r.n_from), p_from: num(r.p_from), n_total: num(r.n_total), p_total: num(r.p_total), pattern: r.pattern, mode: r.mode === 'contagem' ? 'contagem' : 'chamada' } : null);
+/** Salas em modo "só contagem" num dia (Set de place_id), a partir das configurações do dia. */
+const countOnlyOf = (cfgs) => new Set(Object.entries(cfgs).filter(([, v]) => v && v.mode === 'contagem').map(([k]) => k.split('|')[1]));
 /** Configuração da fila (última gravada) ou a padrão. */
 function cfgOf(day, venue, s, p) { return cfgRow(conn().q.cfgOf.get(day, venue, s, p)) || Object.assign({}, DEFAULT_CFG); }
 /** Configurações do dia/local: { [service|place]: cfg }. */
@@ -124,10 +127,11 @@ export function state(day, venue) {
   const c = ctx(day, venue); const { q } = conn();
   const imap = issuedMap(c.day, c.venue); const calls = rows(q.callsDay.all(c.day, c.venue));
   const configs = []; for (const r of q.cfgAll.all(c.day, c.venue)) configs.push(Object.assign({ service_id: r.service_id, place_id: r.place_id, ts: num(r.ts) }, cfgRow(r)));
+  const countOnly = new Set(configs.filter((x) => x.mode === 'contagem').map((x) => x.place_id));
   // totais de senhas (N/P) já configurados por sala nos dias do evento a partir de hoje: a triagem edita "senhas por dia"
   const cfg_days = {}; const days = T.eventDays().filter((d) => d >= c.day); if (!days.includes(c.day)) days.unshift(c.day);
-  for (const d of days) for (const r of q.cfgAll.all(d, c.venue)) { (cfg_days[r.place_id] = cfg_days[r.place_id] || {})[d] = { n_total: num(r.n_total), p_total: num(r.p_total) }; }
-  return { day: c.day, venue: c.venue, now: Date.now(), issued: Object.values(imap), configs, default_cfg: DEFAULT_CFG, stats: summarize(issuedAgg(imap), calls, Date.now()), extras: extras(c.day, c.venue), disabled: disabled(c.day, c.venue), cfg_days, days };
+  for (const d of days) for (const r of q.cfgAll.all(d, c.venue)) { (cfg_days[r.place_id] = cfg_days[r.place_id] || {})[d] = { n_total: num(r.n_total), p_total: num(r.p_total), mode: r.mode === 'contagem' ? 'contagem' : 'chamada' }; }
+  return { day: c.day, venue: c.venue, now: Date.now(), issued: Object.values(imap), configs, default_cfg: DEFAULT_CFG, stats: summarize(issuedAgg(imap), calls, Date.now(), countOnly), extras: extras(c.day, c.venue), disabled: disabled(c.day, c.venue), cfg_days, days, count_only: [...countOnly] };
 }
 export function stats(day, venue) {
   const st = state(day, venue); const { q } = conn();
@@ -173,8 +177,16 @@ export function setQueueConfig(b) {
   const targets = [];
   if (b.all) { for (const g of activeQueues(fixedQueues(c.venue, c.day), extras(c.day, c.venue), disabled(c.day, c.venue))) for (const p of g.places) targets.push([g.service.id, p.id]); }
   else { const s = clean(b.service_id, 32); const p = clean(b.place_id, 32); if (!s || !p) throw err(400, 'dados'); targets.push([s, p]); }
-  for (const [s, p] of targets) q.cfgInsert.run(c.day, c.venue, s, p, cfg.n_prefix, cfg.p_prefix, cfg.n_from, cfg.p_from, cfg.n_total, cfg.p_total, cfg.pattern, device, ts);
+  // O modo (chamada/contagem) é por sala e dia: só muda quando vem explícito no pedido; senão cada sala mantém o seu.
+  for (const [s, p] of targets) q.cfgInsert.run(c.day, c.venue, s, p, cfg.n_prefix, cfg.p_prefix, cfg.n_from, cfg.p_from, cfg.n_total, cfg.p_total, cfg.pattern, b.mode != null ? cfg.mode : cfgOf(c.day, c.venue, s, p).mode, device, ts);
   notify(c.day, c.venue); return { ok: true, ts, cfg, count: targets.length };
+}
+/** Modo da fila num dia: { day, venue, service_id, place_id, mode: 'chamada' | 'contagem', device } (mantém o resto da configuração). */
+export function setQueueMode(b) {
+  const c = ctx(b && b.day, b && b.venue); const s = clean(b.service_id, 32); const p = clean(b.place_id, 32); if (!s || !p) throw err(400, 'dados');
+  const mode = b.mode === 'contagem' ? 'contagem' : 'chamada'; const cfg = cfgOf(c.day, c.venue, s, p); const ts = Date.now();
+  conn().q.cfgInsert.run(c.day, c.venue, s, p, cfg.n_prefix, cfg.p_prefix, cfg.n_from, cfg.p_from, cfg.n_total, cfg.p_total, cfg.pattern, mode, clean(b.device, 40), ts);
+  notify(c.day, c.venue); return { ok: true, ts, mode };
 }
 /** Triagem: quantas senhas de uma série ({ kind: 'n' | 'p' }) já foram entregues na sala; vale a última contagem. */
 export function issued(b) {
@@ -233,14 +245,15 @@ export function endCall(idRaw) {
 export function tvBoard(day, venue) {
   const c = ctx(day, venue); const { q } = conn(); const now = Date.now();
   const imap = issuedMap(c.day, c.venue); const calls = rows(q.callsDay.all(c.day, c.venue));
-  const st = summarize(issuedAgg(imap), calls, now);
+  const cfgs = cfgMap(c.day, c.venue); const countOnly = countOnlyOf(cfgs);
+  const st = summarize(issuedAgg(imap), calls, now, countOnly);
   // Quem está em atendimento agora em cada sala (entrou e ainda não saiu), além da última chamada (que pode estar na porta).
   const serving = {};
   for (const c of calls) if (c.status === 'served' && !c.ended_at) { const k = c.place_id; if (!serving[k] || c.status_at > serving[k].status_at) serving[k] = { id: c.id, ticket: c.ticket, status_at: c.status_at }; }
   const places = []; const labels = {};
-  const cfgs = cfgMap(c.day, c.venue);
   const cursors = {}; for (const r of rows(q.cursorAll.all(c.day, c.venue))) cursors[`${r.service_id}|${r.place_id}`] = { normal: num(r.normal_last), prio: num(r.prio_last), ts: num(r.ts) };
   for (const s of st.services) for (const p of s.places) {
+    if (countOnly.has(p.place_id)) continue; // "só contagem": não aparece na TV
     const key = `${s.service_id}|${p.place_id}`; const cfg = cfgs[key] || DEFAULT_CFG;
     const plan = queuePlan({ cfg, issued: imap[p.place_id] || null, calls: calls.filter((x) => x.service_id === s.service_id && x.place_id === p.place_id), from: cursors[key] || null });
     labels[p.place_id] = { n: cfg.n_prefix, p: cfg.p_prefix };
@@ -250,7 +263,7 @@ export function tvBoard(day, venue) {
   for (const k of Object.keys(cfgs)) { const pid = k.split('|')[1]; if (!labels[pid]) labels[pid] = { n: cfgs[k].n_prefix, p: cfgs[k].p_prefix }; }
   const recent = calls.slice().sort((a, b) => b.called_at - a.called_at || b.id - a.id).slice(0, 60)
     .map((x) => ({ id: x.id, ticket: x.ticket, service_id: x.service_id, place_id: x.place_id, status: x.status, called_at: x.called_at, recalled_at: x.recalled_at || null, priority: x.priority ? 1 : 0, status_at: x.status_at, ended_at: x.ended_at }));
-  return { day: c.day, venue: c.venue, now, places, recent, labels, default_labels: { n: DEFAULT_CFG.n_prefix, p: DEFAULT_CFG.p_prefix }, extras: extras(c.day, c.venue), disabled: disabled(c.day, c.venue), total: { issued: st.total.issued, called: st.total.called, waiting: st.total.not_called, in_service: st.total.in_service } };
+  return { day: c.day, venue: c.venue, now, places, recent, labels, default_labels: { n: DEFAULT_CFG.n_prefix, p: DEFAULT_CFG.p_prefix }, extras: extras(c.day, c.venue), disabled: [...new Set(disabled(c.day, c.venue).concat([...countOnly]))], count_only: [...countOnly], total: { issued: st.total.issued, called: st.total.called, waiting: st.total.not_called, in_service: st.total.in_service } };
 }
 /** Chamadas do dia no local (para o dashboard: séries por hora e linha do tempo). */
 export function callsOfDay(day, venue) { const c = ctx(day, venue); return rows(conn().q.callsDay.all(c.day, c.venue)); }
@@ -324,13 +337,14 @@ export function setQueueInfo(b) {
   if (b.totals && typeof b.totals === 'object') for (const [d, v] of Object.entries(b.totals)) {
     if (!isDay(d) || !v || typeof v !== 'object') continue;
     const t = {}; for (const k of ['n', 'p']) { if (v[k] === '' || v[k] == null) continue; const n = Number(v[k]); if (!Number.isInteger(n) || n < 0 || n > 100000) throw err(400, `senhas por dia inválidas (${d})`); t[k] = n; }
-    if ('n' in t || 'p' in t) totals.push([d, t]);
+    if (v.mode === 'chamada' || v.mode === 'contagem') t.mode = v.mode;
+    if (Object.keys(t).length) totals.push([d, t]);
   }
   const { db, q } = conn(); const ts = Date.now(); const device = clean(b.device, 40);
   db.exec('BEGIN');
   try {
     q.infoInsert.run(c.day, c.venue, sid, pid, name, kind, num, offer, items ? JSON.stringify(items) : null, device, ts);
-    for (const [d, t] of totals) { const cur = cfgOf(d, c.venue, sid, pid); const cfg = Object.assign({}, cur, 'n' in t ? { n_total: t.n } : {}, 'p' in t ? { p_total: t.p } : {}); q.cfgInsert.run(d, c.venue, sid, pid, cfg.n_prefix, cfg.p_prefix, cfg.n_from, cfg.p_from, cfg.n_total, cfg.p_total, cfg.pattern, device, ts); }
+    for (const [d, t] of totals) { const cur = cfgOf(d, c.venue, sid, pid); const cfg = Object.assign({}, cur, 'n' in t ? { n_total: t.n } : {}, 'p' in t ? { p_total: t.p } : {}, t.mode ? { mode: t.mode } : {}); q.cfgInsert.run(d, c.venue, sid, pid, cfg.n_prefix, cfg.p_prefix, cfg.n_from, cfg.p_from, cfg.n_total, cfg.p_total, cfg.pattern, cfg.mode || 'chamada', device, ts); }
     db.exec('COMMIT');
   } catch (e) { db.exec('ROLLBACK'); throw e; }
   notify(c.day, c.venue); return { ok: true, ts, place_id: pid, name, kind, num, offer, items, totals: Object.fromEntries(totals) };
@@ -350,7 +364,7 @@ export function addExtra(b) {
   try {
     const r = q.extraInsert.run(c.day, c.venue, sid, '', name, kind, num, device, now); const id = Number(r.lastInsertRowid);
     const place_id = `${c.venue}-x${id}`; q.extraSetPlace.run(place_id, id);
-    q.cfgInsert.run(c.day, c.venue, sid, place_id, cfg.n_prefix, cfg.p_prefix, cfg.n_from, cfg.p_from, cfg.n_total, cfg.p_total, cfg.pattern, device, now);
+    q.cfgInsert.run(c.day, c.venue, sid, place_id, cfg.n_prefix, cfg.p_prefix, cfg.n_from, cfg.p_from, cfg.n_total, cfg.p_total, cfg.pattern, cfg.mode || 'chamada', device, now);
     if (init.issued_n) q.issuedInsert.run(c.day, c.venue, sid, place_id, 'n', init.issued_n, device, now);
     if (init.issued_p) q.issuedInsert.run(c.day, c.venue, sid, place_id, 'p', init.issued_p, device, now);
     db.exec('COMMIT'); out = { ok: true, id, place_id };

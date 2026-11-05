@@ -11,7 +11,8 @@ test('parsePrioList/formatPrioList (utilidade mantida)', () => {
 });
 
 test('normalizeCfg: padrão N/P, valida prefixos, inícios e totais', () => {
-  const d = normalizeCfg(null); assert.equal(d.error, null); assert.deepEqual(d.cfg, { n_prefix: 'N', p_prefix: 'P', n_from: 1, p_from: 1, n_total: 100, p_total: 20, pattern: '1:1' });
+  const d = normalizeCfg(null); assert.equal(d.error, null); assert.deepEqual(d.cfg, { n_prefix: 'N', p_prefix: 'P', n_from: 1, p_from: 1, n_total: 100, p_total: 20, pattern: '1:1', mode: 'chamada' });
+  assert.equal(normalizeCfg({ mode: 'contagem' }).cfg.mode, 'contagem'); assert.equal(normalizeCfg({ mode: 'x' }).cfg.mode, 'chamada');
   assert.equal(normalizeCfg({ n_prefix: ' a ', p_prefix: 'b', n_total: '150', p_total: '', pattern: '1:2' }).cfg.n_prefix, 'A');
   assert.equal(normalizeCfg({ n_total: '150', p_total: '' }).cfg.p_total, 0);
   assert.match(normalizeCfg({ n_prefix: 'X', p_prefix: 'X' }).error, /diferentes/);

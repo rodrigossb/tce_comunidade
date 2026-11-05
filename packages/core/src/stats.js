@@ -12,7 +12,8 @@ const hourOf = (ms) => ((Math.floor(ms / 3600000) - 3) % 24 + 24) % 24;
  * calls:  [{ id, service_id, place_id, ticket, called_at, status, status_at, ended_at }]
  * nowMs:  relógio (ms) para "em atendimento há"
  */
-function summarize(issued, calls, nowMs) {
+/** countOnly (opcional): Set de place_id em modo "só contagem" — cada senha entregue conta como atendimento (sem chamada). */
+function summarize(issued, calls, nowMs, countOnly) {
   const now = nowMs || Date.now();
   const byService = {};
   const svc = (id) => (byService[id] = byService[id] || { service_id: id, issued: 0, issued_at: null, called: 0, served: 0, absent: 0, pending_result: 0, in_service: 0, durations: [], places: {}, per_hour: {}, last_ticket: null });
@@ -49,6 +50,7 @@ function summarize(issued, calls, nowMs) {
   };
   // Salas com senhas entregues mas ainda sem chamada também aparecem.
   for (const i of issued) if (i.place_id) { const s = svc(i.service_id); if (!s.places[i.place_id]) s.places[i.place_id] = { place_id: i.place_id, issued: i.count, called: 0, served: 0, absent: 0, pending_result: 0, in_service: 0, durations: [], current: null, last_call_at: null }; }
+  if (countOnly && countOnly.size) for (const s of Object.values(byService)) for (const p of Object.values(s.places)) if (countOnly.has(p.place_id)) { const n = p.issued || 0; s.called += n - p.called; s.served += n - p.served; s.absent -= p.absent; s.pending_result -= p.pending_result; s.in_service -= p.in_service; Object.assign(p, { called: n, served: n, absent: 0, pending_result: 0, in_service: 0, current: null, count_only: true }); }
   const services = Object.values(byService).map((s) => {
     s.places = Object.values(s.places).map(finish).map((p) => { p.not_called = Math.max(0, (p.issued || 0) - p.called); p.est_wait_min = p.avg_min != null ? round1(p.not_called * p.avg_min) : null; return p; });
     s.not_called = Math.max(0, (s.issued || 0) - (s.called || 0));

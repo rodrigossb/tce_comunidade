@@ -5,7 +5,7 @@
    server actions (app/actions.js). Guarda configuração no aparelho (localStorage) e tem fila offline. */
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { TCE as T } from '@tce/core';
-import { whyLabel, PATTERNS, DEFAULT_CFG, normalizeCfg, ticketLabel } from '@tce/core/fila';
+import { whyLabel, PATTERNS, MODES, DEFAULT_CFG, normalizeCfg, ticketLabel } from '@tce/core/fila';
 import { placeLabel } from '@tce/core/map';
 import { mergeExtras, withoutDisabled, placeOf, fixedQueues } from '@/lib/filas-extra';
 import Icon from './Icon';
@@ -18,7 +18,7 @@ const VER = '2.1';
 const KIND_LABEL = { sala: 'Sala', tenda: 'Tenda', area: 'Ambiente' };
 /** Texto livre da triagem ("o que é oferecido") → itens: uma linha ou ponto e vírgula por item. */
 const splitOffer = (txt) => String(txt || '').split(/\n|;/).map((x) => x.trim()).filter(Boolean);
-const ACTIONS = { setIssued: A.setIssued, setQueueConfig: A.setQueueConfig, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall, advance: A.advance, addExtraQueue: A.addExtraQueue, removeExtraQueue: A.removeExtraQueue, setQueueEnabled: A.setQueueEnabled, setCursor: A.setCursor, setQueueInfo: A.setQueueInfo };
+const ACTIONS = { setIssued: A.setIssued, setQueueConfig: A.setQueueConfig, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall, advance: A.advance, addExtraQueue: A.addExtraQueue, removeExtraQueue: A.removeExtraQueue, setQueueEnabled: A.setQueueEnabled, setCursor: A.setCursor, setQueueInfo: A.setQueueInfo, setQueueMode: A.setQueueMode };
 const EXTRA_BLANK = { service_id: '', name: '', kind: 'sala', num: '', n_total: String(DEFAULT_CFG.n_total), p_total: String(DEFAULT_CFG.p_total), pattern: DEFAULT_CFG.pattern, issued_n: '', issued_p: '' };
 const CFG_KEYS = ['n_prefix', 'p_prefix', 'n_from', 'p_from', 'n_total', 'p_total', 'pattern'];
 const cfgForm = (cfg) => { const o = {}; for (const k of CFG_KEYS) o[k] = String((cfg || DEFAULT_CFG)[k] ?? ''); return o; };
@@ -153,6 +153,9 @@ export default function Atendimento() {
   }
   // Configuração da fila (séries N/P e ordem de chamada): a última gravada no servidor, senão a padrão.
   const cfgOf = (pid, sid) => { const r = ((data && data.configs) || []).find((x) => x.place_id === pid && x.service_id === sid); return r || DEFAULT_CFG; };
+  // Modo da fila hoje: 'chamada' (porta + TV) ou 'contagem' (só as senhas entregues contam como atendimentos; sem porta nem TV).
+  const modeOf = (pid, sid) => (cfgOf(pid, sid).mode === 'contagem' ? 'contagem' : 'chamada');
+  const toggleMode = (p, sid) => { const c = ctxOf(st); const next = modeOf(p.id, sid) === 'contagem' ? 'chamada' : 'contagem'; const msg = next === 'contagem' ? `"${p.name}" hoje passa a SÓ CONTAGEM: as senhas entregues contam como atendimentos; a fila some da porta e da TV. Confirmar?` : `"${p.name}" hoje volta a CHAMADA NA PORTA: aparece na porta e na TV. Confirmar?`; if (!confirm(msg)) return; run(async () => { await post('setQueueMode', { day: c.day, venue: c.venue, service_id: sid, place_id: p.id, mode: next, device: st.device }); toast(next === 'contagem' ? `${p.name}: só contagem hoje` : `${p.name}: chamada na porta hoje`); await refresh(); }); };
   const openCfg = (p, sid) => setCfgOpen(cfgOpen && cfgOpen.place_id === p.id ? null : { place_id: p.id, service_id: sid, name: p.name, form: cfgForm(cfgOf(p.id, sid)) });
   const openCfgAll = () => setCfgOpen(cfgOpen && cfgOpen.all ? null : { all: true, form: cfgForm(((data && data.configs) || [])[0] || DEFAULT_CFG) });
   function saveCfg() {
@@ -179,7 +182,7 @@ export default function Atendimento() {
     const c = ctxOf(st); const days = schedDays(c); const service = svc(sid);
     const items = offerItemsOf(p, service, c).map((it) => ({ t: it.t, when: it.when ? JSON.parse(JSON.stringify(it.when)) : null }));
     const cd = (data && data.cfg_days && data.cfg_days[p.id]) || {}; const cur = cfgOf(p.id, sid);
-    const totals = {}; for (const d of days) { const v = cd[d] || (d === c.day ? cur : null); totals[d] = { n: v ? String(v.n_total) : '', p: v ? String(v.p_total) : '' }; }
+    const totals = {}; for (const d of days) { const v = cd[d] || (d === c.day ? cur : null); totals[d] = { n: v ? String(v.n_total) : '', p: v ? String(v.p_total) : '', mode: v ? v.mode || 'chamada' : 'chamada' }; }
     setInfoOpen({ place_id: p.id, service_id: sid, days, orig: JSON.parse(JSON.stringify(totals)), form: { name: p.name || '', kind: p.kind || 'sala', num: p.num || '', all: items.every((it) => !it.when), items, totals } });
   };
   function saveInfo() {
@@ -187,7 +190,7 @@ export default function Atendimento() {
     if (f.name.trim().length < 2) { toast('Informe o nome do atendimento', 'alert'); return; }
     const items = f.items.filter((it) => it.t.trim()).map((it) => (f.all || !it.when ? { t: it.t.trim() } : { t: it.t.trim(), when: it.when }));
     const totals = {};
-    for (const d of Object.keys(f.totals)) { const t = {}; for (const k of ['n', 'p']) { const v = String(f.totals[d][k]).trim(); if (v === (o.orig[d] ? o.orig[d][k] : '')) continue; if (v !== '' && (!Number.isInteger(Number(v)) || Number(v) < 0)) { toast(`Senhas por dia inválidas (${T.fmtDate(d, 'wd')})`, 'alert'); return; } t[k] = v; } if (Object.keys(t).length) totals[d] = t; }
+    for (const d of Object.keys(f.totals)) { const t = {}; for (const k of ['n', 'p']) { const v = String(f.totals[d][k]).trim(); if (v === (o.orig[d] ? o.orig[d][k] : '')) continue; if (v !== '' && (!Number.isInteger(Number(v)) || Number(v) < 0)) { toast(`Senhas por dia inválidas (${T.fmtDate(d, 'wd')})`, 'alert'); return; } t[k] = v; } if (f.totals[d].mode !== (o.orig[d] ? o.orig[d].mode : 'chamada')) t.mode = f.totals[d].mode; if (Object.keys(t).length) totals[d] = t; }
     run(async () => { const r = await post('setQueueInfo', { day: c.day, venue: c.venue, service_id: o.service_id, place_id: o.place_id, name: f.name.trim(), kind: f.kind, num: f.num.trim(), items, totals, device: st.device }); if (r) { toast(`${r.name}: alterado`); setInfoOpen(null); } await refresh(); });
   }
   // Novo serviço/sala na triagem (fila extra): nome, pilar, tipo e número; já nasce com o padrão de senhas e prioritárias.
@@ -372,9 +375,9 @@ export default function Atendimento() {
             <div className="tri-item-actions"><button type="button" className="btn btn-ghost sm" data-act="item-add" onClick={() => setF((fm) => ({ items: fm.items.concat([{ t: '', when: null }]) }))}>{I('calendarplus')}Adicionar item</button>{!f.all && o.days.length > 1 ? <button type="button" className="btn btn-ghost sm" data-act="item-repeat" onClick={repeatToday}>{I('copy')}Repetir hoje nos demais dias</button> : null}{service ? <button type="button" className="btn btn-ghost sm" data-act="item-prog" onClick={() => { const its = offerItemsOf({ id: p.id }, service, c).map((x) => ({ t: x.t, when: x.when || null })); setF({ items: its, all: its.every((x) => !x.when) }); }}>{I('list')}Usar a programação</button> : null}</div>
           </div>
           <p className="tiny muted">"Sempre" = em todos os dias e turnos. M = manhã, T = tarde; toque no nome do dia para marcar o dia inteiro. Com "igual todos os dias" marcado, a agenda some. Sem nenhum turno marcado, o item não aparece.</p>
-          <div className="tri-sec"><b>Senhas por dia</b><small>total possível de cada série, por dia</small></div>
-          <div className="tri-totals"><span className="cfg-h">Dia</span><span className="cfg-h">Comuns (N)</span><span className="cfg-h">Priorit. (P)</span>{o.days.map((d) => <Fragment key={d}><span className="tri-tot-d">{T.fmtDate(d, 'wd')}{d === c.day ? ' · hoje' : ''}</span><input type="text" inputMode="numeric" value={f.totals[d].n} autoComplete="off" placeholder="—" data-tot={`${d}|n`} onChange={(e) => setTot(d, 'n', e.target.value)} /><input type="text" inputMode="numeric" value={f.totals[d].p} autoComplete="off" placeholder="—" data-tot={`${d}|p`} onChange={(e) => setTot(d, 'p', e.target.value)} /></Fragment>)}</div>
-          <p className="tiny muted">Prefixo, primeiro número e ordem de chamada ficam em "padrão". Tudo aqui vale de hoje em diante para a triagem, a porta, a TV e o painel; a planta e o site não mudam.</p>
+          <div className="tri-sec"><b>Senhas por dia</b><small>total possível de cada série e como o atendimento é registrado</small></div>
+          <div className="tri-totals modes"><span className="cfg-h">Dia</span><span className="cfg-h">Comuns (N)</span><span className="cfg-h">Priorit. (P)</span><span className="cfg-h">Registro</span>{o.days.map((d) => <Fragment key={d}><span className="tri-tot-d">{T.fmtDate(d, 'wd')}{d === c.day ? ' · hoje' : ''}</span><input type="text" inputMode="numeric" value={f.totals[d].n} autoComplete="off" placeholder="—" data-tot={`${d}|n`} onChange={(e) => setTot(d, 'n', e.target.value)} /><input type="text" inputMode="numeric" value={f.totals[d].p} autoComplete="off" placeholder="—" data-tot={`${d}|p`} onChange={(e) => setTot(d, 'p', e.target.value)} /><select value={f.totals[d].mode} data-tot={`${d}|mode`} onChange={(e) => setTot(d, 'mode', e.target.value)}>{MODES.map((m) => <option key={m.id} value={m.id}>{m.short}</option>)}</select></Fragment>)}</div>
+          <p className="tiny muted"><b>Chamada</b>: as senhas são chamadas na porta e aparecem na TV. <b>Contagem</b>: só a quantidade de senhas entregues conta como atendimentos nas estatísticas; a fila não aparece na porta nem na TV. Prefixo, primeiro número e ordem de chamada ficam em "padrão". Tudo aqui vale de hoje em diante para a triagem, a porta, a TV e o painel; a planta e o site não mudam.</p>
           <div className="actions"><button type="button" className="btn btn-ghost" onClick={() => setInfoOpen(null)}>Cancelar</button><button type="submit" className="btn btn-primary" data-act="info-save">{I('check')}Gravar</button></div>
         </form>
       );
@@ -403,6 +406,7 @@ export default function Atendimento() {
                   {cfg.p_total || cnt(p.id, 'p') ? counter(p, g.service.id, 'p', cfg) : null}
                   <div className="tri-foot">
                     <button type="button" className={`tri-cfg-btn ${openCfgHere ? 'on' : ''}`} data-act="cfg" data-id={p.id} onClick={() => { setInfoOpen(null); openCfg(p, g.service.id); }} title="Padrão de senhas desta sala">{I('ticket')}<span>padrão</span><small>{cfgSummary(cfg)}</small></button>
+                    <button type="button" className={`tri-mode ${modeOf(p.id, g.service.id)}`} data-act="mode" data-id={p.id} onClick={() => toggleMode(p, g.service.id)} title="Como o atendimento é registrado hoje (toque para trocar)">{I(modeOf(p.id, g.service.id) === 'contagem' ? 'list' : 'tv')}<span>{modeOf(p.id, g.service.id) === 'contagem' ? 'só contagem' : 'chamada na porta'}</span><small>hoje · trocar</small></button>
                     <span className="tri-links">
                       <button type="button" className="link off" data-act="queue-off" data-id={p.id} onClick={() => { if (confirm(`Desativar "${p.name}" hoje? Some da porta da sala e da TV até ser reativado aqui.`)) setEnabled(p, g.service.id, false); }}>desativar</button>
                       {p.extra ? <button type="button" className="link rm" data-act="extra-rm" onClick={() => removeExtra(p)}>remover</button> : null}
@@ -473,7 +477,7 @@ export default function Atendimento() {
         {top(adding ? 'Adicionar sala à tela' : 'Porta da sala', adding ? `Escolha mais uma sala para chamar nesta mesma tela · ${c.place}` : `Em qual sala/atendimento você está? · ${c.place}`, adding ? () => setAdding(false) : act.home)}
         {!data ? <p className="door-hint">{I('hourglass')} buscando as salas criadas na triagem…</p> : null}
         {adding ? <p className="page-lead">Você pode cuidar de mais de uma sala no mesmo aparelho: cada sala fica num cartão, com a sua própria fila e os seus próprios botões.</p> : null}
-        {queues().map((g) => (
+        {queues().map((g) => ({ service: g.service, places: g.places.filter((p) => modeOf(p.id, g.service.id) !== 'contagem') })).filter((g) => g.places.length).map((g) => (
           <div key={g.service.id}>
             <h3 className="tri-h" style={{ '--c': g.service.color }}>{I(g.service.icon)}{g.service.title}</h3>
             <div className="roles compact">
@@ -488,6 +492,11 @@ export default function Atendimento() {
   // Cartão de uma sala na porta: senha na sala, próxima sugerida (pela ordem), próxima N / próxima P, falta, ferramentas.
   function roomCard(room, multi) {
     const s = svc(room.service_id) || D.services[0]; const qd = queueById(room.id); const q = qmap[room.id] || null; const calls = (q && q.calls) || []; const cur = calls[0] || null;
+    if (qd && modeOf(room.id, room.service_id) === 'contagem') return (
+      <section key={room.id} className={`room-card ${multi ? 'multi' : ''}`} style={{ '--c': s.color }}>
+        <div className="tri-empty"><span className="ic">{I('list')}</span><b>{qd.name} · só contagem hoje</b><small>A triagem definiu que hoje este atendimento não chama senha: as senhas entregues contam como atendimentos. Nada a lançar aqui.</small>{multi ? <button type="button" className="btn btn-ghost sm" onClick={() => act.roomRemove(room.id)}>{I('x')}Tirar da tela</button> : <button type="button" className="btn btn-ghost sm" onClick={act.placeClear}>{I('back')}Escolher outra sala</button>}</div>
+      </section>
+    );
     const plan = q && q.plan ? q.plan : null; const cfg = (plan && plan.cfg) || DEFAULT_CFG; const lbl = (t, pr) => ticketLabel(t, pr, cfg);
     const nxt = plan && plan.next && plan.next.ticket != null ? plan.next : { ticket: 1, priority: false, why: '' };
     const issued = q && q.issued ? q.issued.n + q.issued.p : null;

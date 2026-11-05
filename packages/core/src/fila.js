@@ -20,7 +20,10 @@ export const patternOf = (id) => PATTERNS.find((x) => x.id === id) || PATTERNS[0
 export const patternLabel = (id) => patternOf(id).label;
 
 /** Configuração padrão de uma fila (a triagem pode mudar por sala ou para todas). */
-export const DEFAULT_CFG = { n_prefix: 'N', p_prefix: 'P', n_from: 1, p_from: 1, n_total: 100, p_total: 20, pattern: DEFAULT_PATTERN };
+/** Modo da fila no dia: 'chamada' (senhas chamadas na porta; aparece na TV e na porta) ou 'contagem' (só a quantidade entregue
+    conta como atendimentos nas estatísticas; não aparece na TV nem na porta). */
+export const MODES = [{ id: 'chamada', label: 'Chamada na porta', short: 'Chamada' }, { id: 'contagem', label: 'Só contagem (sem chamada)', short: 'Contagem' }];
+export const DEFAULT_CFG = { n_prefix: 'N', p_prefix: 'P', n_from: 1, p_from: 1, n_total: 100, p_total: 20, pattern: DEFAULT_PATTERN, mode: 'chamada' };
 
 /** Normaliza/valida uma configuração parcial sobre a padrão → { cfg, error }. Prefixo: 0–3 letras/dígitos. */
 export function normalizeCfg(raw) {
@@ -31,6 +34,7 @@ export function normalizeCfg(raw) {
   for (const k of ['n_from', 'p_from']) { const v = Number(c[k]); if (!Number.isInteger(v) || v < 1 || v > MAX_TICKET) bad.push(`${k === 'n_from' ? 'início das comuns' : 'início das prioritárias'} inválido`); out[k] = v; }
   for (const k of ['n_total', 'p_total']) { const v = c[k] === '' || c[k] == null ? 0 : Number(c[k]); if (!Number.isInteger(v) || v < 0 || v > MAX_TICKET) bad.push(`${k === 'n_total' ? 'total de comuns' : 'total de prioritárias'} inválido`); out[k] = v; }
   out.pattern = PATTERNS.some((x) => x.id === c.pattern) ? c.pattern : DEFAULT_PATTERN;
+  out.mode = c.mode === 'contagem' ? 'contagem' : 'chamada';
   return { cfg: out, error: bad.length ? bad.join('; ') : null };
 }
 
