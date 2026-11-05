@@ -181,7 +181,7 @@ function IndexAZ({ all }) {
 // ---- 5. Pendências e fontes ----
 const PEND = [
   ['Cursos', 'Curso 109 (Brinquedistas): a tabela oficial traz link administrativo; o site usa escon/cursos/109.'],
-  ['Salas', 'Laboratórios I e II – Joaquim Nabuco (Salas 01 e 02), 05/11: o Rios do Saber (156, até 100 participantes) ocupa os dois laboratórios manhã e tarde (informado em 05/11). No mesmo horário a tabela ainda traz Controle Social e Ouvidoria (152, Lab I 8h), Tecnologia e Direito das Mulheres (125, Lab I 14h) e Videomaker (145, Lab II 14h). Confirmar onde ficam essas turmas.'],
+  ['Salas', 'Laboratórios I e II – Joaquim Nabuco (Salas 01 e 02), 05/11: o Rios do Saber (156, até 100 participantes) ocupa os dois laboratórios manhã e tarde (informado em 05/11). À tarde a tabela ainda traz Tecnologia e Direito das Mulheres (125, Lab I) e Videomaker (145, Lab II). Confirmar onde ficam essas turmas. O curso 152 (Controle Social e Ouvidoria, Lab I 8h) foi cancelado em 05/11.'],
   ['Salas', 'Tomada de Contas (122), 05/11: saiu da Joaquim Nabuco (Sala V); manhã na Câmara Municipal de Oiapoque (Av. Veiga Cabral, 390, pino aproximado) e tarde no IFAP – Campus Avançado Oiapoque (Rua Joaquim Caetano da Silva, 870). Informado em 05/11.'],
   ['Cursos', 'Como vender pela internet (150): 06/11 no SEBRAE; em 05/11 o horário mudou de 14h para 19h (até 22h).'],
   ['Cursos', 'Cidadania Conectada: duas turmas com links diferentes (154 em 05/11 e 158 em 07/11).'],

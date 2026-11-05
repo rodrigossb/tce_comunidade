@@ -125,7 +125,7 @@ function Doc({ variant }) {
           <li>Vagas: número cadastrado no site do evento (ou o do painel, quando informado). Restantes: do painel ou vagas − inscritos.</li>
           <li>Cursos com mais de um encontro aparecem em cada dia com os mesmos números (é a mesma turma). Cursos com turmas em locais diferentes (Cuidador, Tecnologia e Direito das Mulheres, Videomaker, Cidadania Conectada) têm os números por turma nas tabelas por dia e somados na lista A–Z.</li>
           <li>O painel da ESCON informa só os inscritos; as vagas são as cadastradas no site (por turma). Inscritos acima das vagas aparecem como "lotado +N".</li>
-          <li>Laboratórios I e II – Joaquim Nabuco, 05/11: o Rios do Saber (156) ocupa os dois laboratórios manhã e tarde; no mesmo horário a tabela ainda traz Controle Social e Ouvidoria (152, Lab I 8h), Tecnologia e Direito das Mulheres (125, Lab I 14h) e Videomaker (145, Lab II 14h). Confirmar onde ficam essas turmas.</li>
+          <li>Laboratórios I e II – Joaquim Nabuco, 05/11: o Rios do Saber (156) ocupa os dois laboratórios manhã e tarde; à tarde a tabela ainda traz Tecnologia e Direito das Mulheres (125, Lab I) e Videomaker (145, Lab II). Confirmar onde ficam essas turmas. O curso 152 (Controle Social e Ouvidoria, Lab I 8h) foi cancelado em 05/11.</li>
         </ul>
       </section>
     </>

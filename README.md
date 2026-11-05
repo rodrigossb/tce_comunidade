@@ -261,7 +261,7 @@ uso de cada sala (serviços em 04/07 e cursos nos outros dias), DE → PARA e pe
 
 Pontos a conferir com a organização:
 - Curso 109 (Brinquedistas): a tabela traz um link administrativo; usamos `escon/cursos/109`.
-- Laboratórios I e II – Joaquim Nabuco, 05/11: o Rios do Saber (156, até 100 participantes) ocupa os dois laboratórios (salas 01 e 02) manhã e tarde, por informação da organização em 05/11. No mesmo prédio e horário a tabela ainda traz o Controle Social e Ouvidoria (152, Lab I às 8h), o Tecnologia e Direito das Mulheres (125, Lab I às 14h) e o Videomaker (145, Lab II às 14h, movido em 02/11); confirmar onde essas três turmas ficam.
+- Laboratórios I e II – Joaquim Nabuco, 05/11: o Rios do Saber (156, até 100 participantes) ocupa os dois laboratórios (salas 01 e 02) manhã e tarde, por informação da organização em 05/11. À tarde a tabela ainda traz o Tecnologia e Direito das Mulheres (125, Lab I) e o Videomaker (145, Lab II, movido em 02/11); confirmar onde essas duas turmas ficam. O Tecnologia a Serviço do Controle Social e Ouvidoria (152, Lab I às 8h) foi cancelado pela organização em 05/11 e saiu da programação.
 - Tomada de Contas (122), 05/11: saiu da Joaquim Nabuco (Sala V); manhã na Câmara Municipal de Oiapoque (Av. Veiga Cabral, 390 — pino aproximado) e tarde no IFAP – Campus Avançado Oiapoque (Rua Joaquim Caetano da Silva, 870). Informado pela organização em 05/11.
 - Como vender pela internet (150): 06/11 no SEBRAE; em 05/11 a organização mudou o horário de 14h para 19h (até 22h).
 - Cidadania Conectada: duas turmas com links diferentes (154 em 05/11 e 158 em 07/11).

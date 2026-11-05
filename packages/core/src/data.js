@@ -131,10 +131,7 @@ const courses = [
     audience: 'Membros dos caixas escolares', seats: 20,
     link: ESCON + '112/manga-curso-de-formacao-de-gestao-financeira-nas-escolas', tags: ['gestao-publica', 'educacao'],
     sessions: [s('05', '08:00', 'iaparra', ''), s('05', '14:00', 'iaparra', '')] },
-  { id: 152, title: 'Tecnologia a Serviço do Controle Social e Ouvidoria', short: 'Controle Social e Ouvidoria', hours: 4,
-    audience: 'Servidores municipais e sociedade civil', seats: 20,
-    link: ESCON + '152/oiapoque-tecnologia-a-servico-do-controle-social-e-ouvidoria', tags: ['tecnologia', 'gestao-publica'],
-    sessions: [s('05', '08:00', 'jn', 'Laboratório I')] },
+  // 152 "Tecnologia a Serviço do Controle Social e Ouvidoria" (05/11 8h, Laboratório I): cancelado pela organização em 05/11.
   { id: 156, title: 'Rios do Saber: Formação de Docentes e Gestores Escolares em Inteligência Artificial Generativa, Metodologias Ativas de Ensino e Inovação Pedagógica para Escolas Públicas Amazônicas', short: 'Rios do Saber', hours: 8,
     audience: 'Professores e gestores escolares do ensino público que atuam em escolas indígenas, ribeirinhas, insulares e periurbanas dos municípios do Amapá e da região da foz do Rio Amazonas', seats: 30,
     note: 'Previsão de até 100 participantes, ou o limite comportado pelo espaço disponível com computadores.',
