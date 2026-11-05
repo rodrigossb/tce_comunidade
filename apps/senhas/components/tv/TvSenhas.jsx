@@ -49,8 +49,9 @@ function Board() {
   const sp = useMemo(() => new URLSearchParams(location.search), []);
   const [clock, setClock] = useState(() => T.now());
   useEffect(() => { const id = setInterval(() => setClock(T.now()), 1000); return () => clearInterval(id); }, []);
-  // Dia mostrado = o mesmo do app de atendimento: o dia de serviços de hoje; senão o próximo (?dia= força outro).
-  const day = useMemo(() => { const q = sp.get('dia'); if (q && T.serviceDayOf(q)) return q; const d = T.serviceDayOf(clock.date) || T.nextServiceDay(clock.date) || T.serviceDays()[T.serviceDays().length - 1]; return d ? d.date : clock.date; }, [sp, clock.date]);
+  // Dia mostrado = o mesmo do app de atendimento (T.ticketDay): o dia de serviços de hoje; outro dia do evento → hoje
+  // (filas criadas na triagem); fora do evento → o próximo/último dia de serviços. ?dia=AAAA-MM-DD força outro.
+  const day = useMemo(() => { const q = sp.get('dia'); if (q && /^\d{4}-\d{2}-\d{2}$/.test(q)) return q; const d = T.ticketDay(clock.date, D.maps && D.maps[sp.get('local')] ? sp.get('local') : null); return d ? d.date : clock.date; }, [sp, clock.date]);
   const sel = useMemo(() => selectQueues(sp, day), [sp, day]);
   const venue = sel.venue; const venueName = D.venues[venue] ? D.venues[venue].name : venue;
   const voice = sp.get('voz') === '1';
@@ -218,7 +219,8 @@ function Board() {
     const svcFilter = new Set(String(sp.get('servicos') || '').split(/[,;+ ]+/).filter(Boolean));
     const extra = sp.get('salas') ? [] : extraQueues((data && data.extras) || [], svcFilter);
     const off = new Set((data && data.disabled) || []); // filas desativadas na triagem
-    return sel.queues.concat(extra).filter((q) => !off.has(q.place.id)).map((q) => ({ key: q.place.id, place: q.place, service: q.service, stat: byPlace.get(q.place.id) || null }))
+    const fixed = sel.queues.map((q) => ({ service: q.service, place: placeOf(q.place.id, data && data.extras) || q.place })); // nome/sala editados na triagem
+    return fixed.concat(extra).filter((q) => !off.has(q.place.id)).map((q) => ({ key: q.place.id, place: q.place, service: q.service, stat: byPlace.get(q.place.id) || null }))
       .sort((a, b) => svcIdx(a.service) - svcIdx(b.service) || numOf(a.place) - numOf(b.place) || String(a.place.name).localeCompare(String(b.place.name), 'pt-BR'));
   }, [sel, data, sp]);
   const selected = useMemo(() => new Set(rows.map((r) => r.key)), [rows]);

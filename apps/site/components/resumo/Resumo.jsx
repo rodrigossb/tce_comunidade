@@ -21,7 +21,7 @@ const plural = (n, s, p) => `${n} ${n === 1 ? s : p || s + 's'}`;
 
 const Chip = ({ p, cls }) => (p ? <span className={`room ${p.kind} ${cls || ''}`}>{M.placeLabel(p)}</span> : null);
 const Dot = ({ s }) => <i className="dot" style={{ '--c': s.color }} />;
-const OnlyBadge = ({ it }) => (T.itemOnly(it) ? <span className="only">só {T.fmtDate(T.itemOnly(it), 'wdm')}</span> : null);
+const OnlyBadge = ({ it }) => (T.itemOnly(it) ? <span className="only">só {T.fmtDate(T.itemOnly(it), 'wdm')}</span> : T.itemWhenLabel(it) ? <span className="only">{T.itemWhenLabel(it)}</span> : null);
 const H2 = ({ num, text, sub }) => <h2><span className="n">{num}.</span> {text}{sub ? <span className="h2sub">{sub}</span> : null}</h2>;
 /** Lista "a; b; c" de itens com selo "só dia" (equivalente ao join('; ') do site antigo). */
 const ItemList = ({ its }) => its.map((it, i) => <Fragment key={i}>{i ? '; ' : ''}{T.itemText(it)}<OnlyBadge it={it} /></Fragment>);

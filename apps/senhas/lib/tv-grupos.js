@@ -15,6 +15,7 @@
 //   fundos:  salas 13–24, triagem, escovódromo, tendas 2, 3, 4 e 5.
 // Para ajustar, edite CUSTOM abaixo (lista explícita de ids vence a dedução automática) ou mude Y_SPLIT.
 import { TCE as T } from '@tce/core';
+import { fixedQueues } from './filas-extra.js';
 
 const D = T.D;
 /** Fração da altura da planta que separa "entrada" (abaixo) de "fundos" (acima). */
@@ -28,10 +29,11 @@ export const CUSTOM = {
   manga: {},
 };
 
-/** Filas com senha do local (uma por ambiente de atendimento), na ordem de número da sala. */
-export function queuesFor(venue) {
+/** Filas com senha do local (uma por ambiente de atendimento), na ordem de número da sala. Com `day`, só no dia de
+    serviços do local (nos outros dias do evento a TV mostra só as filas criadas na triagem, que vêm da API). */
+export function queuesFor(venue, day) {
   const list = [];
-  for (const g of T.ticketQueuesOf(venue)) for (const p of g.places) list.push({ service: g.service, place: p }); // só filas com senha (D.senhas)
+  for (const g of fixedQueues(venue, day)) for (const p of g.places) list.push({ service: g.service, place: p }); // só filas com senha (D.senhas)
   const numOf = (p) => (p.num ? Number(p.num) || 0 : 999);
   const kindOrder = { sala: 0, tenda: 1, area: 2 };
   return list.sort((a, b) => (kindOrder[a.place.kind] ?? 3) - (kindOrder[b.place.kind] ?? 3) || numOf(a.place) - numOf(b.place) || String(a.place.name).localeCompare(String(b.place.name), 'pt-BR'));
@@ -66,9 +68,9 @@ export function placeIdOf(venue, raw, mapOverride) {
   return byName ? byName.id : null;
 }
 
-/** Local padrão da TV: o do dia de serviços de hoje; senão o próximo; senão jn. */
+/** Local padrão da TV: o do dia de trabalho das senhas (dia de serviços de hoje; outro dia do evento → local do próximo). */
 export function defaultVenue(today) {
-  const d = T.serviceDayOf(today) || T.nextServiceDay(today) || T.serviceDays()[0];
+  const d = T.ticketDay(today || T.now().date);
   return d && D.maps && D.maps[d.venue] ? d.venue : 'jn';
 }
 
@@ -79,7 +81,7 @@ export function defaultVenue(today) {
 export function selectQueues(params, today) {
   const get = (k) => (params && typeof params.get === 'function' ? params.get(k) : params ? params[k] : null) || '';
   const venue = D.venues[get('local')] && D.maps && D.maps[get('local')] ? get('local') : defaultVenue(today);
-  const all = queuesFor(venue); const groups = groupsOf(venue); const unknown = [];
+  const all = queuesFor(venue, today); const groups = groupsOf(venue); const unknown = [];
   const places = new Set(); let group = null;
   for (const g of splitList(get('grupo'))) { const k = norm(g); if (groups[k]) { group = group || { key: k, label: groups[k].label }; groups[k].places.forEach((id) => places.add(id)); } else unknown.push(`grupo ${g}`); }
   for (const s of splitList(get('salas'))) { const id = placeIdOf(venue, s); if (id) places.add(id); else unknown.push(`sala ${s}`); }

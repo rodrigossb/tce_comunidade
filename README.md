@@ -154,6 +154,19 @@ Saúde, Documentos, Proteção à Mulher, Justiça e Direitos e Saúde Animal; �
 `T.ticketQueuesOf(venue)`), três funções por aparelho: **Triagem** (+1 por senha
 entregue ou digitar o total), **Porta da sala** (a chamada já é a entrada na sala: "Chamar a senha N" → a chamada aparece na TV/voz e a pessoa entra; ao terminar, **"Chamar a próxima"** dá a anterior como atendida (tempo de atendimento = intervalo entre as chamadas) e chama a seguinte, numa só gravação (`advance`); a entrada fica registrada no momento da chamada; se a pessoa não veio, "Chamar de novo" reanuncia na TV ou "Não veio" registra a falta e chama a próxima; outro número, desfazer). **Duas séries de senhas por sala** — comuns **N** e prioritárias **P** (idoso, gestante, PcD…), numeradas de forma independente (N 1, N 2… e P 1, P 2…). A triagem define o **padrão de senhas** de cada sala (ou de todas de uma vez): prefixo de cada série, primeiro número, total possível e a **ordem de chamada** (1P:1N, 1P:2N, 1P:3N, 2P:1N ou todas as P primeiro), e lança quantas N e quantas P já entregou (tabela `fila_cfg` + `issued_log.kind`). Senhas já impressas numa sequência única (1-79 comuns, 80-100 prioritárias) cabem no mesmo modelo: comuns começam em 1 (total 79) e prioritárias começam em 80 (total 21). A porta sugere a próxima pela ordem configurada (botão verde grande, com a série e o motivo) e tem dois botões explícitos — **próxima comum** e **próxima prioridade** — para as exceções (duas prioridades seguidas, por exemplo); quando o que a triagem lançou acabou, os botões avisam "além do lançado" mas deixam chamar (a contagem pode estar atrasada). "Outro número" pergunta a série. Um aparelho pode cuidar de **várias salas na mesma tela** ("Adicionar outra sala": um cartão por sala, cada um com a sua fila e os seus botões). Na TV e na voz, a senha leva a letra da série ("N 12", "P 3"; a voz antepõe "Atenção, senha prioritária" nas P) e o cartão da sala mostra última → próxima de cada série e **Painel** (entregues, chamadas, atendidas, faltas, espera estimada, tempo
 médio, senha atual, chamadas por hora). Fila offline no aparelho, reenviada quando a rede volta.
+**Triagem 2.1** (05/11): um **cartão por fila** com a sala em destaque (tipo e número), o nome do atendimento, o serviço e, logo
+abaixo, **o que é oferecido** ali — por padrão o que a programação diz para o dia e o turno (itens com `when`, veja em Dados:
+"Consulta Médica"), itens de outro turno esmaecidos — e os contadores N/P (+1, digitar o total, −1). **Editar** (em cada cartão)
+muda nome do atendimento, tipo/número da sala e o texto do que é oferecido (um item por linha ou separados por ";"); vale para
+a triagem, a porta, a TV e o painel do dia, em todos os aparelhos (tabela `fila_info`, última linha por ambiente; a planta e o
+site público não mudam). As salas fixas editadas vêm na lista `extras` do estado/TV com `override: true` (só atualizam a fila
+existente; nunca criam fila). **Dia de trabalho** (`T.ticketDay`): no dia de serviços do local valem as filas da planta; nos
+outros dias do evento o app, a TV e o painel trabalham com **a data de hoje** e só com as filas criadas na triagem (ex.: Consulta
+Médica em 05 e 06/11 na Joaquim Nabuco), sem misturar com as senhas de 07/11; fora do evento, o próximo/último dia de serviços.
+Contagem de entregues: o aparelho mostra o que digitou até o servidor confirmar aquele envio (sem comparar relógios), e os
+envios saem em fila, na ordem — corrige o caso em que a contagem "voltava" ao valor anterior (a versão anterior guardava a
+contagem local na mesma chave do local do aparelho).
+
 **Novo serviço / sala** (triagem, botão no fim da lista): cria uma fila extra para um atendimento que não estava na planta —
 nome, pilar, tipo (sala/tenda/outro) e número, já com o padrão de senhas (N/P possíveis, ordem) e as já entregues. Fica na
 tabela `filas_extra` (id do ambiente `<local>-x<n>`), vale para o local/dia, e entra na triagem, na porta, na TV (quando a TV não
@@ -214,6 +227,12 @@ LEIA-ME em `apps/senhas/backups/` (mantém 60); `apps/senhas/scripts/backup-cron
 de 03 a 07/11. Restaurar: `pm2 stop tce-senhas`, copiar `senhas.db` para `apps/senhas/data/`, `pm2 start`.
 
 ## Dados
+
+Itens de serviço aceitam `only: 'AAAA-MM-DD'` (só naquele dia de serviços) e `when: { 'AAAA-MM-DD': true | ['manha', 'tarde'] }`
+(dias e turnos em que acontecem; `T.itemsOn(s, data, turno)`, `T.itemWhenLabel(it)` → "qui 05/11 à tarde · sex 06/11 manhã e
+tarde"). O serviço **Consulta Médica** (`consulta`, 05 a 07/11 na Joaquim Nabuco, `days`) usa isso: ginecologia, psiquiatria e
+urologia (qui à tarde), ginecologia, pediatria, cardiologia, urologia e exames (sex de manhã; sem exames à tarde), clínico geral
+(sáb) e psicologia todos os dias. Ele entra em `D.senhas.services`; a sala é criada na triagem no dia ("Novo serviço / sala").
 `packages/core/src/data.js` é a fonte única (evento, locais, cursos com sessões, serviços por pilar), transcrita de
 `Tabela com links COM AJUSTES FINAIS LEON.pdf` ("Programação por Curso", versão de 29/10/2026, que
 substituiu o `.docx` anterior) e `SERVIÇOS DO TCE NA COMUNIDADE 1.pdf`.

@@ -36,7 +36,8 @@ test('destaques: primeira/última chamada, pico, sala mais movimentada', () => {
 });
 test('dia padrão: hoje se for dia de serviços; senão o último passado; senão o próximo', () => {
   assert.equal(defaultDay('2026-11-04').date, '2026-11-04');
-  assert.equal(defaultDay('2026-11-05').date, '2026-11-04');
+  assert.equal(defaultDay('2026-11-05').date, '2026-11-05'); assert.equal(defaultDay('2026-11-05').venue, 'jn');
+  assert.equal(defaultDay('2026-11-05', 'manga').venue, 'manga'); assert.equal(defaultDay('2026-11-20', 'manga').date, '2026-11-04');
   assert.equal(defaultDay('2026-11-01').date, '2026-11-04');
   assert.equal(defaultDay('2026-11-20').date, '2026-11-07');
 });

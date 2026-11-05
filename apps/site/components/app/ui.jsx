@@ -65,11 +65,12 @@ export function StateBadge({ s, c }) {
   return null;
 }
 export function OnlyLabel({ it }) {
-  const o = T.itemOnly(it); if (!o) return null; const d = T.serviceDayOf(o);
-  return <em className="only">{I('calendar')}só {T.fmtDate(o, 'wdm')} · {d ? d.place : ''}</em>;
+  const o = T.itemOnly(it); const w = T.itemWhenLabel(it);
+  if (o) { const d = T.serviceDayOf(o); return <em className="only">{I('calendar')}só {T.fmtDate(o, 'wdm')} · {d ? d.place : ''}</em>; }
+  return w ? <em className="only">{I('calendar')}{w}</em> : null;
 }
 export function ItemLi({ it, date, tags }) {
-  const o = T.itemOnly(it); const off = date && o && o !== date;
+  const o = T.itemOnly(it); const sh = date ? T.itemShifts(it, date) : null; const off = date && ((o && o !== date) || (sh && !sh.length));
   return <li className={off ? 'off' : ''}><i></i><span>{T.itemText(it)}<OnlyLabel it={it} />{tags}</span></li>;
 }
 export function SvcDayCard({ d, on, onClick, sub }) {

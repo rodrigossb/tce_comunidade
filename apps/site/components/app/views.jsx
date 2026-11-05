@@ -148,7 +148,7 @@ function PlaceOfferings({ placeId }) {
       {o.services.length ? <p className="dest-when">{I('handshake')}<span>Serviços gratuitos{o.day ? <> · <b>{T.fmtDate(o.day.date, 'wdlong')}</b></> : null} · sem inscrição, por ordem de chegada</span></p> : null}
       {o.services.map(({ service: s, items, specific }) => (
         <div key={s.id} className="offer" style={{ '--c': s.color }}>
-          <button className="offer-head" onClick={() => openSheet('servico', s.id)} aria-label={`${s.title}: ver o serviço completo`}><span className="sec-ico c">{I(s.icon)}</span><span><b>{s.title}</b><small>{s.num ? `Pilar ${s.num}` : 'Acolhida'} · {s.partners.join(', ')}</small></span>{I('right')}</button>
+          <button className="offer-head" onClick={() => openSheet('servico', s.id)} aria-label={`${s.title}: ver o serviço completo`}><span className="sec-ico c">{I(s.icon)}</span><span><b>{s.title}</b><small>{s.num ? `Pilar ${s.num}` : s.kicker || 'Acolhida'} · {s.partners.join(', ')}</small></span>{I('right')}</button>
           {specific ? <ul className="ul">{items.map((it, k) => <ItemLi key={k} it={it} />)}</ul> : <p className="offer-sum">{s.summary}</p>}
         </div>
       ))}

@@ -28,8 +28,9 @@ export function hourByService(calls) {
   return by;
 }
 
-const nameOf = (pid, extras) => { const p = T.placeInfo(pid) || (extras || []).find((e) => e.id === pid); return p ? p.name : pid; };
-const roomOf = (pid, extras) => { const p = T.placeInfo(pid) || (extras || []).find((e) => e.id === pid); return p ? (p.num ? `${p.kind === 'sala' ? 'Sala' : p.kind === 'tenda' ? 'Tenda' : 'Ambiente'} ${p.num}` : p.kind) : ''; };
+const infoOf = (pid, extras) => (extras || []).find((e) => e.id === pid) || T.placeInfo(pid); // o que a triagem editou/criou vence a planta
+const nameOf = (pid, extras) => { const p = infoOf(pid, extras); return p ? p.name : pid; };
+const roomOf = (pid, extras) => { const p = infoOf(pid, extras); return p ? (p.num ? `${p.kind === 'sala' ? 'Sala' : p.kind === 'tenda' ? 'Tenda' : 'Ambiente'} ${p.num}` : p.kind) : ''; };
 const svcOf = (sid) => D.services.find((s) => s.id === sid) || { id: sid, short: sid, title: sid, color: '#94a3b8', icon: 'ticket' };
 
 /** Linhas do ranking de salas/especialidades, com serviço, nome e sala. */
@@ -60,11 +61,12 @@ export function highlights(stats, calls) {
   return { first, last, peak: peak && peak.called ? peak : null, busiest, fastest, slowest, topService, mostAbsent, spanMin, perHour, activeRooms: rows.filter((r) => r.called > 0).length, rooms: rows.length };
 }
 
-/** Dia mostrado por padrão: dia de serviços de hoje; senão o último já ocorrido; senão o próximo. */
-export function defaultDay(today) {
-  const days = T.serviceDays(); const td = days.find((d) => d.date === today); if (td) return td;
-  const past = days.filter((d) => d.date < today); if (past.length) return past[past.length - 1];
-  return days[0];
+/** Dia mostrado por padrão: o dia de trabalho das senhas (dia de serviços de hoje; outro dia do evento → hoje; depois do
+    evento → o último dia de serviços; antes → o primeiro). `venue` força o local. */
+export function defaultDay(today, venue) {
+  const days = T.serviceDays();
+  if (today > days[days.length - 1].date) { const past = days.filter((d) => !venue || d.venue === venue); return past[past.length - 1] || days[days.length - 1]; }
+  return T.ticketDay(today, venue) || days[0];
 }
 
 /** Caminho SVG de um arco de donut (ângulos em graus, 0 = topo, sentido horário). */

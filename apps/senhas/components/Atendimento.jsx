@@ -7,15 +7,18 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { TCE as T } from '@tce/core';
 import { whyLabel, PATTERNS, DEFAULT_CFG, normalizeCfg, ticketLabel } from '@tce/core/fila';
 import { placeLabel } from '@tce/core/map';
-import { mergeExtras, withoutDisabled, placeOf } from '@/lib/filas-extra';
+import { mergeExtras, withoutDisabled, placeOf, fixedQueues } from '@/lib/filas-extra';
 import Icon from './Icon';
 import * as A from '@/app/actions';
 
 const D = T.D;
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const LS = 'tce_at';
-const VER = '2.0';
-const ACTIONS = { setIssued: A.setIssued, setQueueConfig: A.setQueueConfig, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall, advance: A.advance, addExtraQueue: A.addExtraQueue, removeExtraQueue: A.removeExtraQueue, setQueueEnabled: A.setQueueEnabled, setCursor: A.setCursor };
+const VER = '2.1';
+const KIND_LABEL = { sala: 'Sala', tenda: 'Tenda', area: 'Ambiente' };
+/** Texto livre da triagem ("o que é oferecido") → itens: uma linha ou ponto e vírgula por item. */
+const splitOffer = (txt) => String(txt || '').split(/\n|;/).map((x) => x.trim()).filter(Boolean);
+const ACTIONS = { setIssued: A.setIssued, setQueueConfig: A.setQueueConfig, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall, advance: A.advance, addExtraQueue: A.addExtraQueue, removeExtraQueue: A.removeExtraQueue, setQueueEnabled: A.setQueueEnabled, setCursor: A.setCursor, setQueueInfo: A.setQueueInfo };
 const EXTRA_BLANK = { service_id: '', name: '', kind: 'sala', num: '', n_total: String(DEFAULT_CFG.n_total), p_total: String(DEFAULT_CFG.p_total), pattern: DEFAULT_CFG.pattern, issued_n: '', issued_p: '' };
 const CFG_KEYS = ['n_prefix', 'p_prefix', 'n_from', 'p_from', 'n_total', 'p_total', 'pattern'];
 const cfgForm = (cfg) => { const o = {}; for (const k of CFG_KEYS) o[k] = String((cfg || DEFAULT_CFG)[k] ?? ''); return o; };
@@ -40,6 +43,8 @@ export default function Atendimento() {
   const [numVal, setNumVal] = useState('');
   const [busy, setBusy] = useState(false); // evita toque duplo nos botões de chamada
   const toastT = useRef(null); const issuedT = useRef({}); const numInput = useRef(null);
+  const [infoOpen, setInfoOpen] = useState(null); // triagem: edição de nome/sala/oferta { place_id, service_id, form: { name, kind, num, offer } }
+  const issuedChain = useRef(Promise.resolve()); // envios de "entregues" em fila, na ordem
   const [cfgOpen, setCfgOpen] = useState(null); // triagem: formulário de configuração aberto { place_id, service_id, form } ou { all: true, form }
   const [extraForm, setExtraForm] = useState(null); // triagem: formulário de novo serviço/sala (null = fechado)
   const [adjust, setAdjust] = useState(null); // porta: formulário "ajustar número atual" { place_id, normal, prio } (null = fechado)
@@ -53,6 +58,11 @@ export default function Atendimento() {
     delete s.pin; // o PIN agora fica num cookie httpOnly
     if (!Array.isArray(s.rooms)) s.rooms = s.place && s.service ? [{ id: s.place, service_id: s.service }] : []; // versões antigas: uma sala só
     delete s.place; delete s.service;
+    // Versões antigas guardavam a contagem local em `local` (que também era o local do aparelho) — era a causa de a contagem "voltar".
+    if (s.local && typeof s.local !== 'string') { const d = T.serviceDays().find((x) => x.date === s.day); s.local = d ? d.venue : null; }
+    if (s.local && !(D.maps && D.maps[s.local])) s.local = null;
+    if (!s.mem || typeof s.mem !== 'object') s.mem = {};
+    delete s.day;
     save(LS, s); setStRaw(s); setClock(T.now());
     const out = load(LS + '_out', []); setPending(out.length); if (out.length) setSync('off');
     if (s.role) A.whoami().then((r) => { if (r && r.status === 401) setSt({ role: null, msg: 'PIN recusado. Entre de novo.' }); }).catch(() => { /* sem rede: mantém */ });
@@ -60,11 +70,12 @@ export default function Atendimento() {
   useEffect(() => { const id = setInterval(() => { const c = T.now(); setClock((p) => (p && p.time === c.time && p.date === c.date ? p : c)); }, 1000); return () => clearInterval(id); }, []);
 
   // ---------- dia e local ----------
-  const dayDefault = (c) => (T.serviceDayOf(c.date) || T.nextServiceDay(c.date) || T.serviceDays()[T.serviceDays().length - 1]);
-  const ctxOf = (s, c) => { const d = T.serviceDays().find((x) => x.date === s.day) || dayDefault(c || T.now()); return { day: d.date, venue: d.venue, place: d.place }; };
+  // Dia de trabalho (T.ticketDay): dia de serviços de hoje → ele; outro dia do evento → hoje, só com as filas criadas na
+  // triagem; fora do evento → o próximo/último dia de serviços. O local é o escolhido no aparelho (st.local).
+  const ctxOf = (s) => { const d = T.ticketDay(T.now().date, s && s.local && D.maps && D.maps[s.local] ? s.local : null) || T.serviceDays()[0]; return { day: d.date, venue: d.venue, place: d.place, placeLong: d.placeLong || d.place, service_day: d.service_day !== false }; };
   const svc = (id) => T.serviceById(id);
   const placeName = (id) => { const p = placeOf(id, extrasRef.current); return p ? (p.kind === 'area' && !p.num ? p.name : `${placeLabel(p)} · ${p.name}`) : id; };
-  const allQueues = () => mergeExtras(T.ticketQueuesOf(ctxOf(stRef.current).venue), extrasRef.current); // filas fixas (D.senhas) + extras criadas na triagem
+  const allQueues = () => { const c = ctxOf(stRef.current); return mergeExtras(fixedQueues(c.venue, c.day), extrasRef.current); }; // filas fixas da planta (só no dia de serviços do local) + extras criadas na triagem
   const queues = () => withoutDisabled(allQueues(), disabledRef.current); // só as ativas (as desativadas somem da triagem, da porta e da TV)
   const disabledQueues = () => { const off = new Set(disabledRef.current); const out = []; for (const g of allQueues()) for (const p of g.places) if (off.has(p.id)) out.push(Object.assign({ svc: g.service }, p)); return out; };
   const queueById = (id) => { for (const g of queues()) for (const p of g.places) if (p.id === id) return Object.assign({ svc: g.service }, p); return null; };
@@ -101,8 +112,8 @@ export default function Atendimento() {
   // ---------- tela atual e atualização periódica ----------
   // Primeiro passo depois do PIN: em que local o aparelho está (cada local tem o seu dia de serviços).
   const rooms = (st && st.rooms) || [];
-  const screen = !st ? 'loading' : !st.role ? 'pin' : !st.local ? 'local' : !st.mode ? 'role' : st.mode === 'triagem' ? 'triagem' : st.mode === 'painel' ? 'painel' : (!rooms.length || adding) ? 'porta-setup' : 'porta';
-  const pollKey = st ? `${screen}|${st.day}|${rooms.map((r) => r.id).join(',')}` : '';
+  const screen = !st ? 'loading' : !st.role ? 'pin' : !st.local || !(D.maps && D.maps[st.local]) ? 'local' : !st.mode ? 'role' : st.mode === 'triagem' ? 'triagem' : st.mode === 'painel' ? 'painel' : (!rooms.length || adding) ? 'porta-setup' : 'porta';
+  const pollKey = st ? `${screen}|${ctxOf(st).day}|${st.local}|${rooms.map((r) => r.id).join(',')}` : '';
   useEffect(() => {
     // porta-setup (lista de salas) também: as filas criadas/desativadas na triagem vêm com o estado do servidor.
     if (!['triagem', 'painel', 'porta', 'porta-setup'].includes(screen)) return undefined;
@@ -124,14 +135,21 @@ export default function Atendimento() {
     if (k === 'clear') b = b.slice(0, -1); else if (k === 'ok') { login(pinBuf); return; } else if (b.length < 6) b += k;
     setPinBuf(b); if (b.length === 6) login(b);
   }
-  // Entregues por sala e série ('n' | 'p'): o aparelho mostra o que acabou de digitar até o servidor confirmar.
+  // Entregues por sala e série ('n' | 'p'). O que o aparelho digitou (st.mem) vale enquanto o envio não foi confirmado
+  // (pending) e até o servidor refletir aquele envio (srv = ts devolvido); depois vale o servidor (outro aparelho pode
+  // ter lançado). Nunca compara relógio do aparelho com o do servidor.
   const issuedOf = (pid) => ((data && data.issued) || []).find((x) => x.place_id === pid) || null;
-  const cnt = (pid, kind) => { const c = ctxOf(st); const l = st.local && st.local[`${c.day}|${pid}|${kind}`]; const r = issuedOf(pid); return l != null && (!r || l.ts >= r.ts) ? l.count : r ? r[kind] || 0 : 0; };
+  const cnt = (pid, kind) => { const c = ctxOf(st); const l = st.mem && st.mem[`${c.day}|${pid}|${kind}`]; const r = issuedOf(pid); if (l && (l.pending || !r || (l.srv && r.ts < l.srv))) return l.count; return r ? r[kind] || 0 : 0; };
   function setIssued(id, sid, kind, count) {
-    const c = ctxOf(st); count = Math.max(0, Math.min(100000, count)); const device = st.device; const key = `${id}|${kind}`;
-    setSt((prev) => ({ local: Object.assign({}, prev.local, { [`${c.day}|${id}|${kind}`]: { count, ts: Date.now() } }) }));
+    const c = ctxOf(st); count = Math.max(0, Math.min(100000, count)); const device = st.device; const key = `${c.day}|${id}|${kind}`;
+    setSt((prev) => ({ mem: Object.assign({}, prev.mem, { [key]: { count, pending: true } }) }));
     clearTimeout(issuedT.current[key]);
-    issuedT.current[key] = setTimeout(() => run(async () => { await post('setIssued', { day: c.day, venue: c.venue, service_id: sid, place_id: id, kind, count, device }); await refresh(); }), 700);
+    // Envios em fila, um por vez e na ordem: dois toques seguidos nunca chegam trocados ao servidor.
+    issuedT.current[key] = setTimeout(() => { issuedChain.current = issuedChain.current.then(() => run(async () => {
+      const r = await post('setIssued', { day: c.day, venue: c.venue, service_id: sid, place_id: id, kind, count, device });
+      setSt((prev) => { const cur = prev.mem && prev.mem[key]; if (!cur || cur.count !== count) return {}; return { mem: Object.assign({}, prev.mem, { [key]: r ? { count, pending: false, srv: r.ts } : cur }) }; });
+      await refresh();
+    })); }, 500);
   }
   // Configuração da fila (séries N/P e ordem de chamada): a última gravada no servidor, senão a padrão.
   const cfgOf = (pid, sid) => { const r = ((data && data.configs) || []).find((x) => x.place_id === pid && x.service_id === sid); return r || DEFAULT_CFG; };
@@ -144,6 +162,14 @@ export default function Atendimento() {
     run(async () => { const r = await post('setQueueConfig', Object.assign({ day: c.day, venue: c.venue, service_id: o.service_id, place_id: o.place_id, all: !!o.all, device: st.device }, cfg)); if (r) { toast(o.all ? `Configuração aplicada a ${r.count} salas` : `${o.name}: configuração gravada`); setCfgOpen(null); } await refresh(); });
   }
   const cfgSummary = (cfg) => `${cfg.n_prefix || '#'} ${cfg.n_from}–${cfg.n_from + cfg.n_total - 1}${cfg.p_total ? ` · ${cfg.p_prefix || '#'} ${cfg.p_from}–${cfg.p_from + cfg.p_total - 1}` : ' · sem prioritárias'} · ${PATTERNS.find((x) => x.id === cfg.pattern)?.short || cfg.pattern}`;
+  // Triagem edita uma fila (fixa ou extra): nome do atendimento, tipo/número da sala e o que é oferecido (texto livre; em
+  // branco vale o que está na programação para o dia). Fica no servidor: vale para triagem, porta, TV e painel.
+  const openInfo = (p, sid) => setInfoOpen(infoOpen && infoOpen.place_id === p.id ? null : { place_id: p.id, service_id: sid, form: { name: p.name || '', kind: p.kind || 'sala', num: p.num || '', offer: p.offer || '' } });
+  function saveInfo() {
+    const o = infoOpen; if (!o) return; const c = ctxOf(st); const f = o.form;
+    if (f.name.trim().length < 2) { toast('Informe o nome do atendimento', 'alert'); return; }
+    run(async () => { const r = await post('setQueueInfo', { day: c.day, venue: c.venue, service_id: o.service_id, place_id: o.place_id, name: f.name.trim(), kind: f.kind, num: f.num.trim(), offer: f.offer.trim(), device: st.device }); if (r) { toast(`${r.name}: alterado`); setInfoOpen(null); } await refresh(); });
+  }
   // Novo serviço/sala na triagem (fila extra): nome, pilar, tipo e número; já nasce com o padrão de senhas e prioritárias.
   function saveExtra() {
     const f = extraForm; if (!f) return; const c = ctxOf(st);
@@ -174,9 +200,8 @@ export default function Atendimento() {
   const act = {
     home: () => setSt({ mode: null }),
     logout: () => { run(async () => { await A.logout(); }); setSt({ role: null, local: null, mode: null, rooms: [] }); setPinBuf(''); },
-    day: (day) => { const d = T.serviceDays().find((x) => x.date === day); setSt({ day, local: d ? d.venue : null }); setData(null); setQmap({}); },
-    // Local do aparelho = dia de serviços daquele local; escolher outro zera as salas (são de outro local).
-    local: (venue) => { const d = T.serviceDays().find((x) => x.venue === venue); if (!d) return; setSt({ local: venue, day: d.date, mode: null, rooms: [] }); setData(null); setQmap({}); },
+    // Local do aparelho (o dia é o de trabalho, T.ticketDay); escolher outro zera as salas (são de outro local).
+    local: (venue) => { if (!(D.maps && D.maps[venue])) return; setSt({ local: venue, mode: null, rooms: [] }); setData(null); setQmap({}); },
     localClear: () => setSt({ local: null, mode: null, rooms: [] }),
     mode: (mode) => { setAdding(false); setSt({ mode }); },
     placeClear: () => { setAdding(false); setSt({ rooms: [] }); setQmap({}); },
@@ -203,7 +228,6 @@ export default function Atendimento() {
       <span className={`sync ${sync}`} title="Sincronização"><i></i>{sync === 'ok' ? 'sincronizado' : sync === 'off' ? `${pending} pendente${pending > 1 ? 's' : ''}` : 'erro'}</span>
     </div>
   );
-  const dayChips = (c) => T.serviceDays().map((d) => <button key={d.date} className={`chip ${d.date === c.day ? 'on' : ''}`} onClick={() => act.day(d.date)}>{I('calendar')}{T.fmtDate(d.date, 'wd')} · {d.place}</button>);
 
   function viewPin() {
     return (
@@ -226,10 +250,10 @@ export default function Atendimento() {
       <>
         {top(`Olá, ${st.role === 'gestor' ? 'gestão' : 'equipe'}`, 'Em que local você está?')}
         <h2 style={{ margin: '.8em 0 .2em' }}>Escolha o local</h2>
-        <p className="page-lead">Tudo o que você lançar (senhas entregues e chamadas) vale para o local e o dia de serviços escolhidos aqui.</p>
+        <p className="page-lead">Tudo o que você lançar (senhas entregues e chamadas) vale para o local escolhido aqui, no dia de hoje.</p>
         <div className="roles">
-          {T.serviceDays().map((d) => { const v = D.venues[d.venue]; const today = clock && d.date === clock.date; return (
-            <button key={d.date} className="role" style={{ '--c': today ? '#16a34a' : '#1f3b9a' }} data-act="local" data-id={d.venue} onClick={() => act.local(d.venue)}><i>{I('pin')}</i><span><b>{v ? v.name : d.place}</b><small>{d.placeLong && d.placeLong !== d.place ? `${d.placeLong} · ` : ''}{T.fmtDate(d.date, 'wdlong')}{today ? ' · hoje' : ''}</small></span>{I('right')}</button>
+          {Object.keys(D.maps || {}).map((venue) => { const v = D.venues[venue]; const sd = T.serviceDays().find((d) => d.venue === venue); const td = T.ticketDay(clock ? clock.date : T.now().date, venue); const today = !!(clock && td && td.date === clock.date); return (
+            <button key={venue} className="role" style={{ '--c': today ? '#16a34a' : '#1f3b9a' }} data-act="local" data-id={venue} onClick={() => act.local(venue)}><i>{I('pin')}</i><span><b>{v ? v.name : venue}</b><small>{today ? (td.service_day ? `Hoje · dia de serviços gratuitos` : `Hoje · filas criadas na triagem${sd ? ` (serviços gratuitos ${T.fmtDate(sd.date, 'wd')})` : ''}`) : sd ? `Serviços gratuitos · ${T.fmtDate(sd.date, 'wdlong')}` : ''}</small></span>{I('right')}</button>
           ); })}
         </div>
         <p className="tiny muted">Aparelho {st.device} · <button className="link" data-act="logout" onClick={act.logout}>sair</button></p>
@@ -272,65 +296,85 @@ export default function Atendimento() {
     );
   }
   function viewTriagem() {
-    const c = ctxOf(st);
+    const c = ctxOf(st); const nowShift = T.shiftOf((clock || T.now()).time);
     const statOf = (sid, pid) => { const s = data && data.stats.services.find((x) => x.service_id === sid); return s ? s.places.find((p) => p.place_id === pid) : null; };
-    // Contador de uma série: − / total digitado / +1, com "de N" (total possível) ao lado.
+    // Contador de uma série: letra · −1 · total (toque para digitar) · +1 · "de N".
     const counter = (p, sid, kind, cfg) => { const n = cnt(p.id, kind); const total = cfg[`${kind}_total`]; const pre = cfg[`${kind}_prefix`] || (kind === 'p' ? 'P' : 'N'); const over = total && n > total; return (
       <div className={`tri-cnt ${kind}`} data-kind={kind}>
-        <span className="tri-cnt-k">{kind === 'p' ? I('star') : null}{pre}<small>{kind === 'p' ? 'prioritárias' : 'comuns'}</small></span>
+        <span className="tri-cnt-k">{kind === 'p' ? I('star') : null}{pre}<small>{kind === 'p' ? 'priorit.' : 'comuns'}</small></span>
         <button className="minus" data-id={p.id} aria-label="Menos uma" onClick={() => setIssued(p.id, sid, kind, n - 1)}>{I('x')}</button>
-        <button className="cnt" data-id={p.id} aria-label="Digitar o total entregue" onClick={() => askNumber(`${p.name}: ${pre} entregues`, n, (v) => setIssued(p.id, sid, kind, v))}><b>{n}</b><small>{I('sliders')}digitar</small></button>
+        <button className="cnt" data-id={p.id} aria-label="Digitar o total entregue" onClick={() => askNumber(`${p.name}: ${pre} entregues`, n, (v) => setIssued(p.id, sid, kind, v))}><b>{n}</b><small>digitar</small></button>
         <button className="plus" data-id={p.id} onClick={() => setIssued(p.id, sid, kind, n + 1)}>+1</button>
-        <span className={`tri-cnt-of ${over ? 'over' : ''}`}>{total ? `de ${total}` : 'sem limite'}{over ? ' · acima do total' : ''}</span>
+        <span className={`tri-cnt-of ${over ? 'over' : ''}`}>{total ? `de ${total}` : 'sem limite'}{over ? ' · acima' : ''}</span>
       </div>
     ); };
+    // O que é oferecido na fila: texto da triagem (p.offer) ou, sem ele, a programação do dia (itens com dia/turno).
+    const offerOf = (p, service) => (p.offer ? splitOffer(p.offer).map((text) => ({ text, shifts: null })) : T.offerOn(service, c.day, p.id, c.venue));
+    const shiftsText = (sh) => sh.map((k) => (T.SHIFTS[k] ? T.SHIFTS[k].short.toLowerCase() : k)).join(' e ');
+    const infoFormView = (o, p) => { const f = o.form; const set = (k, v) => setInfoOpen((x) => Object.assign({}, x, { form: Object.assign({}, x.form, { [k]: v }) })); const service = svc(o.service_id); return (
+      <form className="tri-new-form tri-info" onSubmit={(e) => { e.preventDefault(); saveInfo(); }}>
+        <h3 className="tri-h" style={{ '--c': '#1f3b9a' }}>{I('sliders')}Editar · {p.name}</h3>
+        <label>Nome do atendimento<input type="text" value={f.name} autoComplete="off" maxLength={60} onFocus={(e) => e.target.select()} onChange={(e) => set('name', e.target.value)} /></label>
+        <div className="row2">
+          <label>Tipo<select value={f.kind} onChange={(e) => set('kind', e.target.value)}><option value="sala">Sala</option><option value="tenda">Tenda</option><option value="area">Outro ambiente</option></select></label>
+          <label>Número / identificação<input type="text" value={f.num} autoComplete="off" placeholder="ex.: 19 ou A" maxLength={8} onChange={(e) => set('num', e.target.value)} /></label>
+        </div>
+        <label>O que é oferecido<textarea rows={3} value={f.offer} maxLength={400} placeholder={service ? T.offerOn(service, c.day, p.id, c.venue).map((x) => x.text).join('; ') || 'ex.: Ginecologia; Urologia; Psicologia' : ''} onChange={(e) => set('offer', e.target.value)} /></label>
+        <p className="tiny muted">Um item por linha (ou separados por ponto e vírgula). Em branco, vale o que está na programação para hoje. Vale para a triagem, a porta, a TV e o painel de hoje; a planta e o site não mudam.</p>
+        <div className="actions"><button type="button" className="btn btn-ghost" onClick={() => setInfoOpen(null)}>Cancelar</button><button type="submit" className="btn btn-primary" data-act="info-save">{I('check')}Gravar</button></div>
+      </form>
+    ); };
+    const qs = queues(); const off = disabledQueues();
+    const newForm = () => setExtraForm(Object.assign({}, EXTRA_BLANK, { service_id: (qs[0] || { service: { id: '' } }).service.id }));
+    const serviceOptions = D.services.filter((x) => (D.senhas && D.senhas.services ? D.senhas.services.includes(x.id) : true));
     return (
       <>
-        {top('Triagem · senhas', `${c.place} · ${T.fmtDate(c.day, 'wdlong')}`, act.home)}
-        <p className="page-lead">Uma fila por sala/instituição, com duas séries: <b>comuns (N)</b> e <b>prioritárias (P)</b>. Toque em <b>+1</b> a cada senha entregue; para lançar de uma vez, toque no número e <b>digite o total já entregue</b>. Em <b>padrão</b> você define a letra, o primeiro número, o total possível e a ordem de chamada.</p>
-        <div className="tri-all">
-          <button type="button" className="btn btn-ghost" data-act="cfg-all" onClick={openCfgAll}>{I('sliders')}Padrão de senhas para todas as salas</button>
-          {cfgOpen && cfgOpen.all ? cfgFormView(cfgOpen) : null}
-        </div>
-        {queues().map((g) => (
+        {top('Triagem · senhas', `${c.place} · ${T.fmtDate(c.day, 'wdlong')}${c.service_day ? '' : ' · filas criadas aqui'}`, act.home)}
+        <p className="page-lead">Toque em <b>+1</b> a cada senha entregue. Toque no número para <b>digitar o total</b>. Em <b>editar</b> você muda nome, sala e o que é oferecido; em <b>padrão</b>, a numeração e a ordem de chamada.</p>
+        {qs.map((g) => (
           <div key={g.service.id}>
             <h3 className="tri-h" style={{ '--c': g.service.color }}>{I(g.service.icon)}{g.service.title}</h3>
             <div className="tri">
-              {g.places.map((p) => { const stt = statOf(g.service.id, p.id); const cfg = cfgOf(p.id, g.service.id); const open = cfgOpen && cfgOpen.place_id === p.id; return (
-                <div key={p.id} className="tri-row tri-row2" style={{ '--c': g.service.color }}>
-                  <span className="ic">{I(p.kind === 'tenda' ? 'tent' : 'door')}</span>
-                  <span className="nm"><b>{p.name}</b><small>{placeLabel(p)}{stt ? ` · ${stt.called} chamada${stt.called === 1 ? '' : 's'} · ${stt.served} atendida${stt.served === 1 ? '' : 's'}` : ''}{p.extra ? <> · criado na triagem · <button type="button" className="link rm" data-act="extra-rm" onClick={() => removeExtra(p)}>remover</button></> : null} · <button type="button" className="link off" data-act="queue-off" data-id={p.id} onClick={() => { if (confirm(`Desativar "${p.name}" hoje? Some da porta da sala e da TV até ser reativado aqui.`)) setEnabled(p, g.service.id, false); }}>desativar</button></small></span>
-                  <button type="button" className={`tri-cfg-btn ${open ? 'on' : ''}`} data-act="cfg" data-id={p.id} onClick={() => openCfg(p, g.service.id)} title="Padrão de senhas desta sala">{I('sliders')}<span>padrão</span><small>{cfgSummary(cfg)}</small></button>
+              {g.places.map((p) => { const stt = statOf(g.service.id, p.id); const cfg = cfgOf(p.id, g.service.id); const openCfgHere = cfgOpen && cfgOpen.place_id === p.id; const openInfoHere = infoOpen && infoOpen.place_id === p.id; const offer = offerOf(p, g.service); return (
+                <div key={p.id} className={`tri-card ${p.extra ? 'extra' : ''}`} style={{ '--c': g.service.color }} data-id={p.id}>
+                  <div className="tri-head">
+                    <span className={`tri-room ${p.kind}`}>{p.num ? <><small>{KIND_LABEL[p.kind] || 'Ambiente'}</small><b>{p.num}</b></> : <>{I(p.kind === 'tenda' ? 'tent' : 'door')}<small>{KIND_LABEL[p.kind] || 'Ambiente'}</small></>}</span>
+                    <span className="tri-title"><b>{p.name}</b><small>{[g.service.title !== p.name && g.service.short !== p.name ? g.service.title : '', stt && (stt.called || stt.served) ? `${stt.called} chamada${stt.called === 1 ? '' : 's'} · ${stt.served} atendida${stt.served === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || (p.extra ? 'criado na triagem' : 'sala da planta')}</small></span>
+                    <button type="button" className={`tri-edit ${openInfoHere ? 'on' : ''}`} data-act="info" data-id={p.id} onClick={() => { setCfgOpen(null); openInfo(p, g.service.id); }}>{I('sliders')}<span>editar</span></button>
+                  </div>
+                  {offer.length ? <ul className="tri-offer" aria-label="O que é oferecido">{offer.map((o, k) => { const now = !o.shifts || o.shifts.includes(nowShift); return <li key={k} className={now ? '' : 'later'}><span>{o.text}</span>{o.shifts ? <em>{shiftsText(o.shifts)}</em> : null}</li>; })}</ul>
+                    : <p className="tri-offer-empty">Sem descrição do que é oferecido · <button type="button" className="link" onClick={() => openInfo(p, g.service.id)}>descrever</button></p>}
+                  {openInfoHere ? infoFormView(infoOpen, p) : null}
                   {counter(p, g.service.id, 'n', cfg)}
                   {cfg.p_total || cnt(p.id, 'p') ? counter(p, g.service.id, 'p', cfg) : null}
-                  {open ? <div className="tri-cfg-wrap">{cfgFormView(cfgOpen)}</div> : null}
+                  <div className="tri-foot">
+                    <button type="button" className={`tri-cfg-btn ${openCfgHere ? 'on' : ''}`} data-act="cfg" data-id={p.id} onClick={() => { setInfoOpen(null); openCfg(p, g.service.id); }} title="Padrão de senhas desta sala">{I('ticket')}<span>padrão</span><small>{cfgSummary(cfg)}</small></button>
+                    <span className="tri-links">
+                      <button type="button" className="link off" data-act="queue-off" data-id={p.id} onClick={() => { if (confirm(`Desativar "${p.name}" hoje? Some da porta da sala e da TV até ser reativado aqui.`)) setEnabled(p, g.service.id, false); }}>desativar</button>
+                      {p.extra ? <button type="button" className="link rm" data-act="extra-rm" onClick={() => removeExtra(p)}>remover</button> : null}
+                    </span>
+                  </div>
+                  {openCfgHere ? <div className="tri-cfg-wrap">{cfgFormView(cfgOpen)}</div> : null}
                 </div>
               ); })}
             </div>
           </div>
         ))}
-        {disabledQueues().length ? (
-          <div className="tri-off">
-            <h3 className="tri-h" style={{ '--c': '#64748b' }}>{I('x')}Desativados hoje ({disabledQueues().length})</h3>
-            <p className="tiny muted">Não aparecem na porta da sala nem na TV. Toque em reativar para voltar.</p>
-            <div className="tri">{disabledQueues().map((p) => (
-              <div key={p.id} className="tri-row off" style={{ '--c': '#94a3b8' }}>
-                <span className="ic">{I(p.kind === 'tenda' ? 'tent' : 'door')}</span>
-                <span className="nm"><b>{p.name}</b><small>{placeLabel(p)} · {p.svc.short}</small></span>
-                <button type="button" className="btn btn-primary sm" data-act="queue-on" data-id={p.id} onClick={() => setEnabled(p, p.svc.id, true)}>{I('check')}Reativar</button>
-              </div>
-            ))}</div>
+        {!qs.length ? (
+          <div className="tri-empty">
+            <span className="ic">{I('ticket')}</span>
+            <b>Nenhuma fila {c.service_day ? 'ativa' : 'criada'} hoje em {c.place}.</b>
+            <small>{c.service_day ? 'As filas da planta estão desativadas (veja abaixo) ou ainda não há salas.' : 'Hoje não é dia de serviços gratuitos neste local: crie a fila do atendimento que vai distribuir senha (ex.: Consulta Médica).'}</small>
+            {!extraForm ? <button type="button" className="btn btn-primary" data-act="extra-new" onClick={newForm}>{I('calendarplus')}Criar serviço / sala</button> : null}
           </div>
         ) : null}
         <div className="tri-new">
-          {!extraForm ? (
-            <button type="button" className="btn btn-ghost" data-act="extra-new" onClick={() => setExtraForm(Object.assign({}, EXTRA_BLANK, { service_id: (queues()[0] || { service: { id: '' } }).service.id }))}>{I('calendarplus')}Novo serviço / sala</button>
-          ) : (
+          {!extraForm ? (qs.length ? <button type="button" className="btn btn-ghost" data-act="extra-new" onClick={newForm}>{I('calendarplus')}Novo serviço / sala</button> : null) : (
             <form className="tri-new-form" onSubmit={(e) => { e.preventDefault(); saveExtra(); }}>
               <h3 className="tri-h" style={{ '--c': '#1f3b9a' }}>{I('calendarplus')}Novo serviço / sala</h3>
-              <p className="tiny muted">Para um atendimento que não estava na planta. Ele entra na triagem, na porta da sala e na TV deste local, hoje.</p>
-              <label>Atendimento<input type="text" value={extraForm.name} autoComplete="off" placeholder="ex.: Fisioterapia" maxLength={60} onChange={(e) => setExtraForm((f) => Object.assign({}, f, { name: e.target.value }))} /></label>
-              <label>Serviço (pilar)<select value={extraForm.service_id} onChange={(e) => setExtraForm((f) => Object.assign({}, f, { service_id: e.target.value }))}><option value="">escolha…</option>{D.services.filter((x) => (D.senhas && D.senhas.services ? D.senhas.services.includes(x.id) : true)).map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}</select></label>
+              <p className="tiny muted">Para um atendimento que não estava na planta. Ele entra na triagem, na porta da sala e na TV deste local, hoje. Depois de criado, dá para editar nome, sala e o que é oferecido.</p>
+              <label>Serviço<select value={extraForm.service_id} onChange={(e) => { const sid = e.target.value; const sv = svc(sid); setExtraForm((f) => { const prev = svc(f.service_id); const keep = f.name.trim() && !(prev && f.name === prev.title); return Object.assign({}, f, { service_id: sid, name: keep ? f.name : sv ? sv.title : f.name }); }); }}><option value="">escolha…</option>{serviceOptions.map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}</select></label>
+              <label>Nome do atendimento (como aparece na TV)<input type="text" value={extraForm.name} autoComplete="off" placeholder="ex.: Consulta Médica" maxLength={60} onChange={(e) => setExtraForm((f) => Object.assign({}, f, { name: e.target.value }))} /></label>
               <div className="row2">
                 <label>Tipo<select value={extraForm.kind} onChange={(e) => setExtraForm((f) => Object.assign({}, f, { kind: e.target.value }))}><option value="sala">Sala</option><option value="tenda">Tenda</option><option value="area">Outro ambiente</option></select></label>
                 <label>Número / identificação<input type="text" value={extraForm.num} autoComplete="off" placeholder="ex.: 19 ou A" maxLength={8} onChange={(e) => setExtraForm((f) => Object.assign({}, f, { num: e.target.value }))} /></label>
@@ -348,6 +392,23 @@ export default function Atendimento() {
             </form>
           )}
         </div>
+        {qs.length ? <div className="tri-all">
+          <button type="button" className="btn btn-ghost" data-act="cfg-all" onClick={openCfgAll}>{I('ticket')}Padrão de senhas para todas as salas</button>
+          {cfgOpen && cfgOpen.all ? cfgFormView(cfgOpen) : null}
+        </div> : null}
+        {off.length ? (
+          <div className="tri-off">
+            <h3 className="tri-h" style={{ '--c': '#64748b' }}>{I('x')}Desativados hoje ({off.length})</h3>
+            <p className="tiny muted">Não aparecem na porta da sala nem na TV. Toque em reativar para voltar.</p>
+            <div className="tri">{off.map((p) => (
+              <div key={p.id} className="tri-row off" style={{ '--c': '#94a3b8' }}>
+                <span className="ic">{I(p.kind === 'tenda' ? 'tent' : 'door')}</span>
+                <span className="nm"><b>{p.name}</b><small>{placeLabel(p)} · {p.svc.short}</small></span>
+                <button type="button" className="btn btn-primary sm" data-act="queue-on" data-id={p.id} onClick={() => setEnabled(p, p.svc.id, true)}>{I('check')}Reativar</button>
+              </div>
+            ))}</div>
+          </div>
+        ) : null}
       </>
     );
   }
@@ -467,7 +528,7 @@ export default function Atendimento() {
     return (
       <>
         {top('Painel de acompanhamento', `${c.place} · ${T.fmtDate(c.day, 'wdlong')} · atualiza a cada 15 s`, act.home)}
-        <div className="chips">{dayChips(c)}{st.role === 'gestor' ? <a className="chip" href={`${BP}/api/export.csv?day=${c.day}`} download={`atendimentos-${c.day}.csv`} data-act="csv">{I('download')}Exportar CSV</a> : null}</div>
+        <div className="chips"><span className="chip on">{I('calendar')}{T.fmtDate(c.day, 'wd')} · {c.place}</span>{st.role === 'gestor' ? <a className="chip" href={`${BP}/api/export.csv?day=${c.day}`} download={`atendimentos-${c.day}.csv`} data-act="csv">{I('download')}Exportar CSV</a> : null}</div>
         <div className="kpis">
           <div className="kpi hi"><small>Senhas entregues</small><b>{t.issued}</b><em>triagem</em></div>
           <div className="kpi"><small>Chamadas</small><b>{t.called}</b><em>{t.not_called} aguardando chamada</em></div>

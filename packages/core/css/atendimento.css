@@ -46,15 +46,15 @@
 .tri-row .nm{min-width:0}
 .tri-row .nm b{display:block;font-family:var(--font-display);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tri-row .nm small{display:block;color:var(--mut);font-size:.78em;margin-top:.15em}
-.tri-row .cnt{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:3.4em;min-height:3.2em;text-align:center;background:var(--chip);border:1.5px dashed color-mix(in srgb,var(--primary) 40%,var(--line));color:var(--ink);padding:.2em .4em;border-radius:12px;line-height:1}
-.tri-row .cnt b{font-family:var(--font-display);font-size:1.5em;font-weight:800}
-.tri-row .cnt small{display:inline-flex;align-items:center;gap:.2em;font-size:.6em;font-weight:700;color:var(--primary);margin-top:.2em}
-.tri-row .cnt small .ico{width:1em;height:1em}
-.tri-row .cnt:active{background:var(--p-soft)}
-.tri-row .plus{width:3.2em;height:3.2em;flex:none;border-radius:14px;background:var(--primary);color:#fff;border:0;font-size:1.1em;font-weight:800;display:grid;place-items:center;box-shadow:0 4px 14px -6px var(--primary)}
-.tri-row .plus:active{transform:scale(.95)}
-.tri-row .minus{width:2.4em;height:2.4em;border-radius:10px;background:var(--chip);border:0;color:var(--ink2);display:grid;place-items:center;margin-right:-.2em}
-.tri-row .minus .ico{width:1em;height:1em}
+.tri-row .cnt,.tri-card .cnt{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:3.4em;min-height:3.2em;text-align:center;background:var(--chip);border:1.5px dashed color-mix(in srgb,var(--primary) 40%,var(--line));color:var(--ink);padding:.2em .4em;border-radius:12px;line-height:1}
+.tri-row .cnt b,.tri-card .cnt b{font-family:var(--font-display);font-size:1.5em;font-weight:800}
+.tri-row .cnt small,.tri-card .cnt small{display:inline-flex;align-items:center;gap:.2em;font-size:.6em;font-weight:700;color:var(--primary);margin-top:.2em}
+.tri-row .cnt small .ico,.tri-card .cnt small .ico{width:1em;height:1em}
+.tri-row .cnt:active,.tri-card .cnt:active{background:var(--p-soft)}
+.tri-row .plus,.tri-card .plus{width:3.2em;height:3.2em;flex:none;border-radius:14px;background:var(--primary);color:#fff;border:0;font-size:1.1em;font-weight:800;display:grid;place-items:center;box-shadow:0 4px 14px -6px var(--primary)}
+.tri-row .plus:active,.tri-card .plus:active{transform:scale(.95)}
+.tri-row .minus,.tri-card .minus{width:2.4em;height:2.4em;border-radius:10px;background:var(--chip);border:0;color:var(--ink2);display:grid;place-items:center;margin-right:-.2em}
+.tri-row .minus .ico,.tri-card .minus .ico{width:1em;height:1em}
 /* porta da sala */
 .door{display:flex;flex-direction:column;gap:.8em}
 .door-now{background:linear-gradient(135deg,var(--primary),color-mix(in srgb,var(--primary) 70%,#000));color:#fff;border-radius:22px;padding:1.2em 1.2em 1.1em;text-align:center;box-shadow:0 14px 36px -16px color-mix(in srgb,var(--primary) 80%,transparent)}
@@ -277,3 +277,43 @@
 .kind-pick .kp.on{border-color:var(--primary);background:var(--p-soft)}
 .kind-pick .kp.p.on{border-color:#2563eb;background:#dbeafe;color:#1e3a8a}
 .door-alt .alt.over em{color:#b45309}
+
+/* ===== triagem 2.1: cartão por fila — sala e atendimento em destaque, oferta do dia, contadores, edição ===== */
+.tri-card{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--c);border-radius:var(--radius);padding:.7em .75em .6em;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:.5em}
+.tri-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.65em}
+.tri-room{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;min-width:3.6em;height:3.6em;padding:0 .4em;border-radius:14px;background:color-mix(in srgb,var(--c) 16%,var(--card));color:color-mix(in srgb,var(--c) 65%,var(--ink));line-height:1}
+.tri-room small{font-size:.58em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;opacity:.85}
+.tri-room b{font-family:var(--font-display);font-size:1.75em;font-weight:800;letter-spacing:-.02em;margin-top:.08em}
+.tri-room .ico{width:1.4em;height:1.4em;margin-bottom:.15em}
+.tri-title{min-width:0}
+.tri-title b{display:block;font-family:var(--font-display);font-size:1.25em;line-height:1.1;overflow-wrap:anywhere}
+.tri-title small{display:block;color:var(--mut);font-size:.78em;margin-top:.2em}
+.tri-edit{display:inline-flex;flex-direction:column;align-items:center;gap:.15em;font:inherit;font-size:.68em;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--primary);background:var(--chip);border:1.5px solid var(--line);border-radius:12px;padding:.5em .6em;cursor:pointer;min-width:4.2em}
+.tri-edit .ico{width:1.3em;height:1.3em}
+.tri-edit.on{border-color:var(--primary);background:var(--p-soft)}
+.tri-offer{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:.35em}
+.tri-offer li{display:inline-flex;align-items:center;gap:.35em;font-size:.92em;font-weight:700;color:var(--ink2);background:color-mix(in srgb,var(--c) 10%,var(--card));border:1px solid color-mix(in srgb,var(--c) 30%,var(--line));border-radius:999px;padding:.28em .7em;line-height:1.15}
+.tri-offer li em{font-style:normal;font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}
+.tri-offer li.later{opacity:.55;font-weight:600}
+.tri-offer-empty{margin:0;font-size:.82em;color:var(--mut)}
+.tri-offer-empty .link{font-size:1em;font-weight:700;background:none;border:0;padding:0;color:var(--primary);text-decoration:underline;cursor:pointer}
+.tri-card .tri-cnt{border-top:1px dashed var(--line);padding-top:.5em;grid-template-columns:auto auto minmax(0,1fr) auto auto}
+.tri-card .tri-cnt .cnt{width:100%;min-height:3.4em}
+.tri-card .tri-cnt .cnt b{font-size:1.7em}
+.tri-card .tri-cnt .plus{width:4em;height:3.4em;font-size:1.2em}
+.tri-card .tri-cnt .minus{width:2.6em;height:2.6em}
+.tri-foot{display:flex;align-items:center;justify-content:space-between;gap:.6em;border-top:1px dashed var(--line);padding-top:.45em;flex-wrap:wrap}
+.tri-foot .tri-cfg-btn{flex-direction:row;align-items:center;gap:.4em;max-width:100%;text-align:left;padding:.35em .55em}
+.tri-foot .tri-cfg-btn small{max-width:14em}
+.tri-links{display:inline-flex;gap:.9em;font-size:.82em}
+.tri-links .link{font:inherit;font-weight:700;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline}
+.tri-links .link.off{color:var(--mut)}.tri-links .link.rm{color:#b91c1c}
+.tri-empty{display:flex;flex-direction:column;align-items:center;gap:.5em;text-align:center;background:var(--card);border:1.5px dashed var(--line);border-radius:var(--radius);padding:1.4em 1em;margin:.6em 0}
+.tri-empty .ic{width:3em;height:3em;border-radius:14px;display:grid;place-items:center;background:var(--p-soft);color:var(--primary)}
+.tri-empty .ic .ico{width:1.5em;height:1.5em}
+.tri-empty b{font-family:var(--font-display);font-size:1.1em}
+.tri-empty small{color:var(--mut);max-width:28em;line-height:1.35}
+.tri-empty .btn{margin-top:.4em}
+.tri-new-form textarea{font:inherit;font-size:1.05em;text-transform:none;letter-spacing:0;color:var(--ink);padding:.5em .6em;border:1.5px solid var(--line);border-radius:10px;background:var(--chip);min-width:0;width:100%;resize:vertical;line-height:1.35}
+.tri-new-form textarea:focus{outline:2px solid #2563eb;outline-offset:1px}
+.tri-info{border-left-color:var(--c)}

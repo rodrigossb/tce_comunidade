@@ -156,6 +156,15 @@ function icsFor(course, sessions) {
 // ---- serviços: itens (texto ou { t, only }) e dias de serviços ----
 const itemText = (it) => (typeof it === 'string' ? it : it.t);
 const itemOnly = (it) => (typeof it === 'string' ? null : it.only || null);
+/** `when` de um item: { 'AAAA-MM-DD': true | ['manha', 'tarde'] } (em que dias/turnos acontece); null = sempre. */
+const itemWhen = (it) => (typeof it === 'string' ? null : it.when || null);
+/** Turnos do item numa data: null = o dia todo (ou sem restrição); [] = não acontece nesse dia. */
+const itemShifts = (it, date) => { const w = itemWhen(it); if (!w) return null; const v = w[date]; return v === true ? null : Array.isArray(v) ? v : []; };
+const SHIFT_AT = { manha: 'de manhã', tarde: 'à tarde', noite: 'à noite' };
+const shiftsLabel = (list) => { const a = SHIFT_ORDER.filter((k) => list.includes(k)); return !a.length ? '' : a.length === 1 ? SHIFT_AT[a[0]] : a.map((k) => SHIFTS[k].short.toLowerCase()).join(' e '); };
+/** "qui 05/11 à tarde · sex 06/11 manhã e tarde · sáb 07/11" a partir de um `when`. */
+const whenLabel = (w) => (!w ? '' : Object.keys(w).sort().map((d) => `${fmtDate(d, 'wdm')}${w[d] === true ? '' : ` ${shiftsLabel(w[d])}`}`).join(' · '));
+const itemWhenLabel = (it) => whenLabel(itemWhen(it));
 const serviceDays = () => D.event.serviceDays || [];
 const serviceDayOf = (date) => serviceDays().find((d) => d.date === date) || null;
 /** Próximo dia de serviços a partir de hoje (inclusive); null se todos já passaram. */
@@ -163,7 +172,8 @@ const nextServiceDay = (today) => serviceDays().find((d) => d.date >= today) || 
 /** "qua 04/11 no Manga e sáb 07/11 na Joaquim Nabuco" */
 const serviceDaysLabel = (mode) => serviceDays().map((d) => `${fmtDate(d.date, mode || 'wdm')} · ${d.place}`).join(' e ');
 /** Itens de um serviço disponíveis em um dia (todos, se date for nulo). */
-const itemsOn = (s, date) => s.items.filter((it) => !date || !itemOnly(it) || itemOnly(it) === date);
+/** Itens de um serviço numa data (e turno, se informado): respeita `only` (só naquele dia) e `when` (dias/turnos). */
+const itemsOn = (s, date, shift) => s.items.filter((it) => { if (!date) return true; const o = itemOnly(it); if (o && o !== date) return false; const sh = itemShifts(it, date); return sh === null || (sh.length > 0 && (!shift || sh.includes(shift))); });
 /** Local (jn|manga) com mapa para uma data de serviços; null se não for dia de serviços. */
 const mapVenueOf = (date) => { const d = serviceDayOf(date); return d && D.maps && D.maps[d.venue] ? d.venue : null; };
 /** Salas/tendas de um serviço num local (ids); itens com `where` entram primeiro, depois a lista do serviço. */
@@ -212,6 +222,24 @@ function offeringsAt(placeId, venue) {
   const sessions = allSessions().filter((x) => { const pl = courseRoomPlace(x); return pl && pl.id === placeId; });
   return { place, venue: v, day, services, sessions };
 }
+/** O que um serviço oferece numa data; se algum item aponta para a sala (`where`), só esses. [{ text, shifts }] — shifts null = o dia todo. */
+function offerOn(s, date, placeId, venue) {
+  const all = itemsOn(s, date);
+  const here = placeId ? all.filter((it) => itemWhere(it, venue).includes(placeId)) : [];
+  return (here.length ? here : all).map((it) => ({ text: itemText(it), shifts: date ? itemShifts(it, date) : null }));
+}
+/** Dia e local de trabalho do controle de senhas. Dia de serviços de hoje → ele. Outro dia do evento → hoje mesmo (as filas
+    são as criadas na triagem), no local pedido ou no do próximo dia de serviços. Fora do evento → o próximo dia de serviços
+    (ou o último, do local pedido quando houver). Devolve { date, venue, place, placeLong, service_day }. */
+function ticketDay(today, venue) {
+  const days = serviceDays(); const sd = serviceDayOf(today);
+  const asDay = (d) => (d ? Object.assign({ service_day: true }, d) : null);
+  if (sd && (!venue || sd.venue === venue)) return asDay(sd);
+  const fallback = nextServiceDay(today) || days[days.length - 1] || null;
+  if (eventDays().includes(today)) { const v = venue || (fallback ? fallback.venue : 'jn'); const vn = D.venues[v]; return { date: today, venue: v, place: vn ? vn.short : v, placeLong: vn ? vn.name : v, service_day: false }; }
+  if (venue && fallback && fallback.venue !== venue) { const alt = days.filter((d) => d.venue === venue).pop(); if (alt) return asDay(alt); }
+  return asDay(fallback);
+}
 const queueLabel = (p) => (p.kind === 'area' && !p.num ? p.name : `${p.name} · ${p.kind === 'sala' ? 'Sala' : p.kind === 'tenda' ? 'Tenda' : 'Ambiente'} ${p.num}`);
 
 // ---- busca única (cursos, serviços e locais), sem acentos, com sinônimos do dia a dia ----
@@ -232,7 +260,7 @@ function search(q) {
 }
 const SUGGESTIONS = ['Saúde', 'Vacina', 'Identidade', 'Dentista', 'Castração', 'Casamento', 'Corte de cabelo', 'Energia', 'Mulheres', 'Crianças', 'Empreendedorismo', 'Feira'];
 
-export { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, ticketQueuesOf, queueLabel, courseRoomPlace, offeringsAt, icon, SHIFT_ICON };
+export { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, itemWhen, itemShifts, whenLabel, itemWhenLabel, offerOn, ticketDay, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, ticketQueuesOf, queueLabel, courseRoomPlace, offeringsAt, icon, SHIFT_ICON };
 /** Mesmo objeto `TCE` do site antigo (T.fmtDate, T.icon…), para portar as telas sem reescrever cada chamada. */
-export const TCE = { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, search, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, ticketQueuesOf, queueLabel, courseRoomPlace, offeringsAt, icon, SHIFT_ICON };
+export const TCE = { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, search, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, itemWhen, itemShifts, whenLabel, itemWhenLabel, offerOn, ticketDay, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, ticketQueuesOf, queueLabel, courseRoomPlace, offeringsAt, icon, SHIFT_ICON };
 export default TCE;

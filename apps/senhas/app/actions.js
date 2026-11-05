@@ -34,4 +34,5 @@ export async function advance(body) { return guard(ANY, async () => db.advance(b
 export async function addExtraQueue(body) { return guard(ANY, async () => db.addExtra(body || {})); }
 export async function removeExtraQueue(id) { return guard(ANY, async () => db.removeExtra(id)); }
 export async function setQueueEnabled(body) { return guard(ANY, async () => db.setQueueEnabled(body || {})); }
+export async function setQueueInfo(body) { return guard(ANY, async () => db.setQueueInfo(body || {})); }
 export async function setCursor(body) { return guard(ANY, async () => db.setCursor(body || {})); }

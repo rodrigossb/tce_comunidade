@@ -171,3 +171,27 @@ test('ajustar número atual (fila_cursor): sequência recomeça do informado; ch
   db.setCursor({ day: DAY, venue: V, service_id: S, place_id: P2, normal: 0, prio: 0, device: 't' }); await sleep(2);
   qd = db.queue(DAY, V, S, P2); assert.equal(qd.plan.normal.next, 1); assert.equal(qd.plan.prio.next, 180);
 });
+
+test('setQueueInfo: triagem edita nome, sala e oferta de uma fila fixa (override) e de uma extra; placeOf/mergeExtras aplicam', async () => {
+  const { mergeExtras, placeOf, extraQueues } = await import('../lib/filas-extra.js');
+  const { TCE: T } = await import('@tce/core');
+  const DAYI = '2026-11-07'; const VI = 'jn';
+  assert.throws(() => db.setQueueInfo({ day: DAYI, venue: VI, service_id: 'pilar-2', place_id: 'jn-r17', name: 'X' }), /nome/);
+  const r = db.setQueueInfo({ day: DAYI, venue: VI, service_id: 'pilar-2', place_id: 'jn-r17', name: 'Identidade (CIN) <b>', kind: 'sala', num: '17A', offer: 'CIN e 2ª via', device: 't' });
+  assert.equal(r.name, 'Identidade (CIN)'); assert.equal(r.num, '17A');
+  const ex = db.extras(DAYI, VI); const ov = ex.find((e) => e.id === 'jn-r17');
+  assert.ok(ov && ov.override && !ov.extra); assert.equal(ov.offer, 'CIN e 2ª via');
+  const p = placeOf('jn-r17', ex); assert.equal(p.name, 'Identidade (CIN)'); assert.equal(p.num, '17A'); assert.equal(p.kind, 'sala'); assert.equal(p.venue, 'jn');
+  const groups = mergeExtras(T.ticketQueuesOf(VI), ex); const all = groups.flatMap((g) => g.places);
+  assert.equal(all.filter((x) => x.id === 'jn-r17').length, 1, 'override não cria fila'); assert.equal(all.find((x) => x.id === 'jn-r17').name, 'Identidade (CIN)');
+  assert.ok(!extraQueues(ex).some((q) => q.place.id === 'jn-r17'), 'TV não trata override como fila extra');
+  assert.equal(T.placeInfo('jn-r17').name !== 'Identidade (CIN)', true, 'a planta não muda');
+  // extra editada
+  const a = db.addExtra({ day: DAYI, venue: VI, service_id: 'consulta', name: 'Consulta Médica', kind: 'sala', num: '3', device: 't' });
+  db.setQueueInfo({ day: DAYI, venue: VI, service_id: 'consulta', place_id: a.place_id, name: 'Consultas', kind: 'sala', num: '4', offer: 'Clínico geral\nPsicologia; Pediatria', device: 't' });
+  const e2 = db.extras(DAYI, VI).find((e) => e.id === a.place_id); assert.ok(e2.extra && !e2.override); assert.equal(e2.name, 'Consultas'); assert.equal(e2.num, '4'); assert.equal(e2.offer, 'Clínico geral; Psicologia; Pediatria', 'uma linha por item vira "; "');
+  assert.equal(db.state(DAYI, VI).extras.filter((e) => e.id === a.place_id).length, 1);
+  // override numa sala fixa fora do dia de serviços do local não vira fila (fixedQueues vazio) mas placeOf a acha
+  const { fixedQueues } = await import('../lib/filas-extra.js');
+  assert.equal(fixedQueues('jn', '2026-11-05').length, 0); assert.ok(fixedQueues('jn', '2026-11-07').length > 0); assert.ok(fixedQueues('jn').length > 0);
+});

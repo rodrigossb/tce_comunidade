@@ -216,6 +216,22 @@ const services = [
       { t: 'Ações de prevenção e conscientização do Outubro Rosa e Novembro Azul', only: SO_JN }],
     places: { jn: ['jn-triagem', 'jn-r03', 'jn-r04', 'jn-r05', 'jn-r08', 'jn-r09', 'jn-r10', 'jn-r11', 'jn-r12', 'jn-r24', 'jn-escov'], manga: ['mg-t08', 'mg-r01', 'mg-r02', 'mg-r03', 'mg-r04', 'mg-r07', 'mg-r08', 'mg-r09', 'mg-r10'] },
     partners: ['Saúde da Gente', 'GEA/AP', 'SESA/AP', 'SVS/AP', 'SESC/AP', 'CERPIS', 'Prefeitura Municipal de Oiapoque', 'CESB', 'SESAI', 'Equipes de saúde parceiras'] },
+  // Consultas médicas com senha de 05 a 07/11 na Joaquim Nabuco (informado pela organização em 05/11). `when` = em que dias
+  // e turnos cada especialidade atende ({ data: true (o dia todo) | ['manha', 'tarde'] }); sem `when`, vale em todos os dias.
+  { id: 'consulta', num: 0, kicker: 'Saúde · consultas', title: 'Consulta Médica', short: 'Consulta Médica', icon: 'stethoscope', color: '#0ea5e9',
+    summary: 'Consultas com especialistas, exames laboratoriais e psicologia, de quinta a sábado na Escola Joaquim Nabuco, por ordem de chegada.',
+    days: ['2026-11-05', '2026-11-06', '2026-11-07'],
+    items: [{ t: 'Ginecologia', when: { '2026-11-05': ['tarde'], '2026-11-06': ['manha', 'tarde'] } },
+      { t: 'Psiquiatria', when: { '2026-11-05': ['tarde'] } },
+      { t: 'Urologia', when: { '2026-11-05': ['tarde'], '2026-11-06': ['manha', 'tarde'] } },
+      { t: 'Pediatria', when: { '2026-11-06': ['manha', 'tarde'] } },
+      { t: 'Cardiologia', when: { '2026-11-06': ['manha', 'tarde'] } },
+      { t: 'Exames laboratoriais', when: { '2026-11-06': ['manha'] } },
+      { t: 'Clínico geral', when: { '2026-11-07': true } },
+      { t: 'Psicologia (todos os dias e horários)', when: { '2026-11-05': true, '2026-11-06': true, '2026-11-07': true } }],
+    detail: 'Quinta 05/11 à tarde: ginecologia, psiquiatria e urologia. Sexta 06/11 de manhã: ginecologia, pediatria, cardiologia, urologia e exames laboratoriais; à tarde: ginecologia, pediatria, cardiologia e urologia. Sábado 07/11: clínico geral. Psicologia em todos os dias e horários. A sala é informada na triagem, na entrada da escola.',
+    places: { jn: [] },
+    partners: ['SESA/AP', 'Saúde da Gente', 'Prefeitura Municipal de Oiapoque', 'Equipes de saúde parceiras'] },
   { id: 'pilar-2', num: 2, title: 'Documentação e Cidadania', short: 'Documentos', icon: 'idcard', color: '#60a5fa',
     summary: 'Identidade (CIN), Cartão SUS, CPF, título de eleitor, DETRAN, Marinha, CAR, CAF, terras e conta de energia.',
     items: [{ t: 'Carteira de Identidade Nacional (CIN)', where: { jn: ['jn-r17'], manga: ['mg-r06'] } }, { t: 'Cartão SUS e segunda via do CPF', where: { jn: ['jn-r19'], manga: ['mg-r06'] } },
@@ -403,7 +419,7 @@ const maps = {
 // `excludeKinds` = por local, tipos de ambiente sem senha (no Manga, 04/11, as tendas atendem por ordem de chegada);
 // áreas abertas (kind 'area') nunca têm fila. Acolhida, Cursos (inscrição), Crianças e Famílias e Feiras e Cultura ficam fora.
 const senhas = {
-  services: ['pilar-1', 'pilar-2', 'pilar-3', 'pilar-5', 'pilar-6'],
+  services: ['pilar-1', 'consulta', 'pilar-2', 'pilar-3', 'pilar-5', 'pilar-6'],
   excludePlaces: [],
   excludeKinds: { manga: ['tenda'] },
 };

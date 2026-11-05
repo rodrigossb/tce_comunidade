@@ -9,7 +9,7 @@ import { queuePlan, normalizeCfg, DEFAULT_CFG } from '@tce/core/fila';
 import { normalizeLugar } from '@tce/core/lugares';
 import { TCE as T } from '@tce/core';
 import { notify } from './bus.js';
-import { activeQueues } from './filas-extra.js';
+import { activeQueues, fixedQueues } from './filas-extra.js';
 
 export class ApiError extends Error { constructor(status, message) { super(message); this.status = status; } }
 export const err = (status, msg) => new ApiError(status, msg);
@@ -32,7 +32,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS filas_off_key ON filas_off(day, venue, place_i
 CREATE TABLE IF NOT EXISTS fila_cursor (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, normal_last INTEGER NOT NULL DEFAULT 0, prio_last INTEGER NOT NULL DEFAULT 0, device TEXT, ts INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS fila_cursor_key ON fila_cursor(day, venue, service_id, place_id, ts);
 CREATE TABLE IF NOT EXISTS fila_cfg (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, n_prefix TEXT NOT NULL DEFAULT 'N', p_prefix TEXT NOT NULL DEFAULT 'P', n_from INTEGER NOT NULL DEFAULT 1, p_from INTEGER NOT NULL DEFAULT 1, n_total INTEGER NOT NULL DEFAULT 100, p_total INTEGER NOT NULL DEFAULT 20, pattern TEXT NOT NULL DEFAULT '1:1', device TEXT, ts INTEGER NOT NULL);
-CREATE INDEX IF NOT EXISTS fila_cfg_key ON fila_cfg(day, venue, service_id, place_id, id);`;
+CREATE INDEX IF NOT EXISTS fila_cfg_key ON fila_cfg(day, venue, service_id, place_id, id);
+CREATE TABLE IF NOT EXISTS fila_info (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, name TEXT NOT NULL, kind TEXT NOT NULL, num TEXT NOT NULL DEFAULT '', offer TEXT NOT NULL DEFAULT '', device TEXT, ts INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS fila_info_key ON fila_info(day, venue, place_id, id);`;
 
 function open(file) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -80,6 +82,8 @@ function open(file) {
     offDelete: db.prepare(`DELETE FROM filas_off WHERE day=? AND venue=? AND place_id=?`),
     cursorOf: db.prepare(`SELECT normal_last, prio_last, ts FROM fila_cursor WHERE day=? AND venue=? AND service_id=? AND place_id=? ORDER BY ts DESC, id DESC LIMIT 1`),
     cursorAll: db.prepare(`SELECT service_id, place_id, normal_last, prio_last, ts FROM fila_cursor f WHERE day=? AND venue=? AND id=(SELECT MAX(id) FROM fila_cursor WHERE day=f.day AND venue=f.venue AND service_id=f.service_id AND place_id=f.place_id)`),
+    infoAll: db.prepare(`SELECT service_id, place_id, name, kind, num, offer, ts FROM fila_info f WHERE day=? AND venue=? AND id=(SELECT MAX(id) FROM fila_info WHERE day=f.day AND venue=f.venue AND place_id=f.place_id)`),
+    infoInsert: db.prepare(`INSERT INTO fila_info (day, venue, service_id, place_id, name, kind, num, offer, device, ts) VALUES (?,?,?,?,?,?,?,?,?,?)`),
     cursorInsert: db.prepare(`INSERT INTO fila_cursor (day, venue, service_id, place_id, normal_last, prio_last, device, ts) VALUES (?,?,?,?,?,?,?,?)`),
   };
   return { db, q, file };
@@ -161,7 +165,7 @@ export function setQueueConfig(b) {
   const c = ctx(b && b.day, b && b.venue); const { cfg, error } = normalizeCfg(b); if (error) throw err(400, error);
   const device = clean(b.device, 40); const ts = Date.now(); const { q } = conn();
   const targets = [];
-  if (b.all) { for (const g of activeQueues(T.ticketQueuesOf(c.venue), extras(c.day, c.venue), disabled(c.day, c.venue))) for (const p of g.places) targets.push([g.service.id, p.id]); }
+  if (b.all) { for (const g of activeQueues(fixedQueues(c.venue, c.day), extras(c.day, c.venue), disabled(c.day, c.venue))) for (const p of g.places) targets.push([g.service.id, p.id]); }
   else { const s = clean(b.service_id, 32); const p = clean(b.place_id, 32); if (!s || !p) throw err(400, 'dados'); targets.push([s, p]); }
   for (const [s, p] of targets) q.cfgInsert.run(c.day, c.venue, s, p, cfg.n_prefix, cfg.p_prefix, cfg.n_from, cfg.p_from, cfg.n_total, cfg.p_total, cfg.pattern, device, ts);
   notify(c.day, c.venue); return { ok: true, ts, cfg, count: targets.length };
@@ -272,9 +276,24 @@ export function latestInscritos() {
 const EXTRA_KINDS = ['sala', 'tenda', 'area'];
 const text = (s, n) => String(s == null ? '' : s).replace(/<[^>]*>/g, '').replace(/[<>\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
 /** Filas extras do dia/local no formato de ambiente da planta (+ service_id e extra: true), para somar às filas fixas. */
+/** Filas extras do dia (`extra: true`), já com o que a triagem editou (fila_info), MAIS as salas fixas da planta editadas na
+    triagem (`override: true`, sem `extra`): quem procura um ambiente por id (placeOf, TV, painel) vê nome/sala/oferta atuais. */
 export function extras(day, venue) {
-  const c = ctx(day, venue);
-  return rows(conn().q.extraAll.all(c.day, c.venue)).map((r) => ({ id: r.place_id, extra_id: r.id, venue: c.venue, service_id: r.service_id, name: r.name, kind: r.kind, num: r.num, extra: true, created_at: r.created_at }));
+  const c = ctx(day, venue); const { q } = conn();
+  const infos = {}; for (const r of rows(q.infoAll.all(c.day, c.venue))) infos[r.place_id] = r;
+  const out = rows(q.extraAll.all(c.day, c.venue)).map((r) => { const i = infos[r.place_id]; delete infos[r.place_id]; return Object.assign({ id: r.place_id, extra_id: r.id, venue: c.venue, service_id: r.service_id, name: r.name, kind: r.kind, num: r.num, extra: true, created_at: r.created_at }, i ? { name: i.name, kind: i.kind, num: i.num, offer: i.offer } : {}); });
+  for (const i of Object.values(infos)) out.push({ id: i.place_id, venue: c.venue, service_id: i.service_id, name: i.name, kind: i.kind, num: i.num, offer: i.offer, override: true, ts: i.ts });
+  return out;
+}
+/** Triagem edita uma fila (fixa ou extra): { day, venue, service_id, place_id, name, kind, num, offer, device }. Vale para
+    triagem, porta, TV e painel do dia; a planta e a programação pública não mudam. */
+export function setQueueInfo(b) {
+  const c = ctx(b && b.day, b && b.venue); const sid = clean(b.service_id, 32); const pid = clean(b.place_id, 32);
+  if (!sid || !pid) throw err(400, 'dados');
+  const name = text(b.name, 60); const kind = EXTRA_KINDS.includes(b.kind) ? b.kind : 'sala'; const num = text(b.num, 8).replace(/[^\w\- ]/g, ''); const offer = text(String(b.offer == null ? '' : b.offer).replace(/\r?\n+/g, '; '), 400).replace(/\s*;\s*(;\s*)*/g, '; ').replace(/^; |; $/g, '');
+  if (name.length < 2) throw err(400, 'informe o nome do atendimento');
+  const ts = Date.now(); conn().q.infoInsert.run(c.day, c.venue, sid, pid, name, kind, num, offer, clean(b.device, 40), ts);
+  notify(c.day, c.venue); return { ok: true, ts, place_id: pid, name, kind, num, offer };
 }
 /** Cria uma fila extra { day, venue, service_id, name, kind, num, device, + configuração (n_total, p_total, pattern, prefixos,
     inícios) e entregues iniciais (issued_n, issued_p) }: a nova sala já nasce configurada para a porta e a TV. */

@@ -47,7 +47,8 @@ function Dash() {
   const sp = useMemo(() => new URLSearchParams(location.search), []);
   const [clock, setClock] = useState(() => T.now());
   useEffect(() => { const id = setInterval(() => setClock(T.now()), 1000); return () => clearInterval(id); }, []);
-  const sd = useMemo(() => { const q = sp.get('dia'); const byQ = q && T.serviceDays().find((d) => d.date === q); if (byQ) return byQ; const byV = sp.get('local') && T.serviceDays().find((d) => d.venue === sp.get('local')); return byV || defaultDay(clock.date); }, [sp, clock.date]);
+  // ?dia=AAAA-MM-DD e ?local= forçam; senão o dia de trabalho das senhas (dash-stats.defaultDay).
+  const sd = useMemo(() => { const q = sp.get('dia'); const v = D.maps && D.maps[sp.get('local')] ? sp.get('local') : null; if (q && /^\d{4}-\d{2}-\d{2}$/.test(q)) { const base = T.serviceDayOf(q) || T.ticketDay(q, v) || { venue: v || 'jn', place: '' }; return Object.assign({}, base, { date: q, venue: v || base.venue }); } return defaultDay(clock.date, v); }, [sp, clock.date]);
   const venue = D.maps && D.maps[sp.get('local')] ? sp.get('local') : sd.venue; const day = sd.date;
   const venueName = D.venues[venue] ? D.venues[venue].name : venue;
   const fixed = SCREENS.includes(sp.get('tela')) ? sp.get('tela') : null;
