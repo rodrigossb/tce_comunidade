@@ -183,7 +183,7 @@ const PEND = [
   ['Cursos', 'Curso 109 (Brinquedistas): a tabela oficial traz link administrativo; o site usa escon/cursos/109.'],
   ['Salas', 'Laboratórios I e II – Joaquim Nabuco (Salas 01 e 02), 05/11: o Rios do Saber (156, até 100 participantes) ocupa os dois laboratórios manhã e tarde (informado em 05/11). No mesmo horário a tabela ainda traz Controle Social e Ouvidoria (152, Lab I 8h), Tecnologia e Direito das Mulheres (125, Lab I 14h) e Videomaker (145, Lab II 14h). Confirmar onde ficam essas turmas.'],
   ['Salas', 'Tomada de Contas (122), 05/11: saiu da Joaquim Nabuco (Sala V); manhã na Câmara Municipal de Oiapoque (Av. Veiga Cabral, 390, pino aproximado) e tarde no IFAP – Campus Avançado Oiapoque (Rua Joaquim Caetano da Silva, 870). Informado em 05/11.'],
-  ['Cursos', 'Como vender pela internet (150): era 06/11 às 14h no SEBRAE; em 05/11 passou para 05/11 às 19h (até 22h), mesmo local.'],
+  ['Cursos', 'Como vender pela internet (150): 06/11 no SEBRAE; em 05/11 o horário mudou de 14h para 19h (até 22h).'],
   ['Cursos', 'Cidadania Conectada: duas turmas com links diferentes (154 em 05/11 e 158 em 07/11).'],
   ['Cursos', 'Extensão de Cílios (127): cabeçalho diz 05 e 06/11, tabela lista 04, 05 e 06/11 (mantidos os três).'],
   ['Salas', 'Gestão Financeira nas Escolas (112): na Escola Jorge Iaparrá (Manga), sem sala definida; cabeçalho diz 1 ocorrência, tabela lista 8h e 14h.'],

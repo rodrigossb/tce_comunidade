@@ -188,8 +188,8 @@ const courses = [
   { id: 150, title: 'Como vender pela internet', hours: 3,
     audience: 'Empreendedores, autônomos, sociedade civil', seats: 20,
     link: ESCON + '150/oiapoque-como-vender-pela-internet', tags: ['empreendedorismo', 'tecnologia'],
-    // Era 06/11 às 14h; em 05/11 a organização passou para 05/11 às 19h (3h, até 22h), no mesmo local.
-    sessions: [s('05', '19:00', 'sebrae', '', { end: '22:00' })] },
+    // Era às 14h; em 05/11 a organização passou para 19h (3h, até 22h), mesmo dia e local.
+    sessions: [s('06', '19:00', 'sebrae', '', { end: '22:00' })] },
 ];
 
 // ---- Serviços (sem inscrição) ----
