@@ -154,6 +154,10 @@ export default function Atendimento() {
   const cnt = (pid, kind) => { const c = ctxOf(st); const l = st.mem && st.mem[`${c.day}|${pid}|${kind}`]; const r = issuedOf(pid); if (l && (l.pending || !r || (l.srv && r.ts < l.srv))) return l.count; return r ? r[kind] || 0 : 0; };
   function setIssued(id, sid, kind, count) {
     const c = ctxOf(st); count = Math.max(0, Math.min(100000, count)); const device = st.device; const key = `${c.day}|${id}|${kind}`;
+    // Aviso de limite: ao chegar no total possível da série e a cada senha acima dele (não bloqueia: a contagem pode estar atrasada).
+    const cfgL = cfgOf(id, sid); const total = Number(cfgL[`${kind}_total`]) || 0; const pre = cfgL[`${kind}_prefix`] || (kind === 'p' ? 'P' : 'N');
+    if (total && count === total) { toast(`${pre}: limite de ${total} atingido`, 'alert'); try { navigator.vibrate && navigator.vibrate([80, 60, 80]); } catch { /* sem vibração */ } }
+    else if (total && count > total) { toast(`${pre}: ${count - total} acima do limite de ${total}`, 'alert'); try { navigator.vibrate && navigator.vibrate(200); } catch { /* sem vibração */ } }
     setSt((prev) => ({ mem: Object.assign({}, prev.mem, { [key]: { count, pending: true } }) }));
     clearTimeout(issuedT.current[key]);
     // Envios em fila, um por vez e na ordem: dois toques seguidos nunca chegam trocados ao servidor.
@@ -358,13 +362,13 @@ export default function Atendimento() {
     const c = ctxOf(st); const nowShift = T.shiftOf((clock || T.now()).time);
     const statOf = (sid, pid) => { const s = data && data.stats.services.find((x) => x.service_id === sid); return s ? s.places.find((p) => p.place_id === pid) : null; };
     // Contador de uma série: letra · −1 · total (toque para digitar) · +1 · "de N".
-    const counter = (p, sid, kind, cfg) => { const n = cnt(p.id, kind); const total = cfg[`${kind}_total`]; const pre = cfg[`${kind}_prefix`] || (kind === 'p' ? 'P' : 'N'); const over = total && n > total; return (
-      <div className={`tri-cnt ${kind}`} data-kind={kind}>
+    const counter = (p, sid, kind, cfg) => { const n = cnt(p.id, kind); const total = Number(cfg[`${kind}_total`]) || 0; const pre = cfg[`${kind}_prefix`] || (kind === 'p' ? 'P' : 'N'); const over = total && n > total; const full = total && n === total; const near = total && !full && !over && total - n <= Math.max(3, Math.ceil(total * 0.1)); return (
+      <div className={`tri-cnt ${kind} ${over ? 'is-over' : full ? 'is-full' : near ? 'is-near' : ''}`} data-kind={kind}>
         <span className="tri-cnt-k">{kind === 'p' ? I('star') : null}{pre}<small>{kind === 'p' ? 'priorit.' : 'comuns'}</small></span>
         <button className="minus" data-id={p.id} aria-label="Menos uma" onClick={() => setIssued(p.id, sid, kind, n - 1)}>{I('x')}</button>
         <button className="cnt" data-id={p.id} aria-label="Digitar o total entregue" onClick={() => askNumber(`${p.name}: ${pre} entregues`, n, (v) => setIssued(p.id, sid, kind, v))}><b>{n}</b><small>digitar</small></button>
         <button className="plus" data-id={p.id} onClick={() => setIssued(p.id, sid, kind, n + 1)}>+1</button>
-        <span className={`tri-cnt-of ${over ? 'over' : ''}`}>{total ? `de ${total}` : 'sem limite'}{over ? ' · acima' : ''}</span>
+        <span className={`tri-cnt-of ${over ? 'over' : full ? 'full' : near ? 'near' : ''}`}>{!total ? 'sem limite' : over ? <>{I('alert')}+{n - total} acima<small>de {total}</small></> : full ? <>{I('alert')}limite<small>{total} de {total}</small></> : near ? <>faltam {total - n}<small>de {total}</small></> : `de ${total}`}</span>
       </div>
     ); };
     // O que é oferecido: agenda por dia/turno (T.offerSlots) — o turno atual em destaque, os próximos com menos ênfase.

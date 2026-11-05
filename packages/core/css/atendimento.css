@@ -358,3 +358,12 @@
 .at-top .btn.sm{padding:.45em .7em;font-size:.82em}
 .tag-count{display:inline-flex;align-items:center;gap:.2em;font-style:normal;font-size:.85em;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#b45309;background:#fffbeb;border:1px solid #fcd34d;border-radius:999px;padding:.05em .5em;vertical-align:middle}
 .tag-count .ico{width:1em;height:1em}
+/* limite de senhas por série: perto, atingido, acima */
+.tri-cnt .tri-cnt-of{display:inline-flex;flex-direction:column;align-items:flex-start;line-height:1.1}
+.tri-cnt .tri-cnt-of small{font-size:.8em;font-weight:600;color:var(--mut)}
+.tri-cnt .tri-cnt-of .ico{width:1em;height:1em;vertical-align:-.15em;margin-right:.2em}
+.tri-cnt .tri-cnt-of.near{color:#b45309}
+.tri-cnt .tri-cnt-of.full{color:#b91c1c}.tri-cnt .tri-cnt-of.over{color:#b91c1c}
+.tri-cnt.is-full .cnt,.tri-cnt.is-over .cnt{border-color:#fca5a5;background:#fef2f2;color:#991b1b}
+.tri-cnt.is-near .cnt{border-color:#fcd34d;background:#fffbeb}
+.tri-cnt.is-over .plus{background:#b91c1c;box-shadow:0 4px 14px -6px #b91c1c}
