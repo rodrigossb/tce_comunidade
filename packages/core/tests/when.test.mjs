@@ -40,3 +40,10 @@ test('ticketDay: dia de serviços → ele; outro dia do evento → hoje; fora do
   assert.equal(T.ticketDay('2026-11-06', 'manga').venue, 'manga');
   assert.equal(T.ticketDay('2026-11-01').date, '2026-11-04'); assert.equal(T.ticketDay('2026-11-20').date, '2026-11-07'); assert.equal(T.ticketDay('2026-11-20', 'manga').date, '2026-11-04');
 });
+
+test('Consulta Médica fica na sala 09 da Joaquim Nabuco: painel da sala lista as especialidades do dia', () => {
+  const o = T.offeringsAt('jn-r09', 'jn'); const c = o.services.find((x) => x.service.id === 'consulta');
+  assert.ok(c && c.specific); assert.deepEqual(c.items.map((it) => T.itemText(it).split(' (')[0]), ['Clínico geral', 'Psicologia'], 'no dia de serviços (07/11)');
+  assert.deepEqual(T.offerOn(T.serviceById('consulta'), '2026-11-05', 'jn-r09', 'jn').map((x) => x.text.split(' (')[0]), ['Ginecologia', 'Psiquiatria', 'Urologia', 'Psicologia']);
+  assert.ok(T.placesOf(T.serviceById('consulta'), 'jn').includes('jn-r09'));
+});
