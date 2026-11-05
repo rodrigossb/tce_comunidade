@@ -228,7 +228,7 @@ const services = [
       { t: 'Cardiologia', where: { jn: ['jn-r09'] }, when: { '2026-11-06': ['manha', 'tarde'] } },
       { t: 'Exames laboratoriais', where: { jn: ['jn-r09'] }, when: { '2026-11-06': ['manha'] } },
       { t: 'Clínico geral', where: { jn: ['jn-r09'] }, when: { '2026-11-07': true } },
-      { t: 'Psicologia (todos os dias e horários)', where: { jn: ['jn-r09'] }, when: { '2026-11-05': true, '2026-11-06': true, '2026-11-07': true } }],
+      { t: 'Psicologia', where: { jn: ['jn-r09'] }, when: { '2026-11-05': true, '2026-11-06': true, '2026-11-07': true } }],
     detail: 'Quinta 05/11 à tarde: ginecologia, psiquiatria e urologia. Sexta 06/11 de manhã: ginecologia, pediatria, cardiologia, urologia e exames laboratoriais; à tarde: ginecologia, pediatria, cardiologia e urologia. Sábado 07/11: clínico geral. Psicologia em todos os dias e horários. Sala 09 da Escola Joaquim Nabuco (retire a senha na triagem, na entrada).',
     places: { jn: ['jn-r09'] },
     partners: ['SESA/AP', 'Saúde da Gente', 'Prefeitura Municipal de Oiapoque', 'Equipes de saúde parceiras'] },
