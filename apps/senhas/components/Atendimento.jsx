@@ -332,12 +332,13 @@ export default function Atendimento() {
     const days = schedDays(c);
     const shiftShort = (k) => (k === 'manha' ? 'manhã' : k === 'tarde' ? 'tarde' : 'noite');
     const slotLabel = (sl) => `${sl.date === c.day ? 'hoje' : T.fmtDate(sl.date, 'wd')} ${shiftShort(sl.shift)}`;
-    const offerView = (p, service) => { const items = offerItemsOf(p, service, c); const slots = T.offerSlots(items, days, c.day, nowShift); const nowS = slots.find((x) => x.now); const next = slots.filter((x) => !x.past && !x.now).slice(0, 2); return (
+    // Grupos consolidados (T.slotGroups): dias/turnos seguidos com a mesma oferta viram uma linha só ("todos os dias", "sex 06 e sáb 07").
+    const offerView = (p, service) => { const items = offerItemsOf(p, service, c); const groups = T.slotGroups(T.offerSlots(items, days, c.day, nowShift).filter((x) => !x.past), c.day, days); const nowG = groups.find((x) => x.now); const next = groups.filter((x) => !x.now).slice(0, 3); return (
       <div className="tri-offer-wrap">
-        {nowS ? <><small className="tri-offer-h">{I('clock')}Agora · {slotLabel(nowS)}</small><ul className="tri-offer" aria-label="O que é oferecido agora">{nowS.items.map((t, k) => <li key={k}><span>{t}</span></li>)}</ul></>
+        {nowG ? <><small className="tri-offer-h">{I('clock')}Agora{nowG.label === 'hoje ' + shiftShort(nowShift) ? ` · ${nowG.label}` : ` · ${nowG.label}`}</small><ul className="tri-offer" aria-label="O que é oferecido agora">{nowG.items.map((t, k) => <li key={k}><span>{t}</span></li>)}</ul></>
           : items.length ? <p className="tri-offer-empty">Nada programado agora ({slotLabel({ date: c.day, shift: nowShift })}).</p>
           : <p className="tri-offer-empty">Sem descrição do que é oferecido · <button type="button" className="link" onClick={() => openInfo(p, service.id)}>descrever</button></p>}
-        {next.length ? <p className="tri-next">{next.map((x, k) => <span key={k}><b>{slotLabel(x)}</b>{x.items.join(', ')}</span>)}</p> : null}
+        {next.length ? <p className="tri-next">{next.map((x, k) => <span key={k}><b>{x.label}</b>{x.items.join(', ')}</span>)}</p> : null}
       </div>
     ); };
     const infoFormView = (o, p) => {
@@ -346,6 +347,10 @@ export default function Atendimento() {
       const fullWhen = () => Object.fromEntries(o.days.map((d) => [d, OFFER_SHIFTS.slice()]));
       const toggle = (i, d, sh) => setF((fm) => ({ items: fm.items.map((it, k) => { if (k !== i) return it; const w = Object.assign({}, it.when || fullWhen()); const cur = w[d] === true ? OFFER_SHIFTS.slice() : Array.isArray(w[d]) ? w[d].slice() : []; const nx = cur.includes(sh) ? cur.filter((x) => x !== sh) : cur.concat([sh]); if (nx.length) w[d] = nx; else delete w[d]; return Object.assign({}, it, { when: w }); }) }));
       const has = (it, d, sh) => !it.when || it.when[d] === true || (Array.isArray(it.when[d]) && it.when[d].includes(sh));
+      // Toque no nome do dia: marca/desmarca o dia inteiro (os dois turnos) daquele item.
+      const toggleDay = (i, d) => setF((fm) => ({ items: fm.items.map((it, k) => { if (k !== i) return it; const w = Object.assign({}, it.when || fullWhen()); const full = OFFER_SHIFTS.every((sh) => w[d] === true || (Array.isArray(w[d]) && w[d].includes(sh))); if (full) delete w[d]; else w[d] = OFFER_SHIFTS.slice(); return Object.assign({}, it, { when: w }); }) }));
+      // Repetir hoje nos demais dias: cada item passa a valer nos outros dias nos mesmos turnos de hoje (quem não vale hoje, não muda).
+      const repeatToday = () => setF((fm) => ({ items: fm.items.map((it) => { if (!it.when) return it; const td = it.when[c.day] === true ? OFFER_SHIFTS.slice() : Array.isArray(it.when[c.day]) ? it.when[c.day] : null; if (!td || !td.length) return it; const w = {}; for (const d of o.days) w[d] = td.slice(); return Object.assign({}, it, { when: w }); }) }));
       const setTot = (d, k, v) => setF((fm) => ({ totals: Object.assign({}, fm.totals, { [d]: Object.assign({}, fm.totals[d], { [k]: v }) }) }));
       const service = svc(o.service_id);
       return (
@@ -361,12 +366,12 @@ export default function Atendimento() {
             {f.items.map((it, i) => (
               <div key={i} className="tri-item" data-item={i}>
                 <div className="tri-item-row"><input type="text" value={it.t} autoComplete="off" placeholder="ex.: Ginecologia" maxLength={80} onChange={(e) => setItem(i, { t: e.target.value })} /><button type="button" className="icon-btn" aria-label="Tirar este item" onClick={() => setF((fm) => ({ items: fm.items.filter((_, k) => k !== i) }))}>{I('x')}</button></div>
-                {!f.all ? <div className="tri-when"><button type="button" className={`tw all ${!it.when ? 'on' : ''}`} onClick={() => setItem(i, { when: it.when ? null : {} })}>sempre</button>{o.days.map((d) => <span key={d} className="tw-day"><small>{d === c.day ? 'hoje' : T.fmtDate(d, 'wd').split(' ')[0]}</small>{OFFER_SHIFTS.map((sh) => <button key={sh} type="button" className={`tw ${has(it, d, sh) ? 'on' : ''}`} data-when={`${d}|${sh}`} onClick={() => toggle(i, d, sh)}>{sh === 'manha' ? 'M' : 'T'}</button>)}</span>)}</div> : null}
+                {!f.all ? <div className="tri-when"><button type="button" className={`tw all ${!it.when ? 'on' : ''}`} onClick={() => setItem(i, { when: it.when ? null : {} })}>sempre</button>{o.days.map((d) => <span key={d} className="tw-day"><button type="button" className="tw-dname" title="Marcar o dia inteiro" onClick={() => toggleDay(i, d)}>{d === c.day ? 'hoje' : T.fmtDate(d, 'wd').split(' ')[0]}</button>{OFFER_SHIFTS.map((sh) => <button key={sh} type="button" className={`tw ${has(it, d, sh) ? 'on' : ''}`} data-when={`${d}|${sh}`} onClick={() => toggle(i, d, sh)}>{sh === 'manha' ? 'M' : 'T'}</button>)}</span>)}</div> : null}
               </div>
             ))}
-            <div className="tri-item-actions"><button type="button" className="btn btn-ghost sm" data-act="item-add" onClick={() => setF((fm) => ({ items: fm.items.concat([{ t: '', when: null }]) }))}>{I('calendarplus')}Adicionar item</button>{service ? <button type="button" className="btn btn-ghost sm" data-act="item-prog" onClick={() => { const its = offerItemsOf({ id: p.id }, service, c).map((x) => ({ t: x.t, when: x.when || null })); setF({ items: its, all: its.every((x) => !x.when) }); }}>{I('list')}Usar a programação</button> : null}</div>
+            <div className="tri-item-actions"><button type="button" className="btn btn-ghost sm" data-act="item-add" onClick={() => setF((fm) => ({ items: fm.items.concat([{ t: '', when: null }]) }))}>{I('calendarplus')}Adicionar item</button>{!f.all && o.days.length > 1 ? <button type="button" className="btn btn-ghost sm" data-act="item-repeat" onClick={repeatToday}>{I('copy')}Repetir hoje nos demais dias</button> : null}{service ? <button type="button" className="btn btn-ghost sm" data-act="item-prog" onClick={() => { const its = offerItemsOf({ id: p.id }, service, c).map((x) => ({ t: x.t, when: x.when || null })); setF({ items: its, all: its.every((x) => !x.when) }); }}>{I('list')}Usar a programação</button> : null}</div>
           </div>
-          <p className="tiny muted">"Sempre" = em todos os dias e turnos. M = manhã, T = tarde; com "igual todos os dias" marcado, a agenda some. Sem nenhum turno marcado, o item não aparece.</p>
+          <p className="tiny muted">"Sempre" = em todos os dias e turnos. M = manhã, T = tarde; toque no nome do dia para marcar o dia inteiro. Com "igual todos os dias" marcado, a agenda some. Sem nenhum turno marcado, o item não aparece.</p>
           <div className="tri-sec"><b>Senhas por dia</b><small>total possível de cada série, por dia</small></div>
           <div className="tri-totals"><span className="cfg-h">Dia</span><span className="cfg-h">Comuns (N)</span><span className="cfg-h">Priorit. (P)</span>{o.days.map((d) => <Fragment key={d}><span className="tri-tot-d">{T.fmtDate(d, 'wd')}{d === c.day ? ' · hoje' : ''}</span><input type="text" inputMode="numeric" value={f.totals[d].n} autoComplete="off" placeholder="—" data-tot={`${d}|n`} onChange={(e) => setTot(d, 'n', e.target.value)} /><input type="text" inputMode="numeric" value={f.totals[d].p} autoComplete="off" placeholder="—" data-tot={`${d}|p`} onChange={(e) => setTot(d, 'p', e.target.value)} /></Fragment>)}</div>
           <p className="tiny muted">Prefixo, primeiro número e ordem de chamada ficam em "padrão". Tudo aqui vale de hoje em diante para a triagem, a porta, a TV e o painel; a planta e o site não mudam.</p>

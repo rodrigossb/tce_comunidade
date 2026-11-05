@@ -160,8 +160,10 @@ abaixo, **o que é oferecido** ali — por padrão o que a programação diz par
 muda nome do atendimento, tipo/número da sala, **o que é oferecido por dia e turno** (lista de itens; cada item vale "sempre" ou
 só nos dias/turnos marcados — M/T de hoje ao fim do evento — com a opção "igual todos os dias e turnos"; "Usar a programação"
 recarrega os itens do serviço) e **senhas por dia** (total possível de N e P em cada dia restante, gravado em `fila_cfg` do dia,
-mantendo prefixos, inícios e ordem). O cartão destaca o que vale **agora** (dia e turno atuais) e mostra os dois próximos turnos
-com menos ênfase (`T.offerSlots`). Tudo vale do dia da edição em diante, em todos os aparelhos (tabela `fila_info`, última linha
+mantendo prefixos, inícios e ordem). O cartão destaca o que vale **agora** (dia e turno atuais) e mostra o que vem depois com menos
+ênfase, **consolidando** dias/turnos seguidos com a mesma oferta numa linha só ("todos os dias", "sex 06 e sáb 07", "sáb 07";
+`T.offerSlots` + `T.slotGroups`). No formulário, o nome do dia marca o dia inteiro e "Repetir hoje nos demais dias" copia a
+agenda de hoje. Tudo vale do dia da edição em diante, em todos os aparelhos (tabela `fila_info`, última linha
 por ambiente no local, `items` em JSON `[{ t, when }]`; a planta e o site público não mudam). Filas criadas na triagem também
 valem do dia da criação até o fim do evento (remover tira de todos os dias). As salas fixas editadas vêm na lista `extras` do estado/TV com `override: true` (só atualizam a fila
 existente; nunca criam fila). **Dia de trabalho** (`T.ticketDay`): no dia de serviços do local é ele; nos outros dias do evento o app, a TV e o

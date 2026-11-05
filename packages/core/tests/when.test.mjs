@@ -57,3 +57,20 @@ test('offerSlots: agenda por dia/turno com "agora" e "passado"; item sem when va
     ['2026-11-07', 'manha', 'Psicologia,Clínico', false, false], ['2026-11-07', 'tarde', 'Psicologia,Clínico', false, false]]);
   assert.deepEqual(T.offerSlots([{ t: 'X', when: { '2026-11-09': true } }], ['2026-11-05'], '2026-11-05', 'manha'), []);
 });
+
+test('slotGroups consolida turnos/dias com a mesma oferta', () => {
+  const days = ['2026-11-05', '2026-11-06', '2026-11-07'];
+  const same = T.slotGroups(T.offerSlots([{ t: 'Psicologia' }], days, '2026-11-05', 'tarde'), '2026-11-05', days);
+  assert.equal(same.length, 1); assert.equal(same[0].label, 'todos os dias'); assert.equal(same[0].now, true);
+  const items = [{ t: 'Ginecologia', when: { '2026-11-05': ['tarde'], '2026-11-06': ['manha', 'tarde'] } }, { t: 'Exames', when: { '2026-11-06': ['manha'] } }, { t: 'Psicologia' }];
+  const g = T.slotGroups(T.offerSlots(items, days, '2026-11-05', 'tarde').filter((s) => !s.past), '2026-11-05', days);
+  assert.deepEqual(g.map((x) => [x.label, x.items.join(',')]), [['hoje', 'Ginecologia,Psicologia'], ['sex 06 manhã', 'Ginecologia,Exames,Psicologia'], ['sex 06 tarde', 'Ginecologia,Psicologia'], ['sáb 07', 'Psicologia']]);
+  const two = T.slotGroups(T.offerSlots([{ t: 'CNH', when: { '2026-11-06': true, '2026-11-07': true } }], days, '2026-11-05', 'manha'), '2026-11-05', days);
+  assert.equal(two[0].label, 'sex 06 e sáb 07');
+  const partial = T.slotGroups(T.offerSlots([{ t: 'Y', when: { '2026-11-06': ['tarde'], '2026-11-07': ['manha'] } }], days, '2026-11-05', 'manha'), '2026-11-05', days);
+  assert.equal(partial[0].label, 'sex 06 tarde · sáb 07 manhã');
+  const rest = T.slotGroups(T.offerSlots([{ t: 'Z' }], days, '2026-11-05', 'tarde').filter((s) => !s.past), '2026-11-05', days);
+  assert.equal(rest[0].label, 'todos os dias', 'o que resta de hoje conta como dia inteiro');
+  const three = T.slotGroups(T.offerSlots([{ t: 'X' }], days.concat(['2026-11-08']), '2026-11-05', 'manha').filter((s) => s.date !== '2026-11-08'), '2026-11-05', days.concat(['2026-11-08']));
+  assert.equal(three[0].label, 'hoje a sáb 07');
+});

@@ -344,3 +344,5 @@
 .tri-totals .cfg-h{font-size:.68em;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
 .tri-totals .tri-tot-d{font-size:.85em;font-weight:700;color:var(--ink2)}
 .tri-new-form .tri-totals input{font-size:1.05em;padding:.4em .5em;text-align:center}
+.tw-dname{font:inherit;font-size:.7em;font-weight:800;text-transform:uppercase;color:var(--mut);background:none;border:0;padding:.2em .25em;margin-right:.1em;cursor:pointer;text-decoration:underline dotted;letter-spacing:.03em}
+.tw-dname:active{color:var(--primary)}

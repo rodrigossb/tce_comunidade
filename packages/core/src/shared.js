@@ -253,6 +253,31 @@ function offerSlots(items, days, nowDate, nowShift, shifts) {
   }
   return out;
 }
+const SHIFT_SHORT = { manha: 'manhã', tarde: 'tarde', noite: 'noite' };
+/** Agrupa slots (offerSlots) consecutivos com os mesmos itens → [{ items, slots, label, now, past }]. `days` = todos os dias
+    considerados (para "todos os dias" significar isso mesmo). Rótulo consolidado:
+    "todos os dias", "qui 05 a sáb 07", "sex 06 e sáb 07", "hoje tarde", "sex 06 manhã · sáb 07". */
+function slotGroups(slots, nowDate, days, shifts) {
+  const all = slots || []; const dates = days && days.length ? days.slice() : [...new Set(all.map((s) => s.date))]; const sh = shifts || ['manha', 'tarde'];
+  const shiftsOf = (date, list) => list.filter((s) => s.date === date).map((s) => s.shift);
+  const dayName = (d) => (d === nowDate ? 'hoje' : fmtDate(d, 'wd'));
+  // Dia "inteiro": todos os turnos; hoje, todos os que ainda restam na lista (os passados já saíram).
+  const fullDay = (d, gs) => shiftsOf(d, gs).length === (d === nowDate ? shiftsOf(d, all).length : sh.length);
+  const label = (gs) => {
+    const ds = [...new Set(gs.map((s) => s.date))];
+    const full = ds.every((d) => fullDay(d, gs));
+    if (full) {
+      if (ds.length === dates.length && ds.length > 1) return 'todos os dias';
+      const idx = ds.map((d) => dates.indexOf(d)); const consecutive = idx.every((v, i) => i === 0 || v === idx[i - 1] + 1);
+      if (ds.length >= 3 && consecutive) return `${dayName(ds[0])} a ${dayName(ds[ds.length - 1])}`;
+      return ds.map(dayName).join(ds.length === 2 ? ' e ' : ', ');
+    }
+    return ds.map((d) => { const x = shiftsOf(d, gs); return fullDay(d, gs) ? dayName(d) : `${dayName(d)} ${x.map((k) => SHIFT_SHORT[k] || k).join(' e ')}`; }).join(' · ');
+  };
+  const groups = [];
+  for (const s of all) { const g = groups[groups.length - 1]; const key = s.items.join('\u0001'); if (g && g.key === key) g.slots.push(s); else groups.push({ key, items: s.items, slots: [s] }); }
+  return groups.map((g) => ({ items: g.items, slots: g.slots, label: label(g.slots), now: g.slots.some((x) => x.now), past: g.slots.every((x) => x.past) }));
+}
 const queueLabel = (p) => (p.kind === 'area' && !p.num ? p.name : `${p.name} · ${p.kind === 'sala' ? 'Sala' : p.kind === 'tenda' ? 'Tenda' : 'Ambiente'} ${p.num}`);
 
 // ---- busca única (cursos, serviços e locais), sem acentos, com sinônimos do dia a dia ----
@@ -273,7 +298,7 @@ function search(q) {
 }
 const SUGGESTIONS = ['Saúde', 'Vacina', 'Identidade', 'Dentista', 'Castração', 'Casamento', 'Corte de cabelo', 'Energia', 'Mulheres', 'Crianças', 'Empreendedorismo', 'Feira'];
 
-export { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, itemWhen, itemShifts, whenLabel, itemWhenLabel, offerOn, offerSlots, ticketDay, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, ticketQueuesOf, queueLabel, courseRoomPlace, offeringsAt, icon, SHIFT_ICON };
+export { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, itemWhen, itemShifts, whenLabel, itemWhenLabel, offerOn, offerSlots, slotGroups, ticketDay, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, ticketQueuesOf, queueLabel, courseRoomPlace, offeringsAt, icon, SHIFT_ICON };
 /** Mesmo objeto `TCE` do site antigo (T.fmtDate, T.icon…), para portar as telas sem reescrever cada chamada. */
-export const TCE = { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, search, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, itemWhen, itemShifts, whenLabel, itemWhenLabel, offerOn, offerSlots, ticketDay, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, ticketQueuesOf, queueLabel, courseRoomPlace, offeringsAt, icon, SHIFT_ICON };
+export const TCE = { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, search, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, itemWhen, itemShifts, whenLabel, itemWhenLabel, offerOn, offerSlots, slotGroups, ticketDay, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, ticketQueuesOf, queueLabel, courseRoomPlace, offeringsAt, icon, SHIFT_ICON };
 export default TCE;
