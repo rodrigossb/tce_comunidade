@@ -353,3 +353,6 @@
 .tri-mode.contagem{border-color:#fcd34d;background:#fffbeb}.tri-mode.contagem .ico,.tri-mode.contagem span{color:#b45309}
 .tri-totals.modes{grid-template-columns:minmax(0,1.1fr) .8fr .8fr 1.25fr}
 .tri-new-form .tri-totals select{font-size:.95em;padding:.4em .3em}
+.tri-ro{display:inline-flex;align-items:center;gap:.35em;font-size:.78em;color:var(--mut);font-weight:700}
+.tri-ro .ico{width:1em;height:1em}
+.at-top .btn.sm{padding:.45em .7em;font-size:.82em}

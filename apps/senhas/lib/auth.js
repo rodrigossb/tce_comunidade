@@ -1,12 +1,10 @@
-// Autenticação por PIN (equipe = PIN_OPERADOR, gestão = PIN_GESTOR, do .env). O PIN fica num cookie httpOnly
-// e é revalidado a cada chamada: trocar o PIN no .env derruba todos os aparelhos.
+// Autenticação por PIN (perfis em lib/roles.js: PIN_GESTOR, PIN_OPERADOR, PIN_TRIAGEM, PIN_PORTA, do .env). O PIN fica num
+// cookie httpOnly e é revalidado a cada chamada: trocar o PIN no .env derruba todos os aparelhos daquele perfil.
 import { cookies, headers } from 'next/headers';
+import { roleOfPin as roleOf } from './roles.js';
 
 export const COOKIE = 'tce_at_pin';
-export function roleOfPin(pin) {
-  const p = String(pin || ''); const op = String(process.env.PIN_OPERADOR || ''); const ge = String(process.env.PIN_GESTOR || '');
-  return p && ge && p === ge ? 'gestor' : p && op && p === op ? 'operador' : null;
-}
+export const roleOfPin = (pin) => roleOf(pin, process.env);
 export async function currentRole() { const c = await cookies(); return roleOfPin(c.get(COOKIE)?.value); }
 export async function setPinCookie(pin) {
   const h = await headers(); const proto = (h.get('x-forwarded-proto') || '').split(',')[0].trim();

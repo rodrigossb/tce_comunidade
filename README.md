@@ -177,6 +177,14 @@ Contagem de entregues: o aparelho mostra o que digitou até o servidor confirmar
 envios saem em fila, na ordem — corrige o caso em que a contagem "voltava" ao valor anterior (a versão anterior guardava a
 contagem local na mesma chave do local do aparelho).
 
+**Perfis (PINs)** (`lib/roles.js`; cada um é uma variável do `.env`, e trocar o PIN derruba os aparelhos daquele perfil):
+`PIN_GESTOR` = **administração** (tudo: triagem completa, porta, painel, CSV); `PIN_OPERADOR` = **equipe** (tudo menos CSV; é o PIN
+já distribuído); `PIN_TRIAGEM` = **triagem** (só lança as quantidades entregues: sem editar, padrão, modo, criar, desativar ou
+painel); `PIN_PORTA` = **porta da sala** (só chama senhas e ajusta o número atual). O servidor confere o perfil em cada ação
+(`app/actions.js`: ler = todos; entregues = gestor/operador/triagem; porta = gestor/operador/porta; configurar = gestor/operador).
+Perfil com uma função só entra direto nela. Ao entrar na triagem ou na porta, o aparelho **escolhe os serviços** que vai lançar
+(um ou vários, ou todos) e só vê as filas deles; o botão **Serviços** no alto da tela reabre a escolha (guardado no aparelho).
+
 **Novo serviço / sala** (triagem, botão no fim da lista): cria uma fila extra para um atendimento que não estava na planta —
 nome, pilar, tipo (sala/tenda/outro) e número, já com o padrão de senhas (N/P possíveis, ordem) e as já entregues. Fica na
 tabela `filas_extra` (id do ambiente `<local>-x<n>`), vale para o local/dia, e entra na triagem, na porta, na TV (quando a TV não
@@ -219,7 +227,7 @@ TV do fundo `…/tce-senhas/tv?local=jn&grupo=fundos`.
 Arquitetura: `app/actions.js` (server actions: login por PIN em cookie httpOnly, estado, fila, estatísticas,
 lançamentos), `lib/db.js` (SQLite em `data/senhas.db`, mesmo esquema de antes: `issued_log` e `calls`),
 `app/api/export.csv` (download, gestão), `app/api/tv` (quadro da TV) e `app/api/health`. Configuração em `apps/senhas/.env` (copie de
-`.env.example`; **nunca commitar**): `PIN_OPERADOR`, `PIN_GESTOR`, `PORT`, `HOST`, `BASE_PATH`,
+`.env.example`; **nunca commitar**): `PIN_GESTOR`, `PIN_OPERADOR`, `PIN_TRIAGEM`, `PIN_PORTA`, `PORT`, `HOST`, `BASE_PATH`,
 `ALLOWED_ORIGINS`, `DB_PATH`, `BACKUP_DIR`.
 
 Produção neste servidor: **https://dev.gerenciahub.com.br/tce-senhas/** — pm2 `tce-senhas`
