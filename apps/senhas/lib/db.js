@@ -44,6 +44,7 @@ function open(file) {
   if (!db.prepare(`PRAGMA table_info(calls)`).all().some((c) => c.name === 'recalled_at')) db.exec(`ALTER TABLE calls ADD COLUMN recalled_at INTEGER`); // "chamar novamente" (reanuncia na TV)
   if (!db.prepare(`PRAGMA table_info(calls)`).all().some((c) => c.name === 'priority')) db.exec(`ALTER TABLE calls ADD COLUMN priority INTEGER NOT NULL DEFAULT 0`); // senha prioritária, chamada fora da ordem (não avança a sequência)
   if (!db.prepare(`PRAGMA table_info(issued_log)`).all().some((c) => c.name === 'kind')) db.exec(`ALTER TABLE issued_log ADD COLUMN kind TEXT NOT NULL DEFAULT 'n'`); // série: 'n' comuns, 'p' prioritárias
+  if (!db.prepare(`PRAGMA table_info(fila_info)`).all().some((c) => c.name === 'items')) db.exec(`ALTER TABLE fila_info ADD COLUMN items TEXT`); // oferta por dia/turno: JSON [{ t, when }]
   const q = {
     // última contagem por sala E série (kind 'n'/'p'); vale o lançamento mais recente (id)
     issuedLatest: db.prepare(`SELECT service_id, place_id, kind, count, ts FROM issued_log i WHERE day=? AND venue=? AND id=(SELECT MAX(id) FROM issued_log WHERE day=i.day AND venue=i.venue AND service_id=i.service_id AND place_id=i.place_id AND kind=i.kind)`),
@@ -72,7 +73,8 @@ function open(file) {
     lugarInsert: db.prepare(`INSERT INTO lugares (name, kind, address, lat, lng, note, phone, device, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`),
     lugarUpdate: db.prepare(`UPDATE lugares SET name=?, kind=?, address=?, lat=?, lng=?, note=?, phone=?, device=?, updated_at=? WHERE id=?`),
     lugarDelete: db.prepare(`UPDATE lugares SET deleted=1, updated_at=? WHERE id=?`),
-    extraAll: db.prepare(`SELECT id, service_id, place_id, name, kind, num, created_at FROM filas_extra WHERE day=? AND venue=? AND deleted=0 ORDER BY id`),
+    // uma fila criada na triagem vale do dia em que foi criada até o fim do evento (remover tira de todos os dias)
+    extraAll: db.prepare(`SELECT id, service_id, place_id, name, kind, num, created_at FROM filas_extra WHERE day<=? AND venue=? AND deleted=0 ORDER BY id`),
     extraGet: db.prepare(`SELECT * FROM filas_extra WHERE id=?`),
     extraInsert: db.prepare(`INSERT INTO filas_extra (day, venue, service_id, place_id, name, kind, num, device, created_at) VALUES (?,?,?,?,?,?,?,?,?)`),
     extraSetPlace: db.prepare(`UPDATE filas_extra SET place_id=? WHERE id=?`),
@@ -82,8 +84,9 @@ function open(file) {
     offDelete: db.prepare(`DELETE FROM filas_off WHERE day=? AND venue=? AND place_id=?`),
     cursorOf: db.prepare(`SELECT normal_last, prio_last, ts FROM fila_cursor WHERE day=? AND venue=? AND service_id=? AND place_id=? ORDER BY ts DESC, id DESC LIMIT 1`),
     cursorAll: db.prepare(`SELECT service_id, place_id, normal_last, prio_last, ts FROM fila_cursor f WHERE day=? AND venue=? AND id=(SELECT MAX(id) FROM fila_cursor WHERE day=f.day AND venue=f.venue AND service_id=f.service_id AND place_id=f.place_id)`),
-    infoAll: db.prepare(`SELECT service_id, place_id, name, kind, num, offer, ts FROM fila_info f WHERE day=? AND venue=? AND id=(SELECT MAX(id) FROM fila_info WHERE day=f.day AND venue=f.venue AND place_id=f.place_id)`),
-    infoInsert: db.prepare(`INSERT INTO fila_info (day, venue, service_id, place_id, name, kind, num, offer, device, ts) VALUES (?,?,?,?,?,?,?,?,?,?)`),
+    // a edição de uma fila vale do dia em que foi feita em diante (última linha por ambiente no local, qualquer dia)
+    infoAll: db.prepare(`SELECT service_id, place_id, name, kind, num, offer, items, ts FROM fila_info f WHERE venue=? AND id=(SELECT MAX(id) FROM fila_info WHERE venue=f.venue AND place_id=f.place_id)`),
+    infoInsert: db.prepare(`INSERT INTO fila_info (day, venue, service_id, place_id, name, kind, num, offer, items, device, ts) VALUES (?,?,?,?,?,?,?,?,?,?,?)`),
     cursorInsert: db.prepare(`INSERT INTO fila_cursor (day, venue, service_id, place_id, normal_last, prio_last, device, ts) VALUES (?,?,?,?,?,?,?,?)`),
   };
   return { db, q, file };
@@ -121,7 +124,10 @@ export function state(day, venue) {
   const c = ctx(day, venue); const { q } = conn();
   const imap = issuedMap(c.day, c.venue); const calls = rows(q.callsDay.all(c.day, c.venue));
   const configs = []; for (const r of q.cfgAll.all(c.day, c.venue)) configs.push(Object.assign({ service_id: r.service_id, place_id: r.place_id, ts: num(r.ts) }, cfgRow(r)));
-  return { day: c.day, venue: c.venue, now: Date.now(), issued: Object.values(imap), configs, default_cfg: DEFAULT_CFG, stats: summarize(issuedAgg(imap), calls, Date.now()), extras: extras(c.day, c.venue), disabled: disabled(c.day, c.venue) };
+  // totais de senhas (N/P) já configurados por sala nos dias do evento a partir de hoje: a triagem edita "senhas por dia"
+  const cfg_days = {}; const days = T.eventDays().filter((d) => d >= c.day); if (!days.includes(c.day)) days.unshift(c.day);
+  for (const d of days) for (const r of q.cfgAll.all(d, c.venue)) { (cfg_days[r.place_id] = cfg_days[r.place_id] || {})[d] = { n_total: num(r.n_total), p_total: num(r.p_total) }; }
+  return { day: c.day, venue: c.venue, now: Date.now(), issued: Object.values(imap), configs, default_cfg: DEFAULT_CFG, stats: summarize(issuedAgg(imap), calls, Date.now()), extras: extras(c.day, c.venue), disabled: disabled(c.day, c.venue), cfg_days, days };
 }
 export function stats(day, venue) {
   const st = state(day, venue); const { q } = conn();
@@ -280,20 +286,54 @@ const text = (s, n) => String(s == null ? '' : s).replace(/<[^>]*>/g, '').replac
     triagem (`override: true`, sem `extra`): quem procura um ambiente por id (placeOf, TV, painel) vê nome/sala/oferta atuais. */
 export function extras(day, venue) {
   const c = ctx(day, venue); const { q } = conn();
-  const infos = {}; for (const r of rows(q.infoAll.all(c.day, c.venue))) infos[r.place_id] = r;
-  const out = rows(q.extraAll.all(c.day, c.venue)).map((r) => { const i = infos[r.place_id]; delete infos[r.place_id]; return Object.assign({ id: r.place_id, extra_id: r.id, venue: c.venue, service_id: r.service_id, name: r.name, kind: r.kind, num: r.num, extra: true, created_at: r.created_at }, i ? { name: i.name, kind: i.kind, num: i.num, offer: i.offer } : {}); });
-  for (const i of Object.values(infos)) out.push({ id: i.place_id, venue: c.venue, service_id: i.service_id, name: i.name, kind: i.kind, num: i.num, offer: i.offer, override: true, ts: i.ts });
+  const parseItems = (s) => { if (!s) return null; try { const v = JSON.parse(s); return Array.isArray(v) ? v : null; } catch { return null; } };
+  const infos = {}; for (const r of rows(q.infoAll.all(c.venue))) infos[r.place_id] = r;
+  const out = rows(q.extraAll.all(c.day, c.venue)).map((r) => { const i = infos[r.place_id]; delete infos[r.place_id]; return Object.assign({ id: r.place_id, extra_id: r.id, venue: c.venue, service_id: r.service_id, name: r.name, kind: r.kind, num: r.num, extra: true, created_at: r.created_at }, i ? { name: i.name, kind: i.kind, num: i.num, offer: i.offer, items: parseItems(i.items) } : {}); });
+  for (const i of Object.values(infos)) out.push({ id: i.place_id, venue: c.venue, service_id: i.service_id, name: i.name, kind: i.kind, num: i.num, offer: i.offer, items: parseItems(i.items), override: true, ts: i.ts });
   return out;
 }
-/** Triagem edita uma fila (fixa ou extra): { day, venue, service_id, place_id, name, kind, num, offer, device }. Vale para
-    triagem, porta, TV e painel do dia; a planta e a programação pública não mudam. */
+const SHIFT_KEYS = ['manha', 'tarde', 'noite'];
+/** Oferta por dia/turno vinda da triagem: [{ t, when }] → validada ([] = nada; null = não informada). when: null (sempre) ou
+    { 'AAAA-MM-DD': true | ['manha', 'tarde'] }. */
+function cleanItems(raw) {
+  if (raw == null) return null; if (!Array.isArray(raw) || raw.length > 40) throw err(400, 'itens inválidos');
+  const out = [];
+  for (const it of raw) {
+    const t = text(it && (typeof it === 'string' ? it : it.t), 80); if (!t) continue;
+    let when = null;
+    if (it && typeof it === 'object' && it.when && typeof it.when === 'object') {
+      when = {};
+      for (const [d, v] of Object.entries(it.when)) { if (!isDay(d)) continue; if (v === true) when[d] = true; else if (Array.isArray(v)) { const sh = SHIFT_KEYS.filter((k) => v.includes(k)); if (sh.length) when[d] = sh; } }
+    }
+    out.push(when ? { t, when } : { t });
+  }
+  return out;
+}
+/** Triagem edita uma fila (fixa ou extra): { day, venue, service_id, place_id, name, kind, num, items | offer, totals, device }.
+    items = o que é oferecido por dia/turno (ver cleanItems); offer = texto simples (compatibilidade); totals = senhas por dia
+    { 'AAAA-MM-DD': { n, p } } → grava n_total/p_total na configuração (fila_cfg) de cada dia, mantendo prefixos, inícios e ordem.
+    A edição vale do dia em diante, para triagem, porta, TV e painel; a planta e a programação pública não mudam. */
 export function setQueueInfo(b) {
   const c = ctx(b && b.day, b && b.venue); const sid = clean(b.service_id, 32); const pid = clean(b.place_id, 32);
   if (!sid || !pid) throw err(400, 'dados');
-  const name = text(b.name, 60); const kind = EXTRA_KINDS.includes(b.kind) ? b.kind : 'sala'; const num = text(b.num, 8).replace(/[^\w\- ]/g, ''); const offer = text(String(b.offer == null ? '' : b.offer).replace(/\r?\n+/g, '; '), 400).replace(/\s*;\s*(;\s*)*/g, '; ').replace(/^; |; $/g, '');
+  const name = text(b.name, 60); const kind = EXTRA_KINDS.includes(b.kind) ? b.kind : 'sala'; const num = text(b.num, 8).replace(/[^\w\- ]/g, '');
+  const items = cleanItems(b.items);
+  const offer = items ? items.map((x) => x.t).join('; ').slice(0, 400) : text(String(b.offer == null ? '' : b.offer).replace(/\r?\n+/g, '; '), 400).replace(/\s*;\s*(;\s*)*/g, '; ').replace(/^; |; $/g, '');
   if (name.length < 2) throw err(400, 'informe o nome do atendimento');
-  const ts = Date.now(); conn().q.infoInsert.run(c.day, c.venue, sid, pid, name, kind, num, offer, clean(b.device, 40), ts);
-  notify(c.day, c.venue); return { ok: true, ts, place_id: pid, name, kind, num, offer };
+  const totals = [];
+  if (b.totals && typeof b.totals === 'object') for (const [d, v] of Object.entries(b.totals)) {
+    if (!isDay(d) || !v || typeof v !== 'object') continue;
+    const t = {}; for (const k of ['n', 'p']) { if (v[k] === '' || v[k] == null) continue; const n = Number(v[k]); if (!Number.isInteger(n) || n < 0 || n > 100000) throw err(400, `senhas por dia inválidas (${d})`); t[k] = n; }
+    if ('n' in t || 'p' in t) totals.push([d, t]);
+  }
+  const { db, q } = conn(); const ts = Date.now(); const device = clean(b.device, 40);
+  db.exec('BEGIN');
+  try {
+    q.infoInsert.run(c.day, c.venue, sid, pid, name, kind, num, offer, items ? JSON.stringify(items) : null, device, ts);
+    for (const [d, t] of totals) { const cur = cfgOf(d, c.venue, sid, pid); const cfg = Object.assign({}, cur, 'n' in t ? { n_total: t.n } : {}, 'p' in t ? { p_total: t.p } : {}); q.cfgInsert.run(d, c.venue, sid, pid, cfg.n_prefix, cfg.p_prefix, cfg.n_from, cfg.p_from, cfg.n_total, cfg.p_total, cfg.pattern, device, ts); }
+    db.exec('COMMIT');
+  } catch (e) { db.exec('ROLLBACK'); throw e; }
+  notify(c.day, c.venue); return { ok: true, ts, place_id: pid, name, kind, num, offer, items, totals: Object.fromEntries(totals) };
 }
 /** Cria uma fila extra { day, venue, service_id, name, kind, num, device, + configuração (n_total, p_total, pattern, prefixos,
     inícios) e entregues iniciais (issued_n, issued_p) }: a nova sala já nasce configurada para a porta e a TV. */

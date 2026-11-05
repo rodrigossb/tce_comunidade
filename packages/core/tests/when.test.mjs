@@ -47,3 +47,13 @@ test('Consulta Médica fica na sala 09 da Joaquim Nabuco: painel da sala lista a
   assert.deepEqual(T.offerOn(T.serviceById('consulta'), '2026-11-05', 'jn-r09', 'jn').map((x) => x.text.split(' (')[0]), ['Ginecologia', 'Psiquiatria', 'Urologia', 'Psicologia']);
   assert.ok(T.placesOf(T.serviceById('consulta'), 'jn').includes('jn-r09'));
 });
+
+test('offerSlots: agenda por dia/turno com "agora" e "passado"; item sem when vale sempre', () => {
+  const items = [{ t: 'Ginecologia', when: { '2026-11-05': ['tarde'], '2026-11-06': ['manha', 'tarde'] } }, { t: 'Exames', when: { '2026-11-06': ['manha'] } }, { t: 'Psicologia' }, { t: 'Clínico', when: { '2026-11-07': true } }];
+  const s = T.offerSlots(items, ['2026-11-05', '2026-11-06', '2026-11-07'], '2026-11-05', 'tarde');
+  assert.deepEqual(s.map((x) => [x.date, x.shift, x.items.join(','), x.now, x.past]), [
+    ['2026-11-05', 'manha', 'Psicologia', false, true], ['2026-11-05', 'tarde', 'Ginecologia,Psicologia', true, false],
+    ['2026-11-06', 'manha', 'Ginecologia,Exames,Psicologia', false, false], ['2026-11-06', 'tarde', 'Ginecologia,Psicologia', false, false],
+    ['2026-11-07', 'manha', 'Psicologia,Clínico', false, false], ['2026-11-07', 'tarde', 'Psicologia,Clínico', false, false]]);
+  assert.deepEqual(T.offerSlots([{ t: 'X', when: { '2026-11-09': true } }], ['2026-11-05'], '2026-11-05', 'manha'), []);
+});

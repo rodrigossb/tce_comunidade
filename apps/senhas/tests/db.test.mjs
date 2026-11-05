@@ -195,3 +195,22 @@ test('setQueueInfo: triagem edita nome, sala e oferta de uma fila fixa (override
   const { fixedQueues } = await import('../lib/filas-extra.js');
   assert.ok(fixedQueues('jn', '2026-11-05').length > 0, 'salas da planta valem em qualquer dia do evento'); assert.ok(fixedQueues('jn').length > 0);
 });
+
+test('setQueueInfo com itens por dia/turno e senhas por dia: grava items (JSON), vale nos dias seguintes e ajusta fila_cfg de cada dia', () => {
+  const VI = 'jn'; const PID = 'jn-r18';
+  assert.throws(() => db.setQueueInfo({ day: '2026-11-05', venue: VI, service_id: 'pilar-2', place_id: PID, name: 'Detran', totals: { '2026-11-06': { n: -1 } } }), /senhas por dia/);
+  const r = db.setQueueInfo({ day: '2026-11-05', venue: VI, service_id: 'pilar-2', place_id: PID, name: 'Detran', kind: 'sala', num: '18',
+    items: [{ t: 'CNH', when: { '2026-11-05': ['tarde'], '2026-11-06': true, '2026-11-09': ['manha'], 'x': true } }, { t: 'Veículos' }, { t: '' }, { t: 'Lei Seca', when: { '2026-11-06': ['madrugada'] } }],
+    totals: { '2026-11-05': { n: 50, p: 10 }, '2026-11-06': { n: 80, p: '' }, 'nada': { n: 1 } }, device: 't' });
+  assert.deepEqual(r.items, [{ t: 'CNH', when: { '2026-11-05': ['tarde'], '2026-11-06': true, '2026-11-09': ['manha'] } }, { t: 'Veículos' }, { t: 'Lei Seca', when: {} }], 'when vazio = nunca aparece');
+  assert.equal(r.offer, 'CNH; Veículos; Lei Seca');
+  const today = db.extras('2026-11-05', VI).find((e) => e.id === PID); assert.ok(today.override); assert.deepEqual(today.items[1], { t: 'Veículos' });
+  const sat = db.extras('2026-11-07', VI).find((e) => e.id === PID); assert.ok(sat && sat.name === 'Detran', 'a edição vale nos dias seguintes');
+  assert.equal(db.queue('2026-11-05', VI, 'pilar-2', PID).cfg.n_total, 50); assert.equal(db.queue('2026-11-05', VI, 'pilar-2', PID).cfg.p_total, 10);
+  assert.equal(db.queue('2026-11-06', VI, 'pilar-2', PID).cfg.n_total, 80); assert.equal(db.queue('2026-11-06', VI, 'pilar-2', PID).cfg.p_total, 20, 'P em branco mantém o que havia (padrão)');
+  const st = db.state('2026-11-05', VI); assert.equal(st.cfg_days[PID]['2026-11-06'].n_total, 80); assert.ok(st.days.includes('2026-11-07'));
+  // extra criada hoje aparece amanhã; removida some de todos os dias
+  const a = db.addExtra({ day: '2026-11-05', venue: VI, service_id: 'pilar-5', name: 'Defensoria', kind: 'sala', num: '2', device: 't' });
+  assert.ok(db.extras('2026-11-06', VI).some((e) => e.id === a.place_id)); assert.ok(!db.extras('2026-11-04', VI).some((e) => e.id === a.place_id));
+  db.removeExtra(a.id); assert.ok(!db.extras('2026-11-06', VI).some((e) => e.id === a.place_id));
+});

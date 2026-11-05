@@ -3,7 +3,7 @@
    Porta da sala (senha chamada aguardando na porta; entrou/não veio chama a próxima automaticamente) e Painel.
    Porte do js/atendimento.js do site antigo para React: mesmas telas e classes CSS; fala com o servidor por
    server actions (app/actions.js). Guarda configuração no aparelho (localStorage) e tem fila offline. */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { TCE as T } from '@tce/core';
 import { whyLabel, PATTERNS, DEFAULT_CFG, normalizeCfg, ticketLabel } from '@tce/core/fila';
 import { placeLabel } from '@tce/core/map';
@@ -164,11 +164,31 @@ export default function Atendimento() {
   const cfgSummary = (cfg) => `${cfg.n_prefix || '#'} ${cfg.n_from}–${cfg.n_from + cfg.n_total - 1}${cfg.p_total ? ` · ${cfg.p_prefix || '#'} ${cfg.p_from}–${cfg.p_from + cfg.p_total - 1}` : ' · sem prioritárias'} · ${PATTERNS.find((x) => x.id === cfg.pattern)?.short || cfg.pattern}`;
   // Triagem edita uma fila (fixa ou extra): nome do atendimento, tipo/número da sala e o que é oferecido (texto livre; em
   // branco vale o que está na programação para o dia). Fica no servidor: vale para triagem, porta, TV e painel.
-  const openInfo = (p, sid) => setInfoOpen(infoOpen && infoOpen.place_id === p.id ? null : { place_id: p.id, service_id: sid, form: { name: p.name || '', kind: p.kind || 'sala', num: p.num || '', offer: p.offer || '' } });
+  // Dias da agenda (hoje até o fim do evento) e turnos usados na oferta.
+  const schedDays = (c) => { const ds = (data && data.days) || T.eventDays().filter((d) => d >= c.day); return ds.length ? ds : [c.day]; };
+  const OFFER_SHIFTS = ['manha', 'tarde'];
+  // Itens do que é oferecido numa fila: editados na triagem (p.items), texto simples (p.offer) ou a programação do serviço.
+  const offerItemsOf = (p, service, c) => {
+    if (Array.isArray(p.items)) return p.items;
+    if (p.offer) return splitOffer(p.offer).map((t) => ({ t }));
+    const all = (service && service.items) || []; const here = all.filter((it) => T.itemWhere(it, c.venue).includes(p.id));
+    return (here.length ? here : all).map((it) => (typeof it === 'string' ? { t: it } : { t: it.t, when: it.when || (it.only ? { [it.only]: true } : null) }));
+  };
+  const openInfo = (p, sid) => {
+    if (infoOpen && infoOpen.place_id === p.id) { setInfoOpen(null); return; }
+    const c = ctxOf(st); const days = schedDays(c); const service = svc(sid);
+    const items = offerItemsOf(p, service, c).map((it) => ({ t: it.t, when: it.when ? JSON.parse(JSON.stringify(it.when)) : null }));
+    const cd = (data && data.cfg_days && data.cfg_days[p.id]) || {}; const cur = cfgOf(p.id, sid);
+    const totals = {}; for (const d of days) { const v = cd[d] || (d === c.day ? cur : null); totals[d] = { n: v ? String(v.n_total) : '', p: v ? String(v.p_total) : '' }; }
+    setInfoOpen({ place_id: p.id, service_id: sid, days, orig: JSON.parse(JSON.stringify(totals)), form: { name: p.name || '', kind: p.kind || 'sala', num: p.num || '', all: items.every((it) => !it.when), items, totals } });
+  };
   function saveInfo() {
     const o = infoOpen; if (!o) return; const c = ctxOf(st); const f = o.form;
     if (f.name.trim().length < 2) { toast('Informe o nome do atendimento', 'alert'); return; }
-    run(async () => { const r = await post('setQueueInfo', { day: c.day, venue: c.venue, service_id: o.service_id, place_id: o.place_id, name: f.name.trim(), kind: f.kind, num: f.num.trim(), offer: f.offer.trim(), device: st.device }); if (r) { toast(`${r.name}: alterado`); setInfoOpen(null); } await refresh(); });
+    const items = f.items.filter((it) => it.t.trim()).map((it) => (f.all || !it.when ? { t: it.t.trim() } : { t: it.t.trim(), when: it.when }));
+    const totals = {};
+    for (const d of Object.keys(f.totals)) { const t = {}; for (const k of ['n', 'p']) { const v = String(f.totals[d][k]).trim(); if (v === (o.orig[d] ? o.orig[d][k] : '')) continue; if (v !== '' && (!Number.isInteger(Number(v)) || Number(v) < 0)) { toast(`Senhas por dia inválidas (${T.fmtDate(d, 'wd')})`, 'alert'); return; } t[k] = v; } if (Object.keys(t).length) totals[d] = t; }
+    run(async () => { const r = await post('setQueueInfo', { day: c.day, venue: c.venue, service_id: o.service_id, place_id: o.place_id, name: f.name.trim(), kind: f.kind, num: f.num.trim(), items, totals, device: st.device }); if (r) { toast(`${r.name}: alterado`); setInfoOpen(null); } await refresh(); });
   }
   // Novo serviço/sala na triagem (fila extra): nome, pilar, tipo e número; já nasce com o padrão de senhas e prioritárias.
   function saveExtra() {
@@ -308,22 +328,52 @@ export default function Atendimento() {
         <span className={`tri-cnt-of ${over ? 'over' : ''}`}>{total ? `de ${total}` : 'sem limite'}{over ? ' · acima' : ''}</span>
       </div>
     ); };
-    // O que é oferecido na fila: texto da triagem (p.offer) ou, sem ele, a programação do dia (itens com dia/turno).
-    const offerOf = (p, service) => (p.offer ? splitOffer(p.offer).map((text) => ({ text, shifts: null })) : T.offerOn(service, c.day, p.id, c.venue));
-    const shiftsText = (sh) => sh.map((k) => (T.SHIFTS[k] ? T.SHIFTS[k].short.toLowerCase() : k)).join(' e ');
-    const infoFormView = (o, p) => { const f = o.form; const set = (k, v) => setInfoOpen((x) => Object.assign({}, x, { form: Object.assign({}, x.form, { [k]: v }) })); const service = svc(o.service_id); return (
-      <form className="tri-new-form tri-info" onSubmit={(e) => { e.preventDefault(); saveInfo(); }}>
-        <h3 className="tri-h" style={{ '--c': '#1f3b9a' }}>{I('sliders')}Editar · {p.name}</h3>
-        <label>Nome do atendimento<input type="text" value={f.name} autoComplete="off" maxLength={60} onFocus={(e) => e.target.select()} onChange={(e) => set('name', e.target.value)} /></label>
-        <div className="row2">
-          <label>Tipo<select value={f.kind} onChange={(e) => set('kind', e.target.value)}><option value="sala">Sala</option><option value="tenda">Tenda</option><option value="area">Outro ambiente</option></select></label>
-          <label>Número / identificação<input type="text" value={f.num} autoComplete="off" placeholder="ex.: 19 ou A" maxLength={8} onChange={(e) => set('num', e.target.value)} /></label>
-        </div>
-        <label>O que é oferecido<textarea rows={3} value={f.offer} maxLength={400} placeholder={service ? T.offerOn(service, c.day, p.id, c.venue).map((x) => x.text).join('; ') || 'ex.: Ginecologia; Urologia; Psicologia' : ''} onChange={(e) => set('offer', e.target.value)} /></label>
-        <p className="tiny muted">Um item por linha (ou separados por ponto e vírgula). Em branco, vale o que está na programação para hoje. Vale para a triagem, a porta, a TV e o painel de hoje; a planta e o site não mudam.</p>
-        <div className="actions"><button type="button" className="btn btn-ghost" onClick={() => setInfoOpen(null)}>Cancelar</button><button type="submit" className="btn btn-primary" data-act="info-save">{I('check')}Gravar</button></div>
-      </form>
+    // O que é oferecido: agenda por dia/turno (T.offerSlots) — o turno atual em destaque, os próximos com menos ênfase.
+    const days = schedDays(c);
+    const shiftShort = (k) => (k === 'manha' ? 'manhã' : k === 'tarde' ? 'tarde' : 'noite');
+    const slotLabel = (sl) => `${sl.date === c.day ? 'hoje' : T.fmtDate(sl.date, 'wd')} ${shiftShort(sl.shift)}`;
+    const offerView = (p, service) => { const items = offerItemsOf(p, service, c); const slots = T.offerSlots(items, days, c.day, nowShift); const nowS = slots.find((x) => x.now); const next = slots.filter((x) => !x.past && !x.now).slice(0, 2); return (
+      <div className="tri-offer-wrap">
+        {nowS ? <><small className="tri-offer-h">{I('clock')}Agora · {slotLabel(nowS)}</small><ul className="tri-offer" aria-label="O que é oferecido agora">{nowS.items.map((t, k) => <li key={k}><span>{t}</span></li>)}</ul></>
+          : items.length ? <p className="tri-offer-empty">Nada programado agora ({slotLabel({ date: c.day, shift: nowShift })}).</p>
+          : <p className="tri-offer-empty">Sem descrição do que é oferecido · <button type="button" className="link" onClick={() => openInfo(p, service.id)}>descrever</button></p>}
+        {next.length ? <p className="tri-next">{next.map((x, k) => <span key={k}><b>{slotLabel(x)}</b>{x.items.join(', ')}</span>)}</p> : null}
+      </div>
     ); };
+    const infoFormView = (o, p) => {
+      const f = o.form; const setF = (patch) => setInfoOpen((x) => Object.assign({}, x, { form: Object.assign({}, x.form, typeof patch === 'function' ? patch(x.form) : patch) }));
+      const setItem = (i, patch) => setF((fm) => ({ items: fm.items.map((it, k) => (k === i ? Object.assign({}, it, patch) : it)) }));
+      const fullWhen = () => Object.fromEntries(o.days.map((d) => [d, OFFER_SHIFTS.slice()]));
+      const toggle = (i, d, sh) => setF((fm) => ({ items: fm.items.map((it, k) => { if (k !== i) return it; const w = Object.assign({}, it.when || fullWhen()); const cur = w[d] === true ? OFFER_SHIFTS.slice() : Array.isArray(w[d]) ? w[d].slice() : []; const nx = cur.includes(sh) ? cur.filter((x) => x !== sh) : cur.concat([sh]); if (nx.length) w[d] = nx; else delete w[d]; return Object.assign({}, it, { when: w }); }) }));
+      const has = (it, d, sh) => !it.when || it.when[d] === true || (Array.isArray(it.when[d]) && it.when[d].includes(sh));
+      const setTot = (d, k, v) => setF((fm) => ({ totals: Object.assign({}, fm.totals, { [d]: Object.assign({}, fm.totals[d], { [k]: v }) }) }));
+      const service = svc(o.service_id);
+      return (
+        <form className="tri-new-form tri-info" onSubmit={(e) => { e.preventDefault(); saveInfo(); }}>
+          <h3 className="tri-h" style={{ '--c': '#1f3b9a' }}>{I('sliders')}Editar · {p.name}</h3>
+          <label>Nome do atendimento<input type="text" value={f.name} autoComplete="off" maxLength={60} onFocus={(e) => e.target.select()} onChange={(e) => setF({ name: e.target.value })} /></label>
+          <div className="row2">
+            <label>Tipo<select value={f.kind} onChange={(e) => setF({ kind: e.target.value })}><option value="sala">Sala</option><option value="tenda">Tenda</option><option value="area">Outro ambiente</option></select></label>
+            <label>Número / identificação<input type="text" value={f.num} autoComplete="off" placeholder="ex.: 19 ou A" maxLength={8} onChange={(e) => setF({ num: e.target.value })} /></label>
+          </div>
+          <div className="tri-sec"><b>O que é oferecido</b><label className="tri-check"><input type="checkbox" checked={f.all} onChange={(e) => setF({ all: e.target.checked })} />Igual todos os dias e turnos</label></div>
+          <div className="tri-items">
+            {f.items.map((it, i) => (
+              <div key={i} className="tri-item" data-item={i}>
+                <div className="tri-item-row"><input type="text" value={it.t} autoComplete="off" placeholder="ex.: Ginecologia" maxLength={80} onChange={(e) => setItem(i, { t: e.target.value })} /><button type="button" className="icon-btn" aria-label="Tirar este item" onClick={() => setF((fm) => ({ items: fm.items.filter((_, k) => k !== i) }))}>{I('x')}</button></div>
+                {!f.all ? <div className="tri-when"><button type="button" className={`tw all ${!it.when ? 'on' : ''}`} onClick={() => setItem(i, { when: it.when ? null : {} })}>sempre</button>{o.days.map((d) => <span key={d} className="tw-day"><small>{d === c.day ? 'hoje' : T.fmtDate(d, 'wd').split(' ')[0]}</small>{OFFER_SHIFTS.map((sh) => <button key={sh} type="button" className={`tw ${has(it, d, sh) ? 'on' : ''}`} data-when={`${d}|${sh}`} onClick={() => toggle(i, d, sh)}>{sh === 'manha' ? 'M' : 'T'}</button>)}</span>)}</div> : null}
+              </div>
+            ))}
+            <div className="tri-item-actions"><button type="button" className="btn btn-ghost sm" data-act="item-add" onClick={() => setF((fm) => ({ items: fm.items.concat([{ t: '', when: null }]) }))}>{I('calendarplus')}Adicionar item</button>{service ? <button type="button" className="btn btn-ghost sm" data-act="item-prog" onClick={() => { const its = offerItemsOf({ id: p.id }, service, c).map((x) => ({ t: x.t, when: x.when || null })); setF({ items: its, all: its.every((x) => !x.when) }); }}>{I('list')}Usar a programação</button> : null}</div>
+          </div>
+          <p className="tiny muted">"Sempre" = em todos os dias e turnos. M = manhã, T = tarde; com "igual todos os dias" marcado, a agenda some. Sem nenhum turno marcado, o item não aparece.</p>
+          <div className="tri-sec"><b>Senhas por dia</b><small>total possível de cada série, por dia</small></div>
+          <div className="tri-totals"><span className="cfg-h">Dia</span><span className="cfg-h">Comuns (N)</span><span className="cfg-h">Priorit. (P)</span>{o.days.map((d) => <Fragment key={d}><span className="tri-tot-d">{T.fmtDate(d, 'wd')}{d === c.day ? ' · hoje' : ''}</span><input type="text" inputMode="numeric" value={f.totals[d].n} autoComplete="off" placeholder="—" data-tot={`${d}|n`} onChange={(e) => setTot(d, 'n', e.target.value)} /><input type="text" inputMode="numeric" value={f.totals[d].p} autoComplete="off" placeholder="—" data-tot={`${d}|p`} onChange={(e) => setTot(d, 'p', e.target.value)} /></Fragment>)}</div>
+          <p className="tiny muted">Prefixo, primeiro número e ordem de chamada ficam em "padrão". Tudo aqui vale de hoje em diante para a triagem, a porta, a TV e o painel; a planta e o site não mudam.</p>
+          <div className="actions"><button type="button" className="btn btn-ghost" onClick={() => setInfoOpen(null)}>Cancelar</button><button type="submit" className="btn btn-primary" data-act="info-save">{I('check')}Gravar</button></div>
+        </form>
+      );
+    };
     const qs = queues(); const off = disabledQueues();
     const newForm = () => setExtraForm(Object.assign({}, EXTRA_BLANK, { service_id: (qs[0] || { service: { id: '' } }).service.id }));
     const serviceOptions = D.services.filter((x) => (D.senhas && D.senhas.services ? D.senhas.services.includes(x.id) : true));
@@ -335,15 +385,14 @@ export default function Atendimento() {
           <div key={g.service.id}>
             <h3 className="tri-h" style={{ '--c': g.service.color }}>{I(g.service.icon)}{g.service.title}</h3>
             <div className="tri">
-              {g.places.map((p) => { const stt = statOf(g.service.id, p.id); const cfg = cfgOf(p.id, g.service.id); const openCfgHere = cfgOpen && cfgOpen.place_id === p.id; const openInfoHere = infoOpen && infoOpen.place_id === p.id; const offer = offerOf(p, g.service); return (
+              {g.places.map((p) => { const stt = statOf(g.service.id, p.id); const cfg = cfgOf(p.id, g.service.id); const openCfgHere = cfgOpen && cfgOpen.place_id === p.id; const openInfoHere = infoOpen && infoOpen.place_id === p.id; return (
                 <div key={p.id} className={`tri-card ${p.extra ? 'extra' : ''}`} style={{ '--c': g.service.color }} data-id={p.id}>
                   <div className="tri-head">
                     <span className={`tri-room ${p.kind}`}>{p.num ? <><small>{KIND_LABEL[p.kind] || 'Ambiente'}</small><b>{p.num}</b></> : <>{I(p.kind === 'tenda' ? 'tent' : 'door')}<small>{KIND_LABEL[p.kind] || 'Ambiente'}</small></>}</span>
                     <span className="tri-title"><b>{p.name}</b><small>{[g.service.title !== p.name && g.service.short !== p.name ? g.service.title : '', stt && (stt.called || stt.served) ? `${stt.called} chamada${stt.called === 1 ? '' : 's'} · ${stt.served} atendida${stt.served === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || (p.extra ? 'criado na triagem' : 'sala da planta')}</small></span>
                     <button type="button" className={`tri-edit ${openInfoHere ? 'on' : ''}`} data-act="info" data-id={p.id} onClick={() => { setCfgOpen(null); openInfo(p, g.service.id); }}>{I('sliders')}<span>editar</span></button>
                   </div>
-                  {offer.length ? <ul className="tri-offer" aria-label="O que é oferecido">{offer.map((o, k) => { const now = !o.shifts || o.shifts.includes(nowShift); return <li key={k} className={now ? '' : 'later'}><span>{o.text}</span>{o.shifts ? <em>{shiftsText(o.shifts)}</em> : null}</li>; })}</ul>
-                    : <p className="tri-offer-empty">Sem descrição do que é oferecido · <button type="button" className="link" onClick={() => openInfo(p, g.service.id)}>descrever</button></p>}
+                  {offerView(p, g.service)}
                   {openInfoHere ? infoFormView(infoOpen, p) : null}
                   {counter(p, g.service.id, 'n', cfg)}
                   {cfg.p_total || cnt(p.id, 'p') ? counter(p, g.service.id, 'p', cfg) : null}

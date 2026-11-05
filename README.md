@@ -157,9 +157,13 @@ médio, senha atual, chamadas por hora). Fila offline no aparelho, reenviada qua
 **Triagem 2.1** (05/11): um **cartão por fila** com a sala em destaque (tipo e número), o nome do atendimento, o serviço e, logo
 abaixo, **o que é oferecido** ali — por padrão o que a programação diz para o dia e o turno (itens com `when`, veja em Dados:
 "Consulta Médica"), itens de outro turno esmaecidos — e os contadores N/P (+1, digitar o total, −1). **Editar** (em cada cartão)
-muda nome do atendimento, tipo/número da sala e o texto do que é oferecido (um item por linha ou separados por ";"); vale para
-a triagem, a porta, a TV e o painel do dia, em todos os aparelhos (tabela `fila_info`, última linha por ambiente; a planta e o
-site público não mudam). As salas fixas editadas vêm na lista `extras` do estado/TV com `override: true` (só atualizam a fila
+muda nome do atendimento, tipo/número da sala, **o que é oferecido por dia e turno** (lista de itens; cada item vale "sempre" ou
+só nos dias/turnos marcados — M/T de hoje ao fim do evento — com a opção "igual todos os dias e turnos"; "Usar a programação"
+recarrega os itens do serviço) e **senhas por dia** (total possível de N e P em cada dia restante, gravado em `fila_cfg` do dia,
+mantendo prefixos, inícios e ordem). O cartão destaca o que vale **agora** (dia e turno atuais) e mostra os dois próximos turnos
+com menos ênfase (`T.offerSlots`). Tudo vale do dia da edição em diante, em todos os aparelhos (tabela `fila_info`, última linha
+por ambiente no local, `items` em JSON `[{ t, when }]`; a planta e o site público não mudam). Filas criadas na triagem também
+valem do dia da criação até o fim do evento (remover tira de todos os dias). As salas fixas editadas vêm na lista `extras` do estado/TV com `override: true` (só atualizam a fila
 existente; nunca criam fila). **Dia de trabalho** (`T.ticketDay`): no dia de serviços do local é ele; nos outros dias do evento o app, a TV e o
 painel trabalham com **a data de hoje** (contagens, chamadas, desativações e edições são por dia, sem misturar com 07/11); as
 salas da planta aparecem em qualquer dia e a triagem desativa as que não atendem; fora do evento, o próximo/último dia de serviços.

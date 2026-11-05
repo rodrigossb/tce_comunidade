@@ -317,3 +317,30 @@
 .tri-new-form textarea{font:inherit;font-size:1.05em;text-transform:none;letter-spacing:0;color:var(--ink);padding:.5em .6em;border:1.5px solid var(--line);border-radius:10px;background:var(--chip);min-width:0;width:100%;resize:vertical;line-height:1.35}
 .tri-new-form textarea:focus{outline:2px solid #2563eb;outline-offset:1px}
 .tri-info{border-left-color:var(--c)}
+
+/* ===== triagem: oferta por dia/turno e senhas por dia ===== */
+.tri-offer-wrap{display:flex;flex-direction:column;gap:.35em}
+.tri-offer-h{display:inline-flex;align-items:center;gap:.3em;font-size:.68em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:color-mix(in srgb,var(--c) 70%,var(--ink))}
+.tri-offer-h .ico{width:1em;height:1em}
+.tri-next{margin:0;font-size:.8em;color:var(--mut);line-height:1.4;display:flex;flex-direction:column;gap:.15em}
+.tri-next b{color:var(--ink2);font-weight:800;text-transform:uppercase;font-size:.85em;letter-spacing:.04em;margin-right:.35em}
+.tri-sec{display:flex;align-items:baseline;justify-content:space-between;gap:.6em;flex-wrap:wrap;border-top:1px dashed var(--line);padding-top:.6em;margin-top:.2em}
+.tri-sec b{font-family:var(--font-display)}.tri-sec small{color:var(--mut);font-size:.78em}
+.tri-new-form label.tri-check{display:inline-flex;flex-direction:row;align-items:center;gap:.4em;text-transform:none;letter-spacing:0;font-size:.88em;font-weight:700;color:var(--ink2)}
+.tri-check input{width:1.2em;height:1.2em;margin:0}
+.tri-items{display:flex;flex-direction:column;gap:.5em}
+.tri-item{background:var(--chip);border:1px solid var(--line);border-radius:12px;padding:.45em .5em;display:flex;flex-direction:column;gap:.4em}
+.tri-item-row{display:flex;gap:.4em;align-items:center}
+.tri-new-form .tri-item-row input{flex:1;font-size:1.05em;padding:.4em .55em;background:var(--card)}
+.tri-item-row .icon-btn{flex:none}
+.tri-when{display:flex;flex-wrap:wrap;gap:.35em .7em;align-items:center}
+.tw{font:inherit;font-size:.78em;font-weight:800;padding:.32em .6em;border-radius:999px;border:1.5px solid var(--line);background:var(--card);color:var(--mut);cursor:pointer;line-height:1}
+.tw.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.tw.all.on{background:#166534;border-color:#166534}
+.tw-day{display:inline-flex;align-items:center;gap:.25em}
+.tw-day small{font-size:.7em;font-weight:800;text-transform:uppercase;color:var(--mut);margin-right:.1em}
+.tri-item-actions{display:flex;gap:.5em;flex-wrap:wrap}
+.tri-totals{display:grid;grid-template-columns:minmax(0,1.3fr) 1fr 1fr;gap:.4em .5em;align-items:center}
+.tri-totals .cfg-h{font-size:.68em;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
+.tri-totals .tri-tot-d{font-size:.85em;font-weight:700;color:var(--ink2)}
+.tri-new-form .tri-totals input{font-size:1.05em;padding:.4em .5em;text-align:center}

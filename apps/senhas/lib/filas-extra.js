@@ -9,7 +9,7 @@ export const serviceOf = (sid) => D.services.find((s) => s.id === sid) || { id: 
 /** groups = T.ticketQueuesOf(venue) ([{ service, places }]); devolve a mesma lista com as extras no pilar de cada uma. */
 export function mergeExtras(groups, extras) {
   const out = (groups || []).map((g) => ({ service: g.service, places: g.places.map((p) => Object.assign({}, p)) }));
-  const PATCH = ['name', 'kind', 'num', 'offer'];
+  const PATCH = ['name', 'kind', 'num', 'offer', 'items'];
   for (const e of extras || []) {
     if (!e || !e.id) continue;
     // Sala fixa editada na triagem (override): só atualiza nome/sala/oferta da fila já existente, nunca cria fila.

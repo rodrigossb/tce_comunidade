@@ -240,6 +240,19 @@ function ticketDay(today, venue) {
   if (venue && fallback && fallback.venue !== venue) { const alt = days.filter((d) => d.venue === venue).pop(); if (alt) return asDay(alt); }
   return asDay(fallback);
 }
+const SHIFT_IDX = { manha: 0, tarde: 1, noite: 2 };
+/** Agenda do que é oferecido: itens [{ t, when }] × dias × turnos → [{ date, shift, items: [texto], now, past }] (só com itens).
+    Item sem `when` vale sempre; com `when`, só nos dias/turnos marcados (ver itemShifts). */
+function offerSlots(items, days, nowDate, nowShift, shifts) {
+  const sh = shifts || ['manha', 'tarde']; const out = [];
+  for (const date of days || []) for (const shift of sh) {
+    const list = (items || []).filter((it) => { const s = itemShifts(it, date); return s === null || s.includes(shift); }).map(itemText);
+    if (!list.length) continue;
+    const past = date < nowDate || (date === nowDate && (SHIFT_IDX[shift] ?? 0) < (SHIFT_IDX[nowShift] ?? 0));
+    out.push({ date, shift, items: list, now: date === nowDate && shift === nowShift, past });
+  }
+  return out;
+}
 const queueLabel = (p) => (p.kind === 'area' && !p.num ? p.name : `${p.name} · ${p.kind === 'sala' ? 'Sala' : p.kind === 'tenda' ? 'Tenda' : 'Ambiente'} ${p.num}`);
 
 // ---- busca única (cursos, serviços e locais), sem acentos, com sinônimos do dia a dia ----
@@ -260,7 +273,7 @@ function search(q) {
 }
 const SUGGESTIONS = ['Saúde', 'Vacina', 'Identidade', 'Dentista', 'Castração', 'Casamento', 'Corte de cabelo', 'Energia', 'Mulheres', 'Crianças', 'Empreendedorismo', 'Feira'];
 
-export { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, itemWhen, itemShifts, whenLabel, itemWhenLabel, offerOn, ticketDay, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, ticketQueuesOf, queueLabel, courseRoomPlace, offeringsAt, icon, SHIFT_ICON };
+export { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, itemWhen, itemShifts, whenLabel, itemWhenLabel, offerOn, offerSlots, ticketDay, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, ticketQueuesOf, queueLabel, courseRoomPlace, offeringsAt, icon, SHIFT_ICON };
 /** Mesmo objeto `TCE` do site antigo (T.fmtDate, T.icon…), para portar as telas sem reescrever cada chamada. */
-export const TCE = { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, search, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, itemWhen, itemShifts, whenLabel, itemWhenLabel, offerOn, ticketDay, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, ticketQueuesOf, queueLabel, courseRoomPlace, offeringsAt, icon, SHIFT_ICON };
+export const TCE = { D, TZ, SHIFTS, SHIFT_ORDER, pad, toMin, norm, esc, now, isSimulated, partsOf, fmtDate, fmtTime, weekdayOf, shiftOf, eventDays, relDay, sessionEnd, sessionState, venueLabel, allSessions, courseById, serviceById, title, nextSession, courseState, qrSvg, qrPath, appUrl, icsFor, params, search, searchTerms, searchMatch, searchableCourse, SUGGESTIONS, itemText, itemOnly, itemWhen, itemShifts, whenLabel, itemWhenLabel, offerOn, offerSlots, ticketDay, serviceDays, serviceDayOf, nextServiceDay, serviceDaysLabel, itemsOn, mapVenueOf, placesOf, itemWhere, placeInfo, queuesOf, ticketQueuesOf, queueLabel, courseRoomPlace, offeringsAt, icon, SHIFT_ICON };
 export default TCE;
