@@ -232,6 +232,25 @@ const services = [
     detail: 'Quinta 05/11 à tarde: ginecologia, psiquiatria e urologia. Sexta 06/11 de manhã: ginecologia, pediatria, cardiologia, urologia e exames laboratoriais; à tarde: ginecologia, pediatria, cardiologia e urologia. Sábado 07/11: clínico geral. Psicologia em todos os dias e horários. Sala 09 da Escola Joaquim Nabuco (retire a senha na triagem, na entrada).',
     places: { jn: ['jn-r09'] },
     partners: ['SESA/AP', 'Saúde da Gente', 'Prefeitura Municipal de Oiapoque', 'Equipes de saúde parceiras'] },
+  // Ações de 05/11 na Joaquim Nabuco informadas pelas equipes (vacinas na sala 08, junto com a triagem; AMPREV na sala 04).
+  // Sem `places`/`where`: a fila do dia é criada na triagem ("Novo serviço / sala"); no sábado valem as salas da planta.
+  { id: 'vacinacao', num: 0, kicker: 'Saúde · vacinas', title: 'Vacinação', short: 'Vacinação', icon: 'heart', color: '#f43f5e', venue: 'jn',
+    summary: 'Vacinas para todas as idades, sem agendamento: tríplice viral, dT, hepatites A e B, HPV, meningocócica ACWY, tetra viral e febre amarela.',
+    days: ['2026-11-05'],
+    items: [{ t: 'Tríplice viral (sarampo, caxumba e rubéola)', when: { '2026-11-05': true } }, { t: 'dT (difteria e tétano)', when: { '2026-11-05': true } },
+      { t: 'Hepatite A', when: { '2026-11-05': true } }, { t: 'Hepatite B', when: { '2026-11-05': true } }, { t: 'HPV (papilomavírus humano)', when: { '2026-11-05': true } },
+      { t: 'Meningocócica conjugada quadrivalente (ACWY)', when: { '2026-11-05': true } }, { t: 'Tetra viral (sarampo, caxumba, rubéola e catapora)', when: { '2026-11-05': true } },
+      { t: 'Febre amarela', when: { '2026-11-05': true } }],
+    detail: 'Quinta 05/11, sala 08 da Escola Joaquim Nabuco, junto com a equipe de triagem. Leve a caderneta de vacinação. No sábado 07/11 a vacinação faz parte do pilar Saúde e Bem-estar (sala 11).',
+    places: {}, partners: ['SESA/AP', 'Prefeitura Municipal de Oiapoque'] },
+  { id: 'amprev', num: 0, kicker: 'Previdência', title: 'Amapá Previdência (AMPREV)', short: 'AMPREV', icon: 'building', color: '#6366f1', venue: 'jn',
+    summary: 'Simulação de aposentadoria, consulta de processos, atualização cadastral, palestra e orientações sobre aposentadoria e pensão por morte.',
+    days: ['2026-11-05'],
+    items: [{ t: 'Simulação de aposentadoria', when: { '2026-11-05': true } }, { t: 'Consulta de processos', when: { '2026-11-05': true } },
+      { t: 'Atualização cadastral', when: { '2026-11-05': true } }, { t: 'Palestra sobre aposentadoria', when: { '2026-11-05': true } },
+      { t: 'Orientações sobre aposentadoria e pensão por morte', when: { '2026-11-05': true } }, { t: 'Entrega de checklists', when: { '2026-11-05': true } }],
+    detail: 'Quinta 05/11, sala 04 da Escola Joaquim Nabuco. No sábado 07/11 a AMPREV atende dentro do pilar Educação e Qualificação Profissional.',
+    places: {}, partners: ['AMPREV'] },
   { id: 'pilar-2', num: 2, title: 'Documentação e Cidadania', short: 'Documentos', icon: 'idcard', color: '#60a5fa',
     summary: 'Identidade (CIN), Cartão SUS, CPF, título de eleitor, DETRAN, Marinha, CAR, CAF, terras e conta de energia.',
     items: [{ t: 'Carteira de Identidade Nacional (CIN)', where: { jn: ['jn-r17'], manga: ['mg-r06'] } }, { t: 'Cartão SUS e segunda via do CPF', where: { jn: ['jn-r19'], manga: ['mg-r06'] } },
@@ -419,7 +438,7 @@ const maps = {
 // `excludeKinds` = por local, tipos de ambiente sem senha (no Manga, 04/11, as tendas atendem por ordem de chegada);
 // áreas abertas (kind 'area') nunca têm fila. Acolhida, Cursos (inscrição), Crianças e Famílias e Feiras e Cultura ficam fora.
 const senhas = {
-  services: ['pilar-1', 'consulta', 'pilar-2', 'pilar-3', 'pilar-5', 'pilar-6'],
+  services: ['pilar-1', 'consulta', 'vacinacao', 'amprev', 'pilar-2', 'pilar-3', 'pilar-5', 'pilar-6'],
   excludePlaces: [],
   excludeKinds: { manga: ['tenda'] },
 };

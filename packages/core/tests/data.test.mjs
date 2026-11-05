@@ -35,8 +35,8 @@ test('estado das sessões segue o relógio', () => {
   assert.equal(T.sessionState(sess, { date: '2026-11-06', min: 0 }), 'past');
 });
 
-test('serviços: acolhida + 8 pilares + consulta médica, com itens e parceiros', () => {
-  assert.equal(D.services.length, 10);
+test('serviços: acolhida + 8 pilares + consulta médica, vacinação e AMPREV, com itens e parceiros', () => {
+  assert.equal(D.services.length, 12);
   for (const s of D.services) assert.ok(s.title && s.summary && s.items.length && s.partners.length && s.icon && s.color, s.id);
   const days = D.event.serviceDays.map((d) => d.date);
   assert.ok(days.length >= 2 && days.every((d) => d >= D.event.start && d <= D.event.end));

@@ -1,7 +1,7 @@
 /* Service worker: deixa o app utilizável sem sinal depois da primeira visita.
    Páginas: network-first (pega versão nova quando há rede). _next/static (nomes com hash) e imagens: cache-first.
    Ao publicar, o nome do cache muda pela VERSION; os chunks antigos saem na ativação. */
-const VERSION = 'tce-comunidade-v69';
+const VERSION = 'tce-comunidade-v70';
 const PAGES = ['./', './index.html', './tv.html', './totem.html', './manifest.webmanifest', './img/tce-logo.png', './img/tce-mark.png', './img/planta-jn.jpg', './img/planta-manga.jpg'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(VERSION).then((c) => Promise.allSettled(PAGES.map((p) => c.add(p)))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== VERSION).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
