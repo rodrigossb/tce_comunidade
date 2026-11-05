@@ -167,7 +167,10 @@ agenda de hoje. **Registro do atendimento por dia** (`fila_cfg.mode`, coluna "Re
 cartão para trocar o de hoje): **chamada** (padrão) = senhas chamadas na porta, fila na porta e na TV; **contagem** = só a
 quantidade de senhas entregues conta como atendimentos nas estatísticas (`summarize(…, countOnly)`: atendidas = chamadas =
 entregues), a fila some da porta e da TV (`tvBoard` a devolve em `disabled`/`count_only`). "Padrão para todas as salas" não mexe
-no modo (cada sala mantém o seu, a menos que `mode` venha explícito). Tudo vale do dia da edição em diante, em todos os aparelhos (tabela `fila_info`, última linha
+no modo (cada sala mantém o seu, a menos que `mode` venha explícito). No **painel** do app e no **dashboard** (`/dashboard`),
+cada senha entregue numa fila "só contagem" vira um atendimento no horário do lançamento (`dash-stats.countEvents`, a partir
+de `issued_history`; correções para baixo tiram as últimas): entra nas séries por hora, na linha do tempo, nos totais e nos
+rankings, com a etiqueta "contagem"; tempo médio, faltas e "mais faltas" só consideram filas com chamada. Tudo vale do dia da edição em diante, em todos os aparelhos (tabela `fila_info`, última linha
 por ambiente no local, `items` em JSON `[{ t, when }]`; a planta e o site público não mudam). Filas criadas na triagem também
 valem do dia da criação até o fim do evento (remover tira de todos os dias). As salas fixas editadas vêm na lista `extras` do estado/TV com `override: true` (só atualizam a fila
 existente; nunca criam fila). **Dia de trabalho** (`T.ticketDay`): no dia de serviços do local é ele; nos outros dias do evento o app, a TV e o

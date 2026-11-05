@@ -356,3 +356,5 @@
 .tri-ro{display:inline-flex;align-items:center;gap:.35em;font-size:.78em;color:var(--mut);font-weight:700}
 .tri-ro .ico{width:1em;height:1em}
 .at-top .btn.sm{padding:.45em .7em;font-size:.82em}
+.tag-count{display:inline-flex;align-items:center;gap:.2em;font-style:normal;font-size:.85em;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#b45309;background:#fffbeb;border:1px solid #fcd34d;border-radius:999px;padding:.05em .5em;vertical-align:middle}
+.tag-count .ico{width:1em;height:1em}

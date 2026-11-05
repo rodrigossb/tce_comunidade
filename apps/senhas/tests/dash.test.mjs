@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { summarize } from '@tce/core/stats';
-import { hourSeries, highlights, placeRows, serviceRows, defaultDay, arcPath } from '../lib/dash-stats.js';
+import { hourSeries, highlights, placeRows, serviceRows, defaultDay, arcPath, countEvents, allEvents } from '../lib/dash-stats.js';
 
 const t0 = Date.UTC(2026, 10, 7, 11, 0); // 08:00 em Belém (UTC-3)
 const min = (m) => t0 + m * 60000;
@@ -42,3 +42,20 @@ test('dia padrão: hoje se for dia de serviços; senão o último passado; senã
   assert.equal(defaultDay('2026-11-20').date, '2026-11-07');
 });
 test('arco do donut', () => { assert.match(arcPath(50, 50, 40, 0, 90), /^M 50 10 A 40 40 0 0 1 90 50$/); });
+
+test('countEvents: senhas de filas "só contagem" viram atendimentos no horário do lançamento; correção para baixo tira as últimas', () => {
+  const hist = [
+    { service_id: 'amprev', place_id: 'jn-x5', kind: 'n', count: 3, ts: min(5) }, { service_id: 'amprev', place_id: 'jn-x5', kind: 'n', count: 5, ts: min(70) },
+    { service_id: 'amprev', place_id: 'jn-x5', kind: 'p', count: 1, ts: min(75) }, { service_id: 'amprev', place_id: 'jn-x5', kind: 'n', count: 4, ts: min(80) },
+    { service_id: 'pilar-1', place_id: 'jn-r11', kind: 'n', count: 6, ts: min(0) }];
+  const ev = countEvents(hist, new Set(['jn-x5']));
+  assert.equal(ev.length, 5, '3 + 2 − 1 comuns + 1 prioritária'); assert.ok(ev.every((e) => e.counted && e.status === 'served' && e.service_id === 'amprev'));
+  assert.equal(ev.filter((e) => e.called_at === min(5)).length, 3); assert.equal(ev.filter((e) => e.called_at === min(70)).length, 1, 'a correção tirou uma das 9h');
+  assert.deepEqual(countEvents(hist, new Set()), []);
+  const all = allEvents(calls, hist, new Set(['jn-x5'])); assert.equal(all.length, calls.length + 5);
+  const s = hourSeries(all); assert.equal(s[0].counted, 3); assert.equal(s[0].called, 6); assert.equal(s.find((x) => x.hour === 9).counted, 2);
+  const st2 = summarize(issued.concat([{ service_id: 'amprev', place_id: 'jn-x5', count: 5, ts: min(80) }]), calls, min(200), new Set(['jn-x5']));
+  const rows = placeRows(st2); const x5 = rows.find((r) => r.place_id === 'jn-x5'); assert.ok(x5.count_only); assert.equal(x5.served, 5); assert.equal(x5.absent_rate, null);
+  const sv = serviceRows(st2).find((r) => r.service.id === 'amprev'); assert.equal(sv.count_rooms, 1); assert.equal(sv.counted, 5);
+  assert.ok(highlights(st2, all).mostAbsent == null || !highlights(st2, all).mostAbsent.count_only);
+});

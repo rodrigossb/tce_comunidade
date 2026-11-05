@@ -9,6 +9,7 @@ import { whyLabel, PATTERNS, MODES, DEFAULT_CFG, normalizeCfg, ticketLabel } fro
 import { placeLabel } from '@tce/core/map';
 import { mergeExtras, withoutDisabled, placeOf, fixedQueues } from '@/lib/filas-extra';
 import { can, ROLE_LABEL } from '@/lib/roles';
+import { countEvents, hourOf } from '@/lib/dash-stats';
 import Icon from './Icon';
 import * as A from '@/app/actions';
 
@@ -620,8 +621,11 @@ export default function Atendimento() {
     );
   }
   function viewPainel() {
-    const c = ctxOf(st); const S = data && data.stats; if (!S) return top('Painel', 'carregando…', act.home);
-    const t = S.total; const hours = Object.keys(S.per_hour).map(Number).sort((a, b) => a - b); const max = Math.max(1, ...hours.map((h) => S.per_hour[h]));
+    const c = ctxOf(st); const S = data && data.stats; if (!S) return top('Painel', 'carregando…', goHome);
+    const t = S.total; const countOnly = new Set(data.count_only || []);
+    // por hora: chamadas reais (S.per_hour) + senhas de filas "só contagem" no horário do lançamento
+    const perHour = Object.assign({}, S.per_hour); for (const e of countEvents(data.issued_history || [], countOnly)) { const h = hourOf(e.called_at); perHour[h] = (perHour[h] || 0) + 1; }
+    const hours = Object.keys(perHour).map(Number).sort((a, b) => a - b); const max = Math.max(1, ...hours.map((h) => perHour[h]));
     const empty = { issued: 0, called: 0, served: 0, absent: 0, pending_result: 0, not_called: 0, in_service: 0, avg_min: null, est_wait_min: null, current: null };
     return (
       <>
@@ -637,7 +641,7 @@ export default function Atendimento() {
         </div>
         {hours.length ? (
           <div className="chart"><b style={{ fontFamily: 'var(--font-display)' }}>Chamadas por hora</b>
-            <svg viewBox={`0 0 ${Math.max(300, hours.length * 46)} 150`}>{hours.map((h, k) => { const v = S.per_hour[h]; const bh = Math.round((v / max) * 100); return <g key={h}><rect x={k * 46 + 8} y={120 - bh} width="30" height={bh} rx="4" /><text className="lbl" x={k * 46 + 23} y={114 - bh} textAnchor="middle">{v}</text><text x={k * 46 + 23} y="140" textAnchor="middle">{h}h</text></g>; })}</svg>
+            <svg viewBox={`0 0 ${Math.max(300, hours.length * 46)} 150`}>{hours.map((h, k) => { const v = perHour[h]; const bh = Math.round((v / max) * 100); return <g key={h}><rect x={k * 46 + 8} y={120 - bh} width="30" height={bh} rx="4" /><text className="lbl" x={k * 46 + 23} y={114 - bh} textAnchor="middle">{v}</text><text x={k * 46 + 23} y="140" textAnchor="middle">{h}h</text></g>; })}</svg>
           </div>
         ) : null}
         <h2 style={{ margin: '1.2em 0 .5em' }}>Por serviço</h2>
@@ -646,10 +650,10 @@ export default function Atendimento() {
             const rows = g.places.map((p) => Object.assign({ place: p }, x.places.find((y) => y.place_id === p.id) || empty));
             return (
               <div key={s.id} className="svc-stat" style={{ '--c': s.color }}>
-                <div className="hd"><i>{I(s.icon)}</i><b>{s.title}</b><small>{x.issued} entregues · {x.served} atendidas{x.avg_min != null ? ` · ${x.avg_min} min` : ''}</small></div>
+                <div className="hd"><i>{I(s.icon)}</i><b>{s.title}</b><small>{x.issued} entregues · {x.served} atendidas{x.avg_min != null ? ` · ${x.avg_min} min` : ''}{rows.some((r) => countOnly.has(r.place.id)) ? ' · há salas só por contagem' : ''}</small></div>
                 <table className="qt"><thead><tr><th>Sala / instituição</th><th>Entr.</th><th>Cham.</th><th>Atend.</th><th>Faltas</th><th>Aguard.</th><th>Média</th><th>Agora</th></tr></thead>
                   <tbody>{rows.map((r) => { const base = Math.max(1, r.issued, r.called); const w = (n) => `${Math.round((100 * n) / base)}%`; const live = r.current && r.current.status === 'served' && r.current.in_service_min != null; return (
-                    <tr key={r.place.id}><td><b>{r.place.name}</b><small>{placeLabel(r.place)}</small><div className="bar mini"><i className="s" style={{ width: w(r.served) }}></i><i className="a" style={{ width: w(r.absent) }}></i><i className="p" style={{ width: w(r.pending_result) }}></i></div></td><td>{r.issued}</td><td>{r.called}</td><td>{r.served}</td><td>{r.absent}</td><td>{r.not_called}{r.est_wait_min != null ? <small>~{r.est_wait_min} min</small> : null}</td><td>{r.avg_min == null ? '—' : `${r.avg_min}′`}</td><td>{r.current ? <span className={`badge ${live ? 'served' : r.current.status}`}>{r.current.ticket ?? '—'}</span> : '—'}</td></tr>
+                    <tr key={r.place.id}><td><b>{r.place.name}</b><small>{placeLabel(r.place)}{countOnly.has(r.place.id) ? <> · <em className="tag-count">{I('list')}contagem</em></> : ''}</small><div className="bar mini"><i className="s" style={{ width: w(r.served) }}></i><i className="a" style={{ width: w(r.absent) }}></i><i className="p" style={{ width: w(r.pending_result) }}></i></div></td><td>{r.issued}</td><td>{r.called}</td><td>{r.served}</td><td>{r.absent}</td><td>{r.not_called}{r.est_wait_min != null ? <small>~{r.est_wait_min} min</small> : null}</td><td>{r.avg_min == null ? '—' : `${r.avg_min}′`}</td><td>{r.current ? <span className={`badge ${live ? 'served' : r.current.status}`}>{r.current.ticket ?? '—'}</span> : '—'}</td></tr>
                   ); })}</tbody></table>
               </div>
             ); })}

@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TCE as T } from '@tce/core';
 import Icon from '@/components/Icon';
-import { hourSeries, hourByService, placeRows, serviceRows, highlights, defaultDay, arcPath, fmtT, fmtMin, pct } from '@/lib/dash-stats';
+import { hourSeries, hourByService, placeRows, serviceRows, highlights, defaultDay, arcPath, fmtT, fmtMin, pct, allEvents } from '@/lib/dash-stats';
 
 const D = T.D;
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -84,7 +84,9 @@ function Dash() {
 
   // ---- derivados ----
   const stats = data ? { total: data.total, services: data.services, per_hour: data.per_hour, extras: data.extras || [] } : null;
-  const calls = (data && data.calls) || [];
+  // Chamadas reais + filas "só contagem" (cada senha entregue conta como atendimento no horário do lançamento).
+  const calls = useMemo(() => (data ? allEvents(data.calls || [], data.issued_history || [], new Set(data.count_only || [])) : []), [data]);
+  const countedTotal = useMemo(() => calls.filter((c) => c.counted).length, [calls]);
   const total = (data && data.total) || { issued: 0, called: 0, served: 0, absent: 0, pending_result: 0, in_service: 0, not_called: 0, avg_min: null, absent_rate: null };
   const series = useMemo(() => hourSeries(calls), [calls]);
   const hl = useMemo(() => (stats ? highlights(stats, calls) : null), [stats, calls]);
@@ -93,6 +95,7 @@ function Dash() {
   const empty = data && !calls.length && !total.issued;
 
   const View = { geral: ViewGeral, servicos: ViewServicos, salas: ViewSalas, horas: ViewHoras }[screen];
+  const viewProps = { total, series, hl, svcs, rows, calls, countedTotal };
   return (
     <div className={`tv tv-dark dash`} style={{ '--tv-zoom': zoom }}>
       <header className="tv-head">
@@ -101,7 +104,7 @@ function Dash() {
         <div className="tv-clock"><b>{clock.time}</b><small>{T.fmtDate(clock.date, 'wdlong')}</small></div>
       </header>
       <main className="dash-body" key={screen}>
-        {!data ? <p className="cb-empty">{offline ? 'Sem conexão com o controle de senhas.' : 'Carregando…'}</p> : empty ? <p className="cb-empty">Ainda não há senhas registradas em {venueName} no dia {T.fmtDate(day, 'wd')}.</p> : <View total={total} series={series} hl={hl} rows={rows} svcs={svcs} calls={calls} day={day} />}
+        {!data ? <p className="cb-empty">{offline ? 'Sem conexão com o controle de senhas.' : 'Carregando…'}</p> : empty ? <p className="cb-empty">Ainda não há senhas registradas em {venueName} no dia {T.fmtDate(day, 'wd')}.</p> : <View {...viewProps} />}
       </main>
       {auto ? <div className="tv-progress" key={`p${idx}`} style={{ animationDuration: `${SCREEN_SECS}s` }} /> : null}
       <footer className="tv-foot"><span>{D.event.organizer} · {D.event.datesLabel}</span><span className="tv-foot-msg">Serviços gratuitos · {venueName} · {T.fmtDate(day, 'wd')}{data ? ` · atualizado ${fmtT(data.now)}` : ''}</span><span className="dash-dots">{SCREENS.map((s, k) => <i key={s} className={k === SCREENS.indexOf(screen) ? 'on' : ''} />)}</span></footer>
@@ -162,23 +165,25 @@ function Rank({ title, icon, items, valueOf, labelOf, max, color }) {
 function Highlight({ icon, label, value, sub, color }) { return <div className="hi" style={{ '--c': color || 'var(--accent)' }}><i><Icon name={icon} /></i><div><small>{label}</small><b>{value}</b>{sub ? <em>{sub}</em> : null}</div></div>; }
 
 // ---------- telas ----------
-function ViewGeral({ total, series, hl, svcs }) {
+const CountTag = ({ n }) => <span className="tag-count" title="Só contagem: senhas entregues contam como atendimentos">{I2('list')}contagem{n != null ? ` ${n}` : ''}</span>;
+const I2 = (name) => <Icon name={name} />;
+function ViewGeral({ total, series, hl, svcs, countedTotal }) {
   const tot = total.served + total.absent + total.pending_result;
   return (
     <div className="g-geral">
       <div className="kpis">
         <Kpi icon="ticket" label="Senhas entregues" value={total.issued} sub={`${svcs.length} serviços · ${hl ? hl.activeRooms : 0} salas ativas`} />
-        <Kpi icon="megaphone" label="Chamadas" value={total.called} sub={hl && hl.perHour ? `${hl.perHour} por hora` : ''} />
-        <Kpi icon="check" label="Atendidas" value={total.served} color={OK} sub={tot ? `${pct(total.served, tot)}% das chamadas` : ''} />
+        <Kpi icon="megaphone" label="Chamadas" value={total.called} sub={[hl && hl.perHour ? `${hl.perHour} por hora` : '', countedTotal ? `${countedTotal} por contagem` : ''].filter(Boolean).join(' · ')} />
+        <Kpi icon="check" label="Atendidas" value={total.served} color={OK} sub={[tot ? `${pct(total.served, tot)}% das chamadas` : '', countedTotal ? `${countedTotal} por contagem` : ''].filter(Boolean).join(' · ')} />
         <Kpi icon="x" label="Não compareceram" value={total.absent} color={NO} sub={total.absent_rate != null ? `${String(total.absent_rate).replace('.', ',')}% de falta` : ''} />
         <Kpi icon="hourglass" label="Tempo médio de atendimento" value={total.avg_min} dec={total.avg_min != null && total.avg_min < 10 ? 1 : 0} suffix=" min" sub={total.samples ? `em ${total.samples} atendimentos medidos` : 'sem medições'} />
         <Kpi icon="users" label="Ainda na fila" value={total.not_called} sub={total.in_service ? `${total.in_service} em atendimento agora` : 'entregues e não chamadas'} />
       </div>
       <div className="panel donut-panel"><h3><Icon name="layers" />Resultado das chamadas</h3><div className="donut-wrap"><Donut served={total.served} absent={total.absent} pending={total.pending_result} /><ul className="legend"><li><i style={{ background: OK }} />Entraram <b>{total.served}</b></li><li><i style={{ background: NO }} />Não compareceram <b>{total.absent}</b></li><li><i style={{ background: PEND }} />Sem registro <b>{total.pending_result}</b></li></ul></div></div>
-      <div className="panel hours-panel"><h3><Icon name="clock" />Movimento por hora <small>chamadas · <i className="lg ok" />entraram</small></h3>{series.length ? <HourBars series={series} /> : <p className="sq-none">Sem chamadas.</p>}</div>
+      <div className="panel hours-panel"><h3><Icon name="clock" />Movimento por hora <small>chamadas{countedTotal ? ' (incl. contagem)' : ''} · <i className="lg ok" />entraram</small></h3>{series.length ? <HourBars series={series} /> : <p className="sq-none">Sem chamadas.</p>}</div>
       <div className="his">
         {hl && hl.peak ? <Highlight icon="arrowup" label="Pico de movimento" value={`${hl.peak.hour}h`} sub={`${hl.peak.called} chamadas na hora`} /> : null}
-        {hl && hl.busiest ? <Highlight icon="star" label="Sala mais movimentada" value={hl.busiest.name} sub={`${hl.busiest.room} · ${hl.busiest.served} atendidas`} color={hl.busiest.service.color} /> : null}
+        {hl && hl.busiest ? <Highlight icon="star" label="Sala mais movimentada" value={hl.busiest.name} sub={`${hl.busiest.room} · ${hl.busiest.served} atendidas${hl.busiest.count_only ? ' (contagem)' : ''}`} color={hl.busiest.service.color} /> : null}
         {hl && hl.fastest ? <Highlight icon="sparkles" label="Atendimento mais rápido" value={fmtMin(hl.fastest.avg_min)} sub={`${hl.fastest.name} · ${hl.fastest.room}`} color={OK} /> : null}
         {hl && hl.first ? <Highlight icon="flag" label="Duração da ação" value={fmtMin(hl.spanMin)} sub={`${fmtT(hl.first.called_at)} → ${fmtT(hl.last.called_at)}`} color="#60a5fa" /> : null}
       </div>
@@ -191,8 +196,8 @@ function ViewServicos({ svcs }) {
     <div className="g-servicos" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
       {svcs.map((s) => (
         <div className="svc" key={s.service.id} style={{ '--c': s.service.color }}>
-          <div className="svc-h"><i><Icon name={s.service.icon} /></i><b>{s.service.title}</b><small>{s.active_rooms} de {s.rooms} salas com chamadas</small></div>
-          <div className="svc-big"><b><Num value={s.served} /></b><small>atendidas</small><span className="svc-rate" style={{ '--p': `${pct(s.served, s.called)}%` }}><i /><em>{pct(s.served, s.called)}% das chamadas</em></span></div>
+          <div className="svc-h"><i><Icon name={s.service.icon} /></i><b>{s.service.title}</b><small>{s.active_rooms} de {s.rooms} salas com {s.count_rooms === s.rooms && s.rooms ? 'registro' : 'chamadas'}{s.count_rooms ? <> · <CountTag n={s.counted} /></> : null}</small></div>
+          <div className="svc-big"><b><Num value={s.served} /></b><small>atendidas</small><span className="svc-rate" style={{ '--p': `${pct(s.served, s.called)}%` }}><i /><em>{s.count_rooms === s.rooms && s.rooms ? 'por contagem de senhas' : `${pct(s.served, s.called)}% das chamadas`}</em></span></div>
           <div className="svc-grid"><div><small>Entregues</small><b>{s.issued}</b></div><div><small>Chamadas</small><b>{s.called}</b></div><div><small>Faltas</small><b style={{ color: s.absent ? NO : undefined }}>{s.absent}</b></div><div><small>Tempo médio</small><b>{fmtMin(s.avg_min)}</b></div><div><small>Taxa de falta</small><b>{s.absent_rate != null ? `${String(s.absent_rate).replace('.', ',')}%` : '—'}</b></div><div><small>Na fila</small><b>{Math.max(0, s.issued - s.called)}</b></div></div>
           <Spark per_hour={s.per_hour} color={s.service.color} />
         </div>
@@ -206,7 +211,7 @@ function ViewSalas({ rows, hl }) {
   const absent = rows.filter((r) => r.called >= 5 && r.absent > 0).sort((a, b) => (b.absent_rate || 0) - (a.absent_rate || 0)).slice(0, 6);
   return (
     <div className="g-salas">
-      <Rank title="Mais atendimentos" icon="star" items={byServed} max={byServed[0] ? byServed[0].served : 0} valueOf={(r) => r.served} labelOf={(r) => <><b>{r.served}</b><small> de {r.called}</small></>} />
+      <Rank title="Mais atendimentos" icon="star" items={byServed} max={byServed[0] ? byServed[0].served : 0} valueOf={(r) => r.served} labelOf={(r) => (r.count_only ? <><b>{r.served}</b><small> <CountTag /></small></> : <><b>{r.served}</b><small> de {r.called}</small></>)} />
       <div className="col2">
         <Rank title="Atendimento mais rápido" icon="sparkles" items={fastest} max={fastest.length ? Math.max(...fastest.map((r) => r.avg_min)) : 0} valueOf={(r) => r.avg_min} labelOf={(r) => <b>{fmtMin(r.avg_min)}</b>} />
         <Rank title="Mais faltas" icon="x" items={absent} max={100} valueOf={(r) => r.absent_rate || 0} labelOf={(r) => <><b>{r.absent_rate}%</b><small> · {r.absent}</small></>} />

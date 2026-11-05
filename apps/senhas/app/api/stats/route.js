@@ -13,6 +13,6 @@ export function GET(req) {
   try {
     const st = db.stats(day, venue);
     const calls = db.callsOfDay(day, venue).map((c) => ({ id: c.id, service_id: c.service_id, place_id: c.place_id, ticket: c.ticket, status: c.status, called_at: c.called_at, status_at: c.status_at, ended_at: c.ended_at }));
-    return Response.json({ day: st.day, venue: st.venue, now: st.now, total: st.stats.total, services: st.stats.services, per_hour: st.stats.per_hour, issued_history: st.issued_history, extras: st.extras || [], calls }, { headers: H });
+    return Response.json({ day: st.day, venue: st.venue, now: st.now, total: st.stats.total, services: st.stats.services, per_hour: st.stats.per_hour, issued_history: st.issued_history, extras: st.extras || [], count_only: st.count_only || [], calls }, { headers: H });
   } catch (e) { return Response.json({ error: e.message || 'erro' }, { status: e.status || 500, headers: H }); }
 }
