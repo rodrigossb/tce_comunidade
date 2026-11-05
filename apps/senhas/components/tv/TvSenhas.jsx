@@ -18,7 +18,7 @@ import { TCEMap as M } from '@tce/core/map';
 import Icon from '@/components/Icon';
 import { selectQueues } from '@/lib/tv-grupos';
 import { extraQueues, placeOf } from '@/lib/filas-extra';
-import { pickVoice, voiceState, voiceLabel, clipsFor } from '@/lib/voz';
+import { pickVoice, voiceState, voiceLabel, announcementFor } from '@/lib/voz';
 
 const D = T.D;
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -32,7 +32,7 @@ const fmtT = (ms) => (ms ? T.partsOf(new Date(ms)).time : '');
 const asScale = (v) => { const n = Number(v); return n > 0 ? (n > 5 ? n / 100 : n) : 0; };
 const roomWord = (p) => (p.kind === 'sala' ? 'Sala' : p.kind === 'tenda' ? 'Tenda' : p.num ? 'Ambiente' : '');
 const roomBig = (p) => (p.num ? `${roomWord(p)} ${p.num}` : p.name);
-const speakable = (p) => (p.num ? `${roomWord(p).toLowerCase()} ${Number(p.num)}` : p.name);
+
 const svcName = (p) => p.name; // o que a pessoa procura: a especialidade/atendimento da sala
 const roomLine = (p) => (p.num ? roomBig(p) : roomWord(p)); // "Sala 04" (ou "Tenda"/"Ambiente" se não houver número)
 /** Senha com a letra da série ("N 12" / "P 3"): prefixos configurados na triagem por sala (labels do quadro), senão N/P. */
@@ -129,14 +129,16 @@ function Board() {
       if (synth.speaking || synth.pending) { synth.cancel(); setTimeout(() => synth.speak(u), 250); } else synth.speak(u);
     } catch (e) { console.warn('[tv] voz indisponível:', e); setVoiceErr('exception'); }
   }, [supported, showBanner]);
-  /** Anúncio completo: campainha e, 0,8 s depois, os áudios prontos (ou a síntese de voz com `text` se não houver/falhar). */
-  const announce = useCallback(async (files, text) => {
+  /** Anúncio completo: campainha e, 0,8 s depois, os áudios prontos (ou a síntese de voz com `text` se não houver/falhar);
+      `after` = o que falta falar por síntese depois dos áudios (sala sem áudio pronto ou renomeada na triagem). */
+  const announce = useCallback(async (files, text, after) => {
     playing.current = true;
     try {
-      const t0 = chime();
-      if (files && audio.current) { try { await playViaCtx(files, t0 + 0.8); return; } catch (e) { console.warn('[tv] Web Audio falhou, usando <audio>:', e.message); } }
-      await new Promise((res) => setTimeout(res, 700));
-      if (files) { try { await playViaElement(files); return; } catch (e) { console.warn('[tv] áudio pronto falhou:', e.message); } }
+      const t0 = chime(); let played = false;
+      if (files && audio.current) { try { await playViaCtx(files, t0 + 0.8); played = true; } catch (e) { console.warn('[tv] Web Audio falhou, usando <audio>:', e.message); } }
+      if (!played) await new Promise((res) => setTimeout(res, 700));
+      if (files && !played) { try { await playViaElement(files); played = true; } catch (e) { console.warn('[tv] áudio pronto falhou:', e.message); } }
+      if (played) { if (after) speak(after); return; }
       if (text) speak(text);
     } finally { playing.current = false; }
   }, [chime, playViaCtx, playViaElement, speak]);
@@ -241,9 +243,9 @@ function Board() {
     if (!c) { showing.current = false; setFlash(null); return; }
     showing.current = true;
     setFlash({ id: `${c.id}:${c.again ? Date.now() : 0}`, ticket: c.ticket, place: c.place, service: c.service, again: c.again, priority: c.priority, until: Date.now() + FLASH_MS });
-    if (voice) { // campainha e, depois dela, a voz: áudios prontos; se não houver (senha > 300, sala nova, falha), síntese do navegador
-      const text = `${c.priority ? 'Senha prioritária. ' : ''}${c.place ? `Senha ${c.ticket}. ${c.place.num ? `${svcName(c.place)}, ${speakable(c.place)}` : svcName(c.place)}.` : `Senha ${c.ticket}.`}`;
-      announce(clipsFor({ ticket: c.ticket, placeId: c.place && c.place.id, again: c.again, priority: c.priority }, manifest), text);
+    if (voice) { // campainha e, depois dela, a voz: áudios prontos; se não houver (senha > 300, sala nova/renomeada, falha), síntese do navegador
+      const a = announcementFor({ ticket: c.ticket, place: c.place, again: c.again, priority: c.priority }, manifest);
+      announce(a.files, a.text, a.after);
     }
     timer.current = setTimeout(() => { setFlash(null); timer.current = setTimeout(next, 400); }, FLASH_MS);
   }, [voice, supported, manifest, announce]);

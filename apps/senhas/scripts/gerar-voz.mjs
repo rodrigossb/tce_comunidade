@@ -6,7 +6,7 @@
 //     https://huggingface.co/rhasspy/piper-voices/tree/main/pt/pt_BR/faber/medium
 //   - ffmpeg com libmp3lame (MP3 mono 40 kb/s: toca em qualquer navegador)
 // Uso: PIPER=/caminho/piper MODEL=/caminho/pt_BR-faber-medium.onnx node apps/senhas/scripts/gerar-voz.mjs [--force]
-//      (sem --force, só gera o que ainda não existe). Saída: apps/senhas/public/voz/*.mp3 + manifest.json.
+//      (sem --force, só gera o que ainda não existe ou cuja frase mudou desde o manifest anterior). Saída: apps/senhas/public/voz/*.mp3 + manifest.json.
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -19,6 +19,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(here, '..', 'public', 'voz');
 const PIPER = process.env.PIPER || 'piper'; const MODEL = process.env.MODEL || ''; const FFMPEG = process.env.FFMPEG || 'ffmpeg';
 const force = process.argv.includes('--force');
+// Frases já gravadas (manifest anterior): um arquivo é regravado quando a frase mudou (ex.: sala renomeada em data.js).
+let prev = {}; try { prev = JSON.parse(fs.readFileSync(path.join(OUT, 'manifest.json'), 'utf8')).phrases || {}; } catch { /* primeira geração */ }
 if (!MODEL) { console.error('Defina MODEL=/caminho/pt_BR-faber-medium.onnx (e PIPER=, FFMPEG= se não estiverem no PATH).'); process.exit(1); }
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -37,7 +39,7 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'voz-'));
 let done = 0; let skipped = 0; const t0 = Date.now();
 async function one(it) {
   const mp3 = path.join(OUT, `${it.file}.mp3`);
-  if (!force && fs.existsSync(mp3)) { skipped++; return; }
+  if (!force && fs.existsSync(mp3) && (!prev[it.file] || prev[it.file] === it.text)) { skipped++; return; }
   const wav = path.join(tmp, `${it.file}.wav`);
   // Fala um pouco mais lenta e com menos "ruído" de síntese (mais clara em alto-falante de TV).
   await run(PIPER, ['-m', MODEL, '-f', wav, '--length-scale', '1.15', '--noise-scale', '0.5', '--noise-w', '0.6', '--sentence-silence', '0.2'], it.text + '\n');

@@ -32,14 +32,32 @@ export function placePhrase(p) {
   return `${cleanSpoken(p.name)}${where ? `, ${where}` : ''}.`;
 }
 export const ticketPhrase = (n) => `Senha ${numeroExtenso(n)}.`;
-/** Arquivos (relativos a /voz/) que compõem um anúncio; null se não há áudio pronto para essa senha/sala. */
-export function clipsFor({ ticket, placeId, again, priority }, manifest) {
+/** Arquivos (relativos a /voz/) que compõem um anúncio; null se não há áudio pronto para essa senha/sala.
+    Com `place` (sala atual, já com edições da triagem), o áudio da sala só entra se a frase gravada (manifest.phrases)
+    for a mesma de hoje: sala renomeada (ex.: "Pediatria" → "Consulta médica") não pode tocar o áudio antigo. */
+export function clipsFor({ ticket, placeId, place, again, priority }, manifest) {
   if (!manifest || !(ticket >= 1 && ticket <= (manifest.numbers || 0))) return null;
   const out = []; if (again) out.push('x-novamente.mp3');
   if (priority && manifest.extras && manifest.extras.includes('x-prioridade')) out.push('x-prioridade.mp3');
   out.push(`n-${ticket}.mp3`);
-  if (placeId && manifest.places && manifest.places.includes(placeId)) out.push(`p-${placeId}.mp3`);
+  if (placeId && placeClipOk(placeId, place, manifest)) out.push(`p-${placeId}.mp3`);
   return out;
+}
+/** O áudio pronto da sala existe e (quando se sabe a sala atual) diz exatamente o que a tela mostra. */
+export function placeClipOk(placeId, place, manifest) {
+  if (!manifest || !manifest.places || !manifest.places.includes(placeId)) return false;
+  if (!place || !manifest.phrases) return true;
+  const rec = manifest.phrases[`p-${placeId}`]; return !rec || rec === placePhrase(place);
+}
+/** Anúncio completo de uma chamada: { files, text, after } — files: áudios prontos (ou null: só síntese); text: frase inteira
+    para a síntese quando não há áudios; after: o que falta falar por síntese depois dos áudios (sala sem áudio ou renomeada). */
+export function announcementFor({ ticket, place, again, priority }, manifest) {
+  const pre = `${again ? 'Atenção, chamando novamente. ' : ''}${priority ? 'Senha prioritária. ' : ''}`;
+  const where = place ? placePhrase(place) : '';
+  const text = `${pre}${ticketPhrase(ticket)}${where ? ` ${where}` : ''}`;
+  const files = clipsFor({ ticket, placeId: place && place.id, place, again, priority }, manifest);
+  const after = files && place && !files.some((f) => f.startsWith('p-')) ? where : null;
+  return { files, text, after };
 }
 
 
