@@ -335,7 +335,7 @@ const maps = {
       { id: 'jn-r06', kind: 'sala', num: '06', name: 'Cozinha do refeitório', x: 366, y: 860, hide: true },
       { id: 'jn-r07', kind: 'sala', num: '07', name: 'SEJUSP e MPC', x: 933, y: 705 },
       { id: 'jn-r08', kind: 'sala', num: '08', name: 'Ortopedia', x: 808, y: 705 },
-      { id: 'jn-r09', kind: 'sala', num: '09', name: 'Pediatria', x: 681, y: 705 },
+      { id: 'jn-r09', kind: 'sala', num: '09', name: 'Consulta médica', svc: 'consulta', x: 681, y: 705 }, // era "Pediatria" na planta; de 05 a 07/11 é a Consulta Médica (fila do serviço `consulta`)
       { id: 'jn-r10', kind: 'sala', num: '10', name: 'Oftalmologista', x: 568, y: 722 },
       { id: 'jn-r11', kind: 'sala', num: '11', name: 'Vacina e farmácia', x: 376, y: 705 },
       { id: 'jn-r12', kind: 'sala', num: '12', name: 'Odontologia + Sorriso', x: 253, y: 705 },
