@@ -9,6 +9,7 @@ import '@tce/core/css/map.css';
 import '@tce/core/css/app.css';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useClock, useHash } from '@/lib/hooks';
+import { useAtendimento } from '@/lib/useAtendimento';
 import Qr from '@/components/Qr';
 import { T, D, I, VIEWS, SHEETS, AppCtx, hashOf, cap } from '@/components/app/ui';
 import { ViewProgramacao, ViewBusca, ViewCursos, ViewMapa, ViewServicos, ViewLocais } from '@/components/app/views';
@@ -22,6 +23,7 @@ const readJson = (store, k, fb) => { try { return JSON.parse(store.getItem(k)) |
 
 export default function App({ kiosk = null }) {
   const clock = useClock(); const clockRef = useRef(clock); clockRef.current = clock;
+  const live = useAtendimento(); // retrato do atendimento por dia definido na triagem (mapa, serviços, programação)
   const home = kiosk ? `programacao?local=${kiosk.local}` : 'programacao';
   const [hash, go] = useHash(home);
   const [ready, setReady] = useState(false);
@@ -166,8 +168,8 @@ export default function App({ kiosk = null }) {
     return () => { clearTimeout(idleTimer.current); clearInterval(reload); for (const ev of evs) window.removeEventListener(ev, touch, { capture: true }); document.removeEventListener('keydown', onKey); document.removeEventListener('click', onLink, true); window.removeEventListener('contextmenu', onCtx); document.removeEventListener('pointerdown', onDown); };
   }, [kiosk, resetKiosk, hideOsk, toast]);
 
-  const ctx = useMemo(() => ({ clock, route, favs, prefs, kiosk, filtersOpen, setFiltersOpen, openShifts, toggleShift, go, setParam, nav, openSheet, closeSheet, toggleFav, share, download, toast, setFullMap, showOsk, hideOsk }),
-    [clock, route, favs, prefs, kiosk, filtersOpen, openShifts, toggleShift, go, setParam, nav, openSheet, closeSheet, toggleFav, share, download, toast, showOsk, hideOsk]);
+  const ctx = useMemo(() => ({ clock, live, route, favs, prefs, kiosk, filtersOpen, setFiltersOpen, openShifts, toggleShift, go, setParam, nav, openSheet, closeSheet, toggleFav, share, download, toast, setFullMap, showOsk, hideOsk }),
+    [clock, live, route, favs, prefs, kiosk, filtersOpen, openShifts, toggleShift, go, setParam, nav, openSheet, closeSheet, toggleFav, share, download, toast, showOsk, hideOsk]);
 
   if (!ready || !route) return <div id="app" className={`app ${kiosk ? 'kiosk' : ''}`}><div className="app-loading">Carregando…</div></div>;
 

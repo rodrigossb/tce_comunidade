@@ -98,6 +98,8 @@ function open(file) {
     cursorAll: db.prepare(`SELECT service_id, place_id, normal_last, prio_last, ts FROM fila_cursor f WHERE day=? AND venue=? AND id=(SELECT MAX(id) FROM fila_cursor WHERE day=f.day AND venue=f.venue AND service_id=f.service_id AND place_id=f.place_id)`),
     // a edição de uma fila vale do dia em que foi feita em diante (última linha por ambiente no local, qualquer dia)
     infoAll: db.prepare(`SELECT service_id, place_id, name, kind, num, offer, items, ts FROM fila_info f WHERE venue=? AND id=(SELECT MAX(id) FROM fila_info WHERE venue=f.venue AND place_id=f.place_id)`),
+    lastChange: db.prepare(`SELECT MAX(t) t FROM (SELECT MAX(ts) t FROM fila_info UNION ALL SELECT MAX(created_at) FROM filas_extra UNION ALL SELECT MAX(ts) FROM filas_off UNION ALL SELECT MAX(ts) FROM fila_cfg UNION ALL SELECT MAX(ts) FROM dias_off UNION ALL SELECT MAX(ts) FROM issued_log UNION ALL SELECT MAX(called_at) FROM calls)`), // última mudança que afeta o retrato público
+    triageDays: db.prepare(`SELECT day FROM filas_extra WHERE venue=? AND deleted=0 UNION SELECT day FROM fila_info WHERE venue=? UNION SELECT day FROM filas_off WHERE venue=? UNION SELECT day FROM fila_cfg WHERE venue=? UNION SELECT day FROM issued_log WHERE venue=? UNION SELECT day FROM calls WHERE venue=?`), // dias em que a triagem mexeu em algo no local (retrato público)
     infoInsert: db.prepare(`INSERT INTO fila_info (day, venue, service_id, place_id, name, kind, num, offer, items, device, ts) VALUES (?,?,?,?,?,?,?,?,?,?,?)`),
     cursorInsert: db.prepare(`INSERT INTO fila_cursor (day, venue, service_id, place_id, normal_last, prio_last, device, ts) VALUES (?,?,?,?,?,?,?,?)`),
   };
@@ -399,6 +401,43 @@ export function removeExtra(idRaw) {
   const id = Number(idRaw); if (!Number.isInteger(id) || id <= 0) throw err(400, 'id');
   const { q } = conn(); const cur = q.extraGet.get(id); if (!cur || num(cur.deleted)) throw err(404, 'fila não encontrada');
   q.extraDelete.run(id); notify(cur.day, cur.venue); return { ok: true, id };
+}
+
+// ---- retrato público do atendimento por dia (site: mapa, serviços, programação; @tce/core/atendimento) ----
+/** Itens oferecidos numa fila num dia → [{ t, shifts }]: os editados na triagem (items, por dia/turno), o texto simples
+    antigo (offer) ou a programação do serviço para a sala/dia (T.offerOn). Só o que vale naquele dia. */
+function offerOfDay(p, service, venue, day) {
+  if (Array.isArray(p.items)) return p.items.map((it) => { const sh = T.itemShifts(it, day); return sh && !sh.length ? null : { t: T.itemText(it), shifts: sh }; }).filter(Boolean);
+  if (p.offer) return String(p.offer).split(/\s*;\s*/).map((t) => t.trim()).filter(Boolean).map((t) => ({ t, shifts: null }));
+  return T.offerOn(service, day, p.id, venue).map((x) => ({ t: x.text, shifts: x.shifts && x.shifts.length ? x.shifts : null }));
+}
+/** Retrato público: { updatedAt, days: [{ date, venue, source, queues: [{ service_id, place_id, name, kind, num, extra, items }] }] }.
+    Entra cada dia do evento, por local com planta, que (a) é dia de serviços da programação ou (b) teve alguma ação da
+    triagem naquele dia (configuração, entregues, chamadas, filas criadas, editadas ou desativadas) — e não foi desativado
+    pela administração (dias_off). As filas são as ativas (fixas + criadas − desativadas) com nome/sala/oferta atuais, menos
+    as que não oferecem nada nesse dia (itens só de outros dias); sem contagens nem senhas. */
+export function atendimentoPublico(venueOnly) {
+  const { q } = conn(); const off = daysOff(); const days = [];
+  const venues = Object.keys(D.maps || {}).filter((v) => !venueOnly || v === clean(venueOnly, 16));
+  for (const venue of venues) {
+    const touched = new Set(q.triageDays.all(venue, venue, venue, venue, venue, venue).map((r) => r.day)); // dias com ação da triagem (criar, editar, desativar, configurar, lançar, chamar)
+    for (const day of T.eventDays()) {
+      if (off.some((x) => x.day === day && x.venue === venue)) continue;
+      const sd = T.serviceDayOf(day); const official = !!(sd && sd.venue === venue); const fromTriage = touched.has(day);
+      if (!official && !fromTriage) continue;
+      const ex = extras(day, venue); const dis = disabled(day, venue); const queues = [];
+      for (const g of activeQueues(fixedQueues(venue, day), ex, dis)) for (const p of g.places) {
+        const items = offerOfDay(p, g.service, venue, day);
+        // Nada oferecido ali nesse dia (itens da triagem ou da programação só em outros dias) = não atende nesse dia.
+        if (!items.length && (Array.isArray(p.items) || (g.service.items || []).length)) continue;
+        queues.push({ service_id: g.service.id, place_id: p.id, name: p.name || '', kind: p.kind || 'sala', num: p.num == null ? '' : String(p.num), extra: !!p.extra, items });
+      }
+      days.push({ date: day, venue, source: fromTriage ? 'triagem' : 'programacao', queues });
+    }
+  }
+  // updatedAt = última mudança no banco (não a hora da consulta): entre a API e o atendimento.json publicado, o site fica com o retrato mais novo de fato.
+  const last = q.lastChange.get(); const updatedAt = last && last.t ? num(last.t) : 0;
+  return { updatedAt, days: days.sort((a, b) => a.date.localeCompare(b.date) || a.venue.localeCompare(b.venue)) };
 }
 
 /** Filas desativadas na triagem (ids de ambiente) no dia/local: somem da triagem, da porta e da TV até serem reativadas. */

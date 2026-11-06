@@ -463,3 +463,20 @@ div.offer-head{cursor:default}
 .app.kiosk .kiosk-attract .cta .ico{width:1.2em;height:1.2em}
 .app.kiosk .kiosk-attract .org{position:absolute;bottom:1.6em;font-size:.9em;opacity:.7}
 @keyframes cta{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+
+/* atendimento por dia (retrato da triagem): chips de fila, salas sem atendimento, oferta por sala, turnos */
+.only-note.ok{color:var(--ok)}
+.only-note.off{color:var(--mut)}
+.place-chip.nomap{cursor:default;opacity:.8}
+.place-chip.nomap em{color:var(--mut)}
+.inactive-places{margin:.7em 0 .2em}
+.inactive-places>summary{cursor:pointer;color:var(--mut);font-size:.85em;font-weight:700;padding:.3em 0}
+.inactive-places .place-chip{opacity:.6}
+.offer-room{margin:.45em 0 .6em;padding:.55em .75em;border-left:4px solid var(--c);background:var(--card);border:1px solid var(--line);border-left-width:4px;border-left-color:var(--c);border-radius:var(--radius-sm)}
+.offer-room>b{display:block;font-family:var(--font-display);line-height:1.15}
+.offer-room>small{display:block;color:var(--mut);font-size:.78em;margin-top:.1em}
+.offer-room .ul{margin:.4em 0 0;padding:0;list-style:none}
+.offer-room .ul li{font-size:.92em}
+.live-tag{display:inline-flex;align-items:center;gap:.3em;font-size:.68em;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:.2em .55em;background:var(--p-soft);color:var(--p-ink);vertical-align:middle}
+.live-tag .ico{width:.95em;height:.95em}
+.day-chips{margin-top:0}

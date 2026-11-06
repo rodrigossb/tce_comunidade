@@ -1,0 +1,1835 @@
+{
+ "updatedAt": 1793936759428,
+ "days": [
+  {
+   "date": "2026-11-04",
+   "venue": "manga",
+   "source": "triagem",
+   "queues": [
+    {
+     "service_id": "pilar-1",
+     "place_id": "mg-r01",
+     "name": "Laboratório e farmácia",
+     "kind": "sala",
+     "num": "01",
+     "extra": false,
+     "items": [
+      {
+       "t": "Farmácia (distribuição de remédios), exames laboratoriais e testes rápidos",
+       "shifts": null
+      },
+      {
+       "t": "Vacinação para crianças, jovens, adultos e idosos",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "mg-r02",
+     "name": "Laboratório e ultrassom",
+     "kind": "sala",
+     "num": "02",
+     "extra": false,
+     "items": [
+      {
+       "t": "Farmácia (distribuição de remédios), exames laboratoriais e testes rápidos",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "mg-r03",
+     "name": "Saúde bucal",
+     "kind": "sala",
+     "num": "03",
+     "extra": false,
+     "items": [
+      {
+       "t": "Dentista: consultas, limpeza, restaurações, extrações simples, orientações de higiene bucal e kits para adultos e crianças",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "mg-r04",
+     "name": "Telemedicina",
+     "kind": "sala",
+     "num": "04",
+     "extra": false,
+     "items": [
+      {
+       "t": "Telemedicina: dermatologista, cardiologista, urologista, psiquiatra e ginecologista",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "mg-r07",
+     "name": "Pediatria",
+     "kind": "sala",
+     "num": "07",
+     "extra": false,
+     "items": [
+      {
+       "t": "Consultas presenciais com clínico geral, pediatra, ortopedista e ginecologista",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "mg-r08",
+     "name": "Ginecologia",
+     "kind": "sala",
+     "num": "08",
+     "extra": false,
+     "items": [
+      {
+       "t": "Consultas presenciais com clínico geral, pediatra, ortopedista e ginecologista",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "mg-r09",
+     "name": "Ortopedia",
+     "kind": "sala",
+     "num": "09",
+     "extra": false,
+     "items": [
+      {
+       "t": "Consultas presenciais com clínico geral, pediatra, ortopedista e ginecologista",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "mg-r06",
+     "name": "Documentação e cidadania",
+     "kind": "sala",
+     "num": "06",
+     "extra": false,
+     "items": [
+      {
+       "t": "Carteira de Identidade Nacional (CIN)",
+       "shifts": null
+      },
+      {
+       "t": "Cartão SUS e segunda via do CPF",
+       "shifts": null
+      },
+      {
+       "t": "Carteiras de identificação de pessoas com autismo e deficiências ocultas",
+       "shifts": null
+      },
+      {
+       "t": "Rastreamento de sinais de autismo, TDAH e deficiência intelectual, avaliação psicopedagógica, cadastro no Projeto Conexão TEA e orientação parental",
+       "shifts": null
+      },
+      {
+       "t": "Cadastro Ambiental Rural (CAR)",
+       "shifts": null
+      },
+      {
+       "t": "Atualização cadastral agropecuária (DIAGRO)",
+       "shifts": null
+      },
+      {
+       "t": "Atendimento de regularização fundiária (Amapá Terras)",
+       "shifts": null
+      },
+      {
+       "t": "Cadastro da Agricultura Familiar (CAF)",
+       "shifts": null
+      },
+      {
+       "t": "Orientações e acesso aos serviços do TEAcolho",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "manga-x2",
+     "name": "DETRAN",
+     "kind": "sala",
+     "num": "100",
+     "extra": true,
+     "items": [
+      {
+       "t": "Carteira de Identidade Nacional (CIN)",
+       "shifts": null
+      },
+      {
+       "t": "Cartão SUS e segunda via do CPF",
+       "shifts": null
+      },
+      {
+       "t": "Carteiras de identificação de pessoas com autismo e deficiências ocultas",
+       "shifts": null
+      },
+      {
+       "t": "Serviços eleitorais (título de eleitor)",
+       "shifts": null
+      },
+      {
+       "t": "Rastreamento de sinais de autismo, TDAH e deficiência intelectual, avaliação psicopedagógica, cadastro no Projeto Conexão TEA e orientação parental",
+       "shifts": null
+      },
+      {
+       "t": "Renovação e segunda via de documentos de aquaviários e embarcações (CIR e TIE)",
+       "shifts": null
+      },
+      {
+       "t": "Orientações sobre CNH, documentação e regularização de veículos, Lei Seca e educação para o trânsito",
+       "shifts": null
+      },
+      {
+       "t": "Cadastro Ambiental Rural (CAR)",
+       "shifts": null
+      },
+      {
+       "t": "Orientações sobre regularização de escolas indígenas por processo simplificado",
+       "shifts": null
+      },
+      {
+       "t": "Atualização cadastral agropecuária (DIAGRO)",
+       "shifts": null
+      },
+      {
+       "t": "Atendimento de regularização fundiária (Amapá Terras)",
+       "shifts": null
+      },
+      {
+       "t": "Cadastro da Agricultura Familiar (CAF)",
+       "shifts": null
+      },
+      {
+       "t": "Conta de energia (Equatorial): negociação de débitos, dúvidas, orientações sobre economia de energia, troca de lâmpadas e sorteios",
+       "shifts": null
+      },
+      {
+       "t": "Orientações e acesso aos serviços do TEAcolho",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "manga-x3",
+     "name": "SUPERCACIL",
+     "kind": "sala",
+     "num": "100",
+     "extra": true,
+     "items": [
+      {
+       "t": "Carteira de Identidade Nacional (CIN)",
+       "shifts": null
+      },
+      {
+       "t": "Cartão SUS e segunda via do CPF",
+       "shifts": null
+      },
+      {
+       "t": "Carteiras de identificação de pessoas com autismo e deficiências ocultas",
+       "shifts": null
+      },
+      {
+       "t": "Serviços eleitorais (título de eleitor)",
+       "shifts": null
+      },
+      {
+       "t": "Rastreamento de sinais de autismo, TDAH e deficiência intelectual, avaliação psicopedagógica, cadastro no Projeto Conexão TEA e orientação parental",
+       "shifts": null
+      },
+      {
+       "t": "Renovação e segunda via de documentos de aquaviários e embarcações (CIR e TIE)",
+       "shifts": null
+      },
+      {
+       "t": "Orientações sobre CNH, documentação e regularização de veículos, Lei Seca e educação para o trânsito",
+       "shifts": null
+      },
+      {
+       "t": "Cadastro Ambiental Rural (CAR)",
+       "shifts": null
+      },
+      {
+       "t": "Orientações sobre regularização de escolas indígenas por processo simplificado",
+       "shifts": null
+      },
+      {
+       "t": "Atualização cadastral agropecuária (DIAGRO)",
+       "shifts": null
+      },
+      {
+       "t": "Atendimento de regularização fundiária (Amapá Terras)",
+       "shifts": null
+      },
+      {
+       "t": "Cadastro da Agricultura Familiar (CAF)",
+       "shifts": null
+      },
+      {
+       "t": "Conta de energia (Equatorial): negociação de débitos, dúvidas, orientações sobre economia de energia, troca de lâmpadas e sorteios",
+       "shifts": null
+      },
+      {
+       "t": "Orientações e acesso aos serviços do TEAcolho",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-3",
+     "place_id": "mg-r15",
+     "name": "SEJUSP e MPC",
+     "kind": "sala",
+     "num": "15",
+     "extra": false,
+     "items": [
+      {
+       "t": "Atendimento humanizado e sigiloso no Box Lilás",
+       "shifts": null
+      },
+      {
+       "t": "Demonstração do Botão do Pânico",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-5",
+     "place_id": "mg-r14",
+     "name": "Justiça e direitos",
+     "kind": "sala",
+     "num": "14",
+     "extra": false,
+     "items": [
+      {
+       "t": "Atendimento jurídico gratuito e orientações sobre direitos do cidadão, família, trabalho, previdência e relações de consumo",
+       "shifts": null
+      },
+      {
+       "t": "Serviços do PROCON",
+       "shifts": null
+      },
+      {
+       "t": "Orientações e encaminhamentos jurídicos",
+       "shifts": null
+      },
+      {
+       "t": "Casamento Comunitário e Projeto Pai Presente",
+       "shifts": null
+      },
+      {
+       "t": "Garantia dos direitos de crianças, adolescentes, idosos, mulheres, pessoas com deficiência e demais públicos em situação de vulnerabilidade",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-5",
+     "place_id": "manga-x1",
+     "name": "CONTROLE INTERNO (CGE)",
+     "kind": "sala",
+     "num": "14",
+     "extra": true,
+     "items": [
+      {
+       "t": "Atendimento jurídico gratuito e orientações sobre direitos do cidadão, família, trabalho, previdência e relações de consumo",
+       "shifts": null
+      },
+      {
+       "t": "Serviços do PROCON",
+       "shifts": null
+      },
+      {
+       "t": "Orientações e encaminhamentos jurídicos",
+       "shifts": null
+      },
+      {
+       "t": "Casamento Comunitário e Projeto Pai Presente",
+       "shifts": null
+      },
+      {
+       "t": "Garantia dos direitos de crianças, adolescentes, idosos, mulheres, pessoas com deficiência e demais públicos em situação de vulnerabilidade",
+       "shifts": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "date": "2026-11-05",
+   "venue": "jn",
+   "source": "triagem",
+   "queues": [
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r11",
+     "name": "Vacina e farmácia",
+     "kind": "sala",
+     "num": "11",
+     "extra": false,
+     "items": [
+      {
+       "t": "Farmácia (distribuição de remédios), exames laboratoriais e testes rápidos",
+       "shifts": null
+      },
+      {
+       "t": "Vacinação para crianças, jovens, adultos e idosos",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-x6",
+     "name": "IDHAMP",
+     "kind": "sala",
+     "num": "17",
+     "extra": true,
+     "items": [
+      {
+       "t": "Avaliação Psicopedagógica",
+       "shifts": null
+      },
+      {
+       "t": "Inscrição conexão TEA",
+       "shifts": null
+      },
+      {
+       "t": "Orientação Parental",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-x7",
+     "name": "Mais Sorriso",
+     "kind": "sala",
+     "num": "12",
+     "extra": true,
+     "items": [
+      {
+       "t": "Saude Bucal",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "consulta",
+     "place_id": "jn-r09",
+     "name": "Consulta médica",
+     "kind": "sala",
+     "num": "08",
+     "extra": false,
+     "items": [
+      {
+       "t": "Ginecologia",
+       "shifts": [
+        "tarde"
+       ]
+      }
+     ]
+    },
+    {
+     "service_id": "consulta",
+     "place_id": "jn-x8",
+     "name": "Pediatra",
+     "kind": "sala",
+     "num": "08",
+     "extra": true,
+     "items": [
+      {
+       "t": "Pediatria",
+       "shifts": [
+        "tarde"
+       ]
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-r17",
+     "name": "Polícia Científica",
+     "kind": "sala",
+     "num": "18",
+     "extra": false,
+     "items": [
+      {
+       "t": "Carteira de Identidade Nacional (CIN)",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-r19",
+     "name": "Superfacil",
+     "kind": "sala",
+     "num": "0",
+     "extra": false,
+     "items": [
+      {
+       "t": "Cartão SUS e segunda via do CPF",
+       "shifts": null
+      },
+      {
+       "t": "Carteiras de identificação de pessoas com autismo e deficiências ocultas",
+       "shifts": null
+      },
+      {
+       "t": "Rastreamento de sinais de autismo, TDAH e deficiência intelectual, avaliação psi",
+       "shifts": null
+      },
+      {
+       "t": "Orientações e acesso aos serviços do TEAcolho",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-r18",
+     "name": "Detran",
+     "kind": "sala",
+     "num": "18",
+     "extra": false,
+     "items": [
+      {
+       "t": "Orientações sobre CNH, documentação e regularização de veículos, Lei Seca e educação para o trânsito",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-r16",
+     "name": "Sala GEA (Governo do Estado)",
+     "kind": "sala",
+     "num": "16",
+     "extra": false,
+     "items": [
+      {
+       "t": "Cadastro Ambiental Rural (CAR)",
+       "shifts": null
+      },
+      {
+       "t": "Atualização cadastral agropecuária (DIAGRO)",
+       "shifts": null
+      },
+      {
+       "t": "Atendimento de regularização fundiária (Amapá Terras)",
+       "shifts": null
+      },
+      {
+       "t": "Cadastro da Agricultura Familiar (CAF)",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-t2",
+     "name": "Equatorial (energia)",
+     "kind": "tenda",
+     "num": "2",
+     "extra": false,
+     "items": [
+      {
+       "t": "Conta de energia (Equatorial): negociação de débitos, dúvidas, orientações sobre economia de energia, troca de lâmpadas e sorteios",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-3",
+     "place_id": "jn-r14",
+     "name": "Segurança e direito",
+     "kind": "sala",
+     "num": "14",
+     "extra": false,
+     "items": [
+      {
+       "t": "Atendimento humanizado e sigiloso no Box Lilás",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-3",
+     "place_id": "jn-r15",
+     "name": "Segurança e direito",
+     "kind": "sala",
+     "num": "15",
+     "extra": false,
+     "items": [
+      {
+       "t": "Atendimento humanizado e sigiloso no Box Lilás",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-3",
+     "place_id": "jn-r07",
+     "name": "SEJUSP e MPC",
+     "kind": "sala",
+     "num": "07",
+     "extra": false,
+     "items": [
+      {
+       "t": "Demonstração do Botão do Pânico",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-3",
+     "place_id": "jn-t5",
+     "name": "SEJUSP",
+     "kind": "tenda",
+     "num": "5",
+     "extra": false,
+     "items": [
+      {
+       "t": "Demonstração do Botão do Pânico",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-6",
+     "place_id": "jn-t4",
+     "name": "Tenda Pet",
+     "kind": "tenda",
+     "num": "4",
+     "extra": false,
+     "items": [
+      {
+       "t": "Vacinação antirrábica para cães e gatos",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "vacinacao",
+     "place_id": "jn-x4",
+     "name": "Vacinação",
+     "kind": "sala",
+     "num": "08",
+     "extra": true,
+     "items": [
+      {
+       "t": "Tríplice viral (sarampo, caxumba e rubéola)",
+       "shifts": null
+      },
+      {
+       "t": "dT (difteria e tétano)",
+       "shifts": null
+      },
+      {
+       "t": "Hepatite A",
+       "shifts": null
+      },
+      {
+       "t": "Hepatite B",
+       "shifts": null
+      },
+      {
+       "t": "HPV (papilomavírus humano)",
+       "shifts": null
+      },
+      {
+       "t": "Meningocócica conjugada quadrivalente (ACWY)",
+       "shifts": null
+      },
+      {
+       "t": "Tetra viral (sarampo, caxumba, rubéola e catapora)",
+       "shifts": null
+      },
+      {
+       "t": "Febre amarela",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "amprev",
+     "place_id": "jn-x5",
+     "name": "Amapá Previdência (AMPREV)",
+     "kind": "sala",
+     "num": "04",
+     "extra": true,
+     "items": [
+      {
+       "t": "Simulação de aposentadoria",
+       "shifts": null
+      },
+      {
+       "t": "Consulta de processos",
+       "shifts": null
+      },
+      {
+       "t": "Atualização cadastral",
+       "shifts": null
+      },
+      {
+       "t": "Palestra sobre aposentadoria",
+       "shifts": null
+      },
+      {
+       "t": "Orientações sobre aposentadoria e pensão por morte",
+       "shifts": null
+      },
+      {
+       "t": "Entrega de checklists",
+       "shifts": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "date": "2026-11-05",
+   "venue": "manga",
+   "source": "triagem",
+   "queues": [
+    {
+     "service_id": "pilar-1",
+     "place_id": "mg-r01",
+     "name": "Laboratório e farmácia",
+     "kind": "sala",
+     "num": "01",
+     "extra": false,
+     "items": [
+      {
+       "t": "Farmácia (distribuição de remédios), exames laboratoriais e testes rápidos",
+       "shifts": null
+      },
+      {
+       "t": "Vacinação para crianças, jovens, adultos e idosos",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "mg-r02",
+     "name": "Laboratório e ultrassom",
+     "kind": "sala",
+     "num": "02",
+     "extra": false,
+     "items": [
+      {
+       "t": "Farmácia (distribuição de remédios), exames laboratoriais e testes rápidos",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "mg-r03",
+     "name": "Saúde bucal",
+     "kind": "sala",
+     "num": "03",
+     "extra": false,
+     "items": [
+      {
+       "t": "Dentista: consultas, limpeza, restaurações, extrações simples, orientações de higiene bucal e kits para adultos e crianças",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "mg-r04",
+     "name": "Telemedicina",
+     "kind": "sala",
+     "num": "04",
+     "extra": false,
+     "items": [
+      {
+       "t": "Telemedicina: dermatologista, cardiologista, urologista, psiquiatra e ginecologista",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "mg-r07",
+     "name": "Pediatria",
+     "kind": "sala",
+     "num": "07",
+     "extra": false,
+     "items": [
+      {
+       "t": "Consultas presenciais com clínico geral, pediatra, ortopedista e ginecologista",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "mg-r08",
+     "name": "Ginecologia",
+     "kind": "sala",
+     "num": "08",
+     "extra": false,
+     "items": [
+      {
+       "t": "Consultas presenciais com clínico geral, pediatra, ortopedista e ginecologista",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "mg-r09",
+     "name": "Ortopedia",
+     "kind": "sala",
+     "num": "09",
+     "extra": false,
+     "items": [
+      {
+       "t": "Consultas presenciais com clínico geral, pediatra, ortopedista e ginecologista",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "mg-r10",
+     "name": "Oftalmologista",
+     "kind": "sala",
+     "num": "10",
+     "extra": false,
+     "items": [
+      {
+       "t": "Psicólogo, fisioterapeuta e oftalmologista (equipe da SESA)",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "mg-r06",
+     "name": "Documentação e cidadania",
+     "kind": "sala",
+     "num": "06",
+     "extra": false,
+     "items": [
+      {
+       "t": "Carteira de Identidade Nacional (CIN)",
+       "shifts": null
+      },
+      {
+       "t": "Cartão SUS e segunda via do CPF",
+       "shifts": null
+      },
+      {
+       "t": "Carteiras de identificação de pessoas com autismo e deficiências ocultas",
+       "shifts": null
+      },
+      {
+       "t": "Rastreamento de sinais de autismo, TDAH e deficiência intelectual, avaliação psicopedagógica, cadastro no Projeto Conexão TEA e orientação parental",
+       "shifts": null
+      },
+      {
+       "t": "Cadastro Ambiental Rural (CAR)",
+       "shifts": null
+      },
+      {
+       "t": "Atualização cadastral agropecuária (DIAGRO)",
+       "shifts": null
+      },
+      {
+       "t": "Atendimento de regularização fundiária (Amapá Terras)",
+       "shifts": null
+      },
+      {
+       "t": "Cadastro da Agricultura Familiar (CAF)",
+       "shifts": null
+      },
+      {
+       "t": "Orientações e acesso aos serviços do TEAcolho",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "manga-x2",
+     "name": "DETRAN",
+     "kind": "sala",
+     "num": "100",
+     "extra": true,
+     "items": [
+      {
+       "t": "Carteira de Identidade Nacional (CIN)",
+       "shifts": null
+      },
+      {
+       "t": "Cartão SUS e segunda via do CPF",
+       "shifts": null
+      },
+      {
+       "t": "Carteiras de identificação de pessoas com autismo e deficiências ocultas",
+       "shifts": null
+      },
+      {
+       "t": "Serviços eleitorais (título de eleitor)",
+       "shifts": null
+      },
+      {
+       "t": "Rastreamento de sinais de autismo, TDAH e deficiência intelectual, avaliação psicopedagógica, cadastro no Projeto Conexão TEA e orientação parental",
+       "shifts": null
+      },
+      {
+       "t": "Renovação e segunda via de documentos de aquaviários e embarcações (CIR e TIE)",
+       "shifts": null
+      },
+      {
+       "t": "Orientações sobre CNH, documentação e regularização de veículos, Lei Seca e educação para o trânsito",
+       "shifts": null
+      },
+      {
+       "t": "Cadastro Ambiental Rural (CAR)",
+       "shifts": null
+      },
+      {
+       "t": "Orientações sobre regularização de escolas indígenas por processo simplificado",
+       "shifts": null
+      },
+      {
+       "t": "Atualização cadastral agropecuária (DIAGRO)",
+       "shifts": null
+      },
+      {
+       "t": "Atendimento de regularização fundiária (Amapá Terras)",
+       "shifts": null
+      },
+      {
+       "t": "Cadastro da Agricultura Familiar (CAF)",
+       "shifts": null
+      },
+      {
+       "t": "Conta de energia (Equatorial): negociação de débitos, dúvidas, orientações sobre economia de energia, troca de lâmpadas e sorteios",
+       "shifts": null
+      },
+      {
+       "t": "Orientações e acesso aos serviços do TEAcolho",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "manga-x3",
+     "name": "SUPERCACIL",
+     "kind": "sala",
+     "num": "100",
+     "extra": true,
+     "items": [
+      {
+       "t": "Carteira de Identidade Nacional (CIN)",
+       "shifts": null
+      },
+      {
+       "t": "Cartão SUS e segunda via do CPF",
+       "shifts": null
+      },
+      {
+       "t": "Carteiras de identificação de pessoas com autismo e deficiências ocultas",
+       "shifts": null
+      },
+      {
+       "t": "Serviços eleitorais (título de eleitor)",
+       "shifts": null
+      },
+      {
+       "t": "Rastreamento de sinais de autismo, TDAH e deficiência intelectual, avaliação psicopedagógica, cadastro no Projeto Conexão TEA e orientação parental",
+       "shifts": null
+      },
+      {
+       "t": "Renovação e segunda via de documentos de aquaviários e embarcações (CIR e TIE)",
+       "shifts": null
+      },
+      {
+       "t": "Orientações sobre CNH, documentação e regularização de veículos, Lei Seca e educação para o trânsito",
+       "shifts": null
+      },
+      {
+       "t": "Cadastro Ambiental Rural (CAR)",
+       "shifts": null
+      },
+      {
+       "t": "Orientações sobre regularização de escolas indígenas por processo simplificado",
+       "shifts": null
+      },
+      {
+       "t": "Atualização cadastral agropecuária (DIAGRO)",
+       "shifts": null
+      },
+      {
+       "t": "Atendimento de regularização fundiária (Amapá Terras)",
+       "shifts": null
+      },
+      {
+       "t": "Cadastro da Agricultura Familiar (CAF)",
+       "shifts": null
+      },
+      {
+       "t": "Conta de energia (Equatorial): negociação de débitos, dúvidas, orientações sobre economia de energia, troca de lâmpadas e sorteios",
+       "shifts": null
+      },
+      {
+       "t": "Orientações e acesso aos serviços do TEAcolho",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-3",
+     "place_id": "mg-r15",
+     "name": "SEJUSP e MPC",
+     "kind": "sala",
+     "num": "15",
+     "extra": false,
+     "items": [
+      {
+       "t": "Atendimento humanizado e sigiloso no Box Lilás",
+       "shifts": null
+      },
+      {
+       "t": "Demonstração do Botão do Pânico",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-5",
+     "place_id": "mg-r14",
+     "name": "Justiça e direitos",
+     "kind": "sala",
+     "num": "14",
+     "extra": false,
+     "items": [
+      {
+       "t": "Atendimento jurídico gratuito e orientações sobre direitos do cidadão, família, trabalho, previdência e relações de consumo",
+       "shifts": null
+      },
+      {
+       "t": "Serviços do PROCON",
+       "shifts": null
+      },
+      {
+       "t": "Orientações e encaminhamentos jurídicos",
+       "shifts": null
+      },
+      {
+       "t": "Casamento Comunitário e Projeto Pai Presente",
+       "shifts": null
+      },
+      {
+       "t": "Garantia dos direitos de crianças, adolescentes, idosos, mulheres, pessoas com deficiência e demais públicos em situação de vulnerabilidade",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-5",
+     "place_id": "manga-x1",
+     "name": "CONTROLE INTERNO (CGE)",
+     "kind": "sala",
+     "num": "14",
+     "extra": true,
+     "items": [
+      {
+       "t": "Atendimento jurídico gratuito e orientações sobre direitos do cidadão, família, trabalho, previdência e relações de consumo",
+       "shifts": null
+      },
+      {
+       "t": "Serviços do PROCON",
+       "shifts": null
+      },
+      {
+       "t": "Orientações e encaminhamentos jurídicos",
+       "shifts": null
+      },
+      {
+       "t": "Casamento Comunitário e Projeto Pai Presente",
+       "shifts": null
+      },
+      {
+       "t": "Garantia dos direitos de crianças, adolescentes, idosos, mulheres, pessoas com deficiência e demais públicos em situação de vulnerabilidade",
+       "shifts": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "date": "2026-11-06",
+   "venue": "jn",
+   "source": "triagem",
+   "queues": [
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r03",
+     "name": "Laboratório (exames)",
+     "kind": "sala",
+     "num": "03",
+     "extra": false,
+     "items": [
+      {
+       "t": "Farmácia (distribuição de remédios), exames laboratoriais e testes rápidos",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r04",
+     "name": "Ginecologista",
+     "kind": "sala",
+     "num": "04",
+     "extra": false,
+     "items": [
+      {
+       "t": "Consultas presenciais com clínico geral, pediatra, ortopedista e ginecologista",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r05",
+     "name": "Ultrassom",
+     "kind": "sala",
+     "num": "05",
+     "extra": false,
+     "items": [
+      {
+       "t": "Farmácia (distribuição de remédios), exames laboratoriais e testes rápidos",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r08",
+     "name": "Ortopedia",
+     "kind": "sala",
+     "num": "08",
+     "extra": false,
+     "items": [
+      {
+       "t": "Consultas presenciais com clínico geral, pediatra, ortopedista e ginecologista",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r10",
+     "name": "Oftalmologista",
+     "kind": "sala",
+     "num": "10",
+     "extra": false,
+     "items": [
+      {
+       "t": "Psicólogo, fisioterapeuta e oftalmologista (equipe da SESA)",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r11",
+     "name": "Vacina e farmácia",
+     "kind": "sala",
+     "num": "11",
+     "extra": false,
+     "items": [
+      {
+       "t": "Farmácia (distribuição de remédios), exames laboratoriais e testes rápidos",
+       "shifts": null
+      },
+      {
+       "t": "Vacinação para crianças, jovens, adultos e idosos",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r12",
+     "name": "Odontologia + Sorriso",
+     "kind": "sala",
+     "num": "12",
+     "extra": false,
+     "items": [
+      {
+       "t": "Dentista: consultas, limpeza, restaurações, extrações simples, orientações de higiene bucal e kits para adultos e crianças",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r24",
+     "name": "CERPIS (práticas integrativas)",
+     "kind": "sala",
+     "num": "24",
+     "extra": false,
+     "items": [
+      {
+       "t": "Consultas presenciais com clínico geral, pediatra, ortopedista e ginecologista",
+       "shifts": null
+      },
+      {
+       "t": "Telemedicina: dermatologista, cardiologista, urologista, psiquiatra e ginecologista",
+       "shifts": null
+      },
+      {
+       "t": "Farmácia (distribuição de remédios), exames laboratoriais e testes rápidos",
+       "shifts": null
+      },
+      {
+       "t": "Teste do pezinho, aferição de pressão arterial e teste de glicemia",
+       "shifts": null
+      },
+      {
+       "t": "Dentista: consultas, limpeza, restaurações, extrações simples, orientações de higiene bucal e kits para adultos e crianças",
+       "shifts": null
+      },
+      {
+       "t": "Vacinação para crianças, jovens, adultos e idosos",
+       "shifts": null
+      },
+      {
+       "t": "Psicólogo, fisioterapeuta e oftalmologista (equipe da SESA)",
+       "shifts": null
+      },
+      {
+       "t": "Escovação supervisionada e aplicação de flúor para crianças (SESC)",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-x6",
+     "name": "IDHAMP",
+     "kind": "sala",
+     "num": "17",
+     "extra": true,
+     "items": [
+      {
+       "t": "Avaliação Psicopedagógica",
+       "shifts": null
+      },
+      {
+       "t": "Inscrição conexão TEA",
+       "shifts": null
+      },
+      {
+       "t": "Orientação Parental",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-x7",
+     "name": "Mais Sorriso",
+     "kind": "sala",
+     "num": "12",
+     "extra": true,
+     "items": [
+      {
+       "t": "Saude Bucal",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "consulta",
+     "place_id": "jn-r09",
+     "name": "Consulta médica",
+     "kind": "sala",
+     "num": "08",
+     "extra": false,
+     "items": [
+      {
+       "t": "Ginecologia",
+       "shifts": [
+        "manha",
+        "tarde"
+       ]
+      }
+     ]
+    },
+    {
+     "service_id": "consulta",
+     "place_id": "jn-x8",
+     "name": "Pediatra",
+     "kind": "sala",
+     "num": "08",
+     "extra": true,
+     "items": [
+      {
+       "t": "Pediatria",
+       "shifts": [
+        "manha",
+        "tarde"
+       ]
+      }
+     ]
+    },
+    {
+     "service_id": "consulta",
+     "place_id": "jn-x9",
+     "name": "Cardiologia",
+     "kind": "sala",
+     "num": "08",
+     "extra": true,
+     "items": [
+      {
+       "t": "Cardiologia",
+       "shifts": [
+        "manha",
+        "tarde"
+       ]
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-r17",
+     "name": "Polícia Científica",
+     "kind": "sala",
+     "num": "18",
+     "extra": false,
+     "items": [
+      {
+       "t": "Carteira de Identidade Nacional (CIN)",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-r19",
+     "name": "Superfacil",
+     "kind": "sala",
+     "num": "0",
+     "extra": false,
+     "items": [
+      {
+       "t": "Cartão SUS e segunda via do CPF",
+       "shifts": null
+      },
+      {
+       "t": "Carteiras de identificação de pessoas com autismo e deficiências ocultas",
+       "shifts": null
+      },
+      {
+       "t": "Rastreamento de sinais de autismo, TDAH e deficiência intelectual, avaliação psi",
+       "shifts": null
+      },
+      {
+       "t": "Orientações e acesso aos serviços do TEAcolho",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-r18",
+     "name": "Detran",
+     "kind": "sala",
+     "num": "18",
+     "extra": false,
+     "items": [
+      {
+       "t": "Orientações sobre CNH, documentação e regularização de veículos, Lei Seca e educação para o trânsito",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-r16",
+     "name": "Sala GEA (Governo do Estado)",
+     "kind": "sala",
+     "num": "16",
+     "extra": false,
+     "items": [
+      {
+       "t": "Cadastro Ambiental Rural (CAR)",
+       "shifts": null
+      },
+      {
+       "t": "Atualização cadastral agropecuária (DIAGRO)",
+       "shifts": null
+      },
+      {
+       "t": "Atendimento de regularização fundiária (Amapá Terras)",
+       "shifts": null
+      },
+      {
+       "t": "Cadastro da Agricultura Familiar (CAF)",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-t2",
+     "name": "Equatorial (energia)",
+     "kind": "tenda",
+     "num": "2",
+     "extra": false,
+     "items": [
+      {
+       "t": "Conta de energia (Equatorial): negociação de débitos, dúvidas, orientações sobre economia de energia, troca de lâmpadas e sorteios",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-3",
+     "place_id": "jn-r14",
+     "name": "Segurança e direito",
+     "kind": "sala",
+     "num": "14",
+     "extra": false,
+     "items": [
+      {
+       "t": "Atendimento humanizado e sigiloso no Box Lilás",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-3",
+     "place_id": "jn-r15",
+     "name": "Segurança e direito",
+     "kind": "sala",
+     "num": "15",
+     "extra": false,
+     "items": [
+      {
+       "t": "Atendimento humanizado e sigiloso no Box Lilás",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-3",
+     "place_id": "jn-r07",
+     "name": "SEJUSP e MPC",
+     "kind": "sala",
+     "num": "07",
+     "extra": false,
+     "items": [
+      {
+       "t": "Demonstração do Botão do Pânico",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-3",
+     "place_id": "jn-t5",
+     "name": "SEJUSP",
+     "kind": "tenda",
+     "num": "5",
+     "extra": false,
+     "items": [
+      {
+       "t": "Demonstração do Botão do Pânico",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-6",
+     "place_id": "jn-t4",
+     "name": "Tenda Pet",
+     "kind": "tenda",
+     "num": "4",
+     "extra": false,
+     "items": [
+      {
+       "t": "Vacinação antirrábica para cães e gatos",
+       "shifts": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "date": "2026-11-07",
+   "venue": "jn",
+   "source": "triagem",
+   "queues": [
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r03",
+     "name": "Laboratório (exames)",
+     "kind": "sala",
+     "num": "03",
+     "extra": false,
+     "items": [
+      {
+       "t": "Farmácia (distribuição de remédios), exames laboratoriais e testes rápidos",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r04",
+     "name": "Ginecologista",
+     "kind": "sala",
+     "num": "04",
+     "extra": false,
+     "items": [
+      {
+       "t": "Consultas presenciais com clínico geral, pediatra, ortopedista e ginecologista",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r05",
+     "name": "Ultrassom",
+     "kind": "sala",
+     "num": "05",
+     "extra": false,
+     "items": [
+      {
+       "t": "Farmácia (distribuição de remédios), exames laboratoriais e testes rápidos",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r08",
+     "name": "Ortopedia",
+     "kind": "sala",
+     "num": "08",
+     "extra": false,
+     "items": [
+      {
+       "t": "Consultas presenciais com clínico geral, pediatra, ortopedista e ginecologista",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r10",
+     "name": "Oftalmologista",
+     "kind": "sala",
+     "num": "10",
+     "extra": false,
+     "items": [
+      {
+       "t": "Psicólogo, fisioterapeuta e oftalmologista (equipe da SESA)",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r11",
+     "name": "Vacina e farmácia",
+     "kind": "sala",
+     "num": "11",
+     "extra": false,
+     "items": [
+      {
+       "t": "Farmácia (distribuição de remédios), exames laboratoriais e testes rápidos",
+       "shifts": null
+      },
+      {
+       "t": "Vacinação para crianças, jovens, adultos e idosos",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r12",
+     "name": "Odontologia + Sorriso",
+     "kind": "sala",
+     "num": "12",
+     "extra": false,
+     "items": [
+      {
+       "t": "Dentista: consultas, limpeza, restaurações, extrações simples, orientações de higiene bucal e kits para adultos e crianças",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r24",
+     "name": "CERPIS (práticas integrativas)",
+     "kind": "sala",
+     "num": "24",
+     "extra": false,
+     "items": [
+      {
+       "t": "Auriculoterapia, quiropraxia, massagens relaxantes, ventosaterapia e biodança",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-x6",
+     "name": "IDHAMP",
+     "kind": "sala",
+     "num": "17",
+     "extra": true,
+     "items": [
+      {
+       "t": "Avaliação Psicopedagógica",
+       "shifts": null
+      },
+      {
+       "t": "Inscrição conexão TEA",
+       "shifts": null
+      },
+      {
+       "t": "Orientação Parental",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-x7",
+     "name": "Mais Sorriso",
+     "kind": "sala",
+     "num": "12",
+     "extra": true,
+     "items": [
+      {
+       "t": "Saude Bucal",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-r17",
+     "name": "Polícia Científica",
+     "kind": "sala",
+     "num": "18",
+     "extra": false,
+     "items": [
+      {
+       "t": "Carteira de Identidade Nacional (CIN)",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-r19",
+     "name": "Superfacil",
+     "kind": "sala",
+     "num": "0",
+     "extra": false,
+     "items": [
+      {
+       "t": "Cartão SUS e segunda via do CPF",
+       "shifts": null
+      },
+      {
+       "t": "Carteiras de identificação de pessoas com autismo e deficiências ocultas",
+       "shifts": null
+      },
+      {
+       "t": "Rastreamento de sinais de autismo, TDAH e deficiência intelectual, avaliação psi",
+       "shifts": null
+      },
+      {
+       "t": "Orientações e acesso aos serviços do TEAcolho",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-r18",
+     "name": "Detran",
+     "kind": "sala",
+     "num": "18",
+     "extra": false,
+     "items": [
+      {
+       "t": "Orientações sobre CNH, documentação e regularização de veículos, Lei Seca e educação para o trânsito",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-r16",
+     "name": "Sala GEA (Governo do Estado)",
+     "kind": "sala",
+     "num": "16",
+     "extra": false,
+     "items": [
+      {
+       "t": "Cadastro Ambiental Rural (CAR)",
+       "shifts": null
+      },
+      {
+       "t": "Atualização cadastral agropecuária (DIAGRO)",
+       "shifts": null
+      },
+      {
+       "t": "Atendimento de regularização fundiária (Amapá Terras)",
+       "shifts": null
+      },
+      {
+       "t": "Cadastro da Agricultura Familiar (CAF)",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-t2",
+     "name": "Equatorial (energia)",
+     "kind": "tenda",
+     "num": "2",
+     "extra": false,
+     "items": [
+      {
+       "t": "Conta de energia (Equatorial): negociação de débitos, dúvidas, orientações sobre economia de energia, troca de lâmpadas e sorteios",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-3",
+     "place_id": "jn-r14",
+     "name": "Segurança e direito",
+     "kind": "sala",
+     "num": "14",
+     "extra": false,
+     "items": [
+      {
+       "t": "Atendimento humanizado e sigiloso no Box Lilás",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-3",
+     "place_id": "jn-r15",
+     "name": "Segurança e direito",
+     "kind": "sala",
+     "num": "15",
+     "extra": false,
+     "items": [
+      {
+       "t": "Atendimento humanizado e sigiloso no Box Lilás",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-3",
+     "place_id": "jn-r07",
+     "name": "SEJUSP e MPC",
+     "kind": "sala",
+     "num": "07",
+     "extra": false,
+     "items": [
+      {
+       "t": "Demonstração do Botão do Pânico",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-3",
+     "place_id": "jn-t5",
+     "name": "SEJUSP",
+     "kind": "tenda",
+     "num": "5",
+     "extra": false,
+     "items": [
+      {
+       "t": "Demonstração do Botão do Pânico",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-6",
+     "place_id": "jn-t4",
+     "name": "Tenda Pet",
+     "kind": "tenda",
+     "num": "4",
+     "extra": false,
+     "items": [
+      {
+       "t": "Vacinação antirrábica para cães e gatos",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-6",
+     "place_id": "jn-r21",
+     "name": "Castramóvel",
+     "kind": "sala",
+     "num": "22",
+     "extra": false,
+     "items": [
+      {
+       "t": "Castra Móvel: castração de cães e gatos, com orientações sobre cuidados prévios,",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-6",
+     "place_id": "jn-r22",
+     "name": "Castramóvel",
+     "kind": "sala",
+     "num": "22",
+     "extra": false,
+     "items": [
+      {
+       "t": "Castra Móvel: castração de cães e gatos, com orientações sobre cuidados prévios,",
+       "shifts": null
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

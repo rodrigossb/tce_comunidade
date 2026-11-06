@@ -62,6 +62,26 @@ Rotas por hash, compartilháveis: `#programacao?d=2026-11-05&local=jn`, `#busca?
 Mapa: planta com marcadores (`components/PlanMap.jsx`), rota a pé do acesso até a sala, "Ampliar o mapa",
 "Ouvir o caminho" (síntese de voz), botões "Ver no mapa" em cursos, serviços e locais.
 
+### Atendimento por dia conforme a triagem (mapa, serviços e programação)
+O app público segue **o que a equipe define na triagem do controle de senhas**, dia a dia: quais salas atendem, com que
+nome, de que serviço e **o que é oferecido em cada dia e turno** (salas fixas editadas, salas criadas, salas desativadas,
+dias desativados pela administração). Fonte: `GET /tce-senhas/api/atendimento` (público, CORS, sem contagens nem senhas;
+`db.atendimentoPublico`), com um dia por local (`{ date, venue, source, queues: [{ service_id, place_id, name, kind, num,
+extra, items: [{ t, shifts }] }] }`) para cada dia do evento que é dia de serviços da programação **ou** teve alguma ação da
+triagem; uma fila só entra num dia se oferece algo nele (itens só de outros dias = não atende naquele dia). `updatedAt` é a
+última mudança no banco. O site lê, em ordem, a API ao vivo (`event.apiUrl`, `?api=` sobrescreve), `atendimento.json`
+publicado com o site e a cópia no aparelho (a mais nova vence; hook `apps/site/lib/useAtendimento.js`, consulta de novo a
+cada 5 min). `node apps/site/scripts/atendimento.mjs` (com `DB_PATH`, onde está o banco) gera o `atendimento.json` para
+publicar. As regras puras ficam em `@tce/core/atendimento` (`attendanceDays`, `dayQueues`, `placeQueues`, `mapPlaceIdOf`…).
+Na tela: o **mapa** ganha chips de dia quando o local atende em mais de um dia (`#mapa?local=jn&dia=2026-11-06`); os pinos
+sem atendimento no dia ficam esmaecidos e vão para "Sem atendimento neste dia"; a lista de salas e os chips de serviço
+mostram só o que atende, com o nome atual da fila; uma fila movida de número (sala 09 → "08") ou criada com número da planta
+cai no pino desse número, e uma criada sem correspondência aparece "sem pino na planta". O **painel da sala** lista cada
+fila ali (nome, serviço, o que é oferecido, com o turno quando não é o dia todo) e, se não atende no dia, em que dias atende.
+A **folha do serviço** mostra as salas e a oferta do dia (`#servico/consulta?dia=…`), com a programação completa recolhida;
+**programação** e **serviços** reconhecem os dias da triagem como dias de serviços (abas, cartões "Quando e onde", nota
+"N salas · …" em cada pilar). Sem retrato para um dia de serviços da programação, vale a planta e a programação, como antes.
+
 ## Totem (`totem.html`)
 O **mesmo app do celular em modo quiosque** (`components/app/App.jsx` com a prop `kiosk`, montado por
 `components/totem/TotemKiosk.jsx`): visual e telas idênticos ao `index.html`, mas sem menu lateral em qualquer largura

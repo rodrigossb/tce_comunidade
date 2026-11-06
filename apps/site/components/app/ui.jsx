@@ -3,10 +3,11 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { TCE as T } from '@tce/core';
 import { TCEMap as M } from '@tce/core/map';
+import * as A from '@tce/core/atendimento';
 import Icon from '@/components/Icon';
 
 const D = T.D;
-export { T, D, M };
+export { T, D, M, A };
 export const I = (name) => <Icon name={name} />;
 
 export const VIEWS = {
@@ -31,7 +32,7 @@ export const sessionsOf = (f) => T.allSessions().filter(f);
 
 // ---------- helpers que dependem do relógio/estado ----------
 export function useDomain() {
-  const { clock, favs, prefs, kiosk } = useApp();
+  const { clock, live, favs, prefs, kiosk } = useApp();
   const st = (x) => T.sessionState(x, clock);
   const focusDate = () => (clock.date < D.event.start ? D.event.start : clock.date > D.event.end ? D.event.end : clock.date);
   const nextOf = (c) => T.nextSession(c, clock) || T.allSessions().find((x) => x.course === c);
@@ -52,8 +53,12 @@ export function useDomain() {
       return c.sessions.some((x) => (!dia || x.date === dia) && (!turno || T.shiftOf(x.time) === turno) && (!local || x.venue === local));
     });
   };
-  const defaultMapVenue = () => { const l = kiosk ? kiosk.local : prefs.local; if (l && M.mapOf(l)) return l; const d = T.nextServiceDay(clock.date) || T.serviceDays()[0]; return d.venue; };
-  return { st, focusDate, nextOf, shiftState, dayWord, courseSort, filterCourses, defaultMapVenue };
+  // Dias de atendimento ao público: os da programação (D.event.serviceDays) + os definidos na triagem (retrato `live`).
+  const attDays = () => A.attendanceDays(live);
+  const attDayOf = (date, venue) => A.attendanceDayOf(live, date, venue);
+  const nextAttDay = () => attDays().find((d) => d.date >= clock.date) || null;
+  const defaultMapVenue = () => { const l = kiosk ? kiosk.local : prefs.local; if (l && M.mapOf(l)) return l; const d = attDays().filter((x) => M.mapOf(x.venue)); const n = d.find((x) => x.date >= clock.date) || d[d.length - 1] || T.serviceDays()[0]; return n.venue; };
+  return { st, focusDate, nextOf, shiftState, dayWord, courseSort, filterCourses, defaultMapVenue, attDays, attDayOf, nextAttDay };
 }
 export const activeFilterCount = (p) => ['tema', 'dia', 'turno', 'local', 'fav'].filter((k) => p.get(k)).length;
 
@@ -83,12 +88,36 @@ export function SvcDayCard({ d, on, onClick, sub }) {
   );
 }
 export function WhenBox({ sel }) {
-  const { setParam } = useApp();
+  const { setParam } = useApp(); const { attDays } = useDomain(); const days = attDays();
   return (
     <div className="when-box"><small>{I('calendar')}Quando e onde</small>
-      <div className="svc-days">{T.serviceDays().map((d) => <SvcDayCard key={d.date} d={d} on={sel === d.date} onClick={() => setParam('dia', sel === d.date ? '' : d.date)} />)}</div>
-      <p className="tiny muted">Sem inscrição, por ordem de chegada. Itens marcados com “só 07/11” acontecem apenas no sábado, na Escola Joaquim Nabuco.</p>
+      <div className="svc-days">{days.map((d) => <SvcDayCard key={`${d.date}-${d.venue}`} d={d} on={sel === d.date} onClick={() => setParam('dia', sel === d.date ? '' : d.date)} sub={d.live && !d.official ? 'Salas definidas pela equipe no dia' : undefined} />)}</div>
+      <p className="tiny muted">Sem inscrição, por ordem de chegada. Itens marcados com “só 07/11” acontecem apenas no sábado, na Escola Joaquim Nabuco.{days.some((d) => d.live) ? ' Toque num dia para ver só o que atende nele.' : ''}</p>
     </div>
+  );
+}
+/** Nota de um serviço num dia de atendimento com retrato da triagem: quantas salas e quais. */
+export function LiveNote({ s, venue, date }) {
+  const { live } = useApp();
+  const qs = A.dayQueues(live, venue, date).filter((q) => q.service.id === s.id);
+  if (!qs.length) return <small className="only-note off">{I('info')}sem atendimento neste dia</small>;
+  const names = [...new Set(qs.map((q) => q.place.name))];
+  return <small className="only-note ok">{I('door')}{qs.length} {qs.length === 1 ? 'sala' : 'salas'} · {names.slice(0, 3).join(', ')}{names.length > 3 ? ` e mais ${names.length - 3}` : ''}</small>;
+}
+/** Item oferecido segundo a triagem ({ t, shifts }), com o turno quando não é o dia todo. */
+export function LiveItemLi({ it }) {
+  const sh = A.shiftsText(it.shifts);
+  return <li><i></i><span>{it.t}{sh ? <em className="only">{I('clock')}{sh}</em> : null}</span></li>;
+}
+/** Chip de uma fila definida na triagem (nome e sala atuais); abre o pino da planta onde ela fica. */
+export function QueueChip({ q, venue, date, s }) {
+  const { nav } = useApp(); const p = q.place;
+  const label = A.queueLabel(p);
+  if (!p.mapId) return <span className={`place-chip nomap ${p.kind}`}><b>{A.hasNum(p) ? p.num : '•'}</b><span>{label}</span><em>sem pino na planta</em></span>;
+  return (
+    <button className={`place-chip ${p.kind}`} onClick={() => nav(`mapa?local=${venue}&p=${p.mapId}${date ? `&dia=${date}` : ''}${s ? `&s=${s}` : ''}`)}>
+      <b>{A.hasNum(p) ? p.num : '•'}</b><span>{label}</span><em className="go-map">{I('map')}mapa</em>
+    </button>
   );
 }
 export function SessRow({ x, showDate }) {
@@ -175,10 +204,10 @@ export function SearchBox({ q, id = 'q', big, placeholder, autoFocus, debounce =
   );
 }
 export function ServicesStrip() {
-  const { nav, openSheet } = useApp();
+  const { nav, openSheet } = useApp(); const { attDays } = useDomain();
   return (
     <section className="sec"><div className="sec-head"><span className="sec-ico">{I('handshake')}</span><h2>Serviços gratuitos <small>sem inscrição</small></h2><button className="link" onClick={() => nav('servicos')}>Todos {I('right')}</button></div>
-      <div className="svc-days compact">{T.serviceDays().map((d) => <SvcDayCard key={d.date} d={d} onClick={() => nav(`servicos?dia=${d.date}`)} />)}</div>
+      <div className="svc-days compact">{attDays().map((d) => <SvcDayCard key={`${d.date}-${d.venue}`} d={d} onClick={() => nav(`servicos?dia=${d.date}`)} sub={d.live && !d.official ? 'Salas definidas pela equipe no dia' : undefined} />)}</div>
       <div className="hscroll">{D.services.map((s) => <button key={s.id} className="pillar-mini" style={{ '--c': s.color }} onClick={() => openSheet('servico', s.id)}><i>{I(s.icon)}</i><b>{s.short || s.title}</b><small>{s.summary}</small></button>)}</div>
     </section>
   );

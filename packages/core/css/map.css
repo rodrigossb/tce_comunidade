@@ -9,6 +9,8 @@
 .tcemap .mk.area circle{fill:#0f766e}
 .tcemap .mk text{fill:#fff;font-family:'Manrope','Inter',system-ui,sans-serif;font-weight:800;text-anchor:middle;pointer-events:none}
 .tcemap .mk.dim{opacity:.55}
+.tcemap .mk.off{opacity:.38}
+.tcemap .mk.off circle{fill:#64748b}
 .tcemap .mk.soft circle{fill:#1f3b9a;stroke:#fbbf24;stroke-width:calc(5px * var(--s,1))}
 .tcemap .mk.on circle{fill:#fbbf24;stroke:#0b1b3d;stroke-width:calc(5px * var(--s,1))}
 .tcemap .mk.on text{fill:#0b1b3d}

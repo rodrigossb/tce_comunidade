@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import PlanMap from '@/components/PlanMap';
 import Qr from '@/components/Qr';
-import { T, D, M, I, useApp, useDomain, cap, shiftColor, roomLabel, sessionsOf, StateBadge, SessRow, SvcDayCard, ItemLi, RoomTags, PlaceChip, Empty } from './ui';
+import { T, D, M, A, I, useApp, useDomain, cap, shiftColor, roomLabel, sessionsOf, StateBadge, SessRow, SvcDayCard, ItemLi, LiveItemLi, QueueChip, RoomTags, PlaceChip, Empty } from './ui';
 import { useMapParams } from './views';
 
 /** Moldura da folha: fundo escuro, animação de fechar, arraste para baixo fecha (celular). */
@@ -91,15 +91,32 @@ export function SheetCurso({ c, onClose }) {
 }
 
 export function SheetServico({ s, onClose }) {
-  const { route, nav, share, kiosk } = useApp(); const { defaultMapVenue } = useDomain();
-  const dia = route.p.get('dia'); const ctx = (dia && T.mapVenueOf(dia)) || defaultMapVenue(); const ids = T.placesOf(s, ctx); const m = M.mapOf(ctx);
+  const { clock, live, route, nav, share, kiosk } = useApp(); const { defaultMapVenue, attDays, attDayOf, dayWord } = useDomain();
+  // Dia em foco: ?dia= (um dia de atendimento) ou o dia padrão do local do mapa (hoje, se atende hoje; senão o próximo).
+  const diaParam = route.p.get('dia'); const att = diaParam ? attDayOf(diaParam) : null;
+  const ctx = att && M.mapOf(att.venue) ? att.venue : (diaParam && T.mapVenueOf(diaParam)) || defaultMapVenue(); const m = M.mapOf(ctx);
+  const day = att ? diaParam : A.defaultDay(live, ctx, clock.date); const dia = diaParam || '';
+  // Filas deste serviço no dia, conforme a triagem (nome, sala e o que é oferecido por turno); vazio sem retrato do dia.
+  const dayQs = day ? A.dayQueues(live, ctx, day) : []; const liveDay = dayQs.some((q) => !q.plant);
+  const qs = dayQs.filter((q) => q.service.id === s.id); const ids = liveDay ? [...new Set(qs.map((q) => q.place.mapId).filter(Boolean))] : T.placesOf(s, ctx);
+  const otherDays = liveDay ? A.serviceDays(live, s.id, ctx).filter((d) => d !== day) : [];
+  // Dias a mostrar: os oficiais do serviço e os dias da triagem em que ele tem alguma sala (dias em que não atende não entram).
+  const days = attDays().filter((d) => (d.official && (!s.days || s.days.includes(d.date))) || (d.live && A.dayQueues(live, d.venue, d.date).some((q) => q.service.id === s.id)));
+  const subOf = (d) => { if (d.live) { const n = A.dayQueues(live, d.venue, d.date).filter((q) => q.service.id === s.id).length; return n ? `${n} ${n === 1 ? 'sala' : 'salas'} · conforme a triagem` : 'sem atendimento neste dia'; } const n = T.itemsOn(s, d.date).length; return n === s.items.length ? 'Todos os itens abaixo' : `${n} de ${s.items.length} itens abaixo`; };
   return (
     <>
       <Head kicker={<>{I(s.icon)}{s.num ? `Pilar ${s.num}` : s.kicker || 'Acolhida'} · Serviços gratuitos</>} style={{ color: `color-mix(in srgb,${s.color} 70%,var(--ink))` }} onClose={onClose} />
       <div className="sheet-body" style={{ '--c': s.color }}><h2>{s.title}</h2><p className="muted">{s.summary}</p>
-        <div className="when-box" style={{ marginTop: '.7em' }}><small>{I('calendar')}Quando e onde · sem inscrição, por ordem de chegada</small>{s.days && !T.serviceDays().some((d) => s.days.includes(d.date)) ? <p className="tiny" style={{ margin: '.3em 0 0' }}><b>{s.days.map((d) => T.fmtDate(d, 'wdlong')).join(' e ')}</b>{s.venue && D.venues[s.venue] ? ` · ${D.venues[s.venue].name}` : ''}</p> : null}<div className="svc-days compact">{T.serviceDays().filter((d) => !s.days || s.days.includes(d.date)).map((d) => <SvcDayCard key={d.date} d={d} onClick={() => nav(`programacao?d=${d.date}&local=${d.venue}`)} sub={T.itemsOn(s, d.date).length === s.items.length ? 'Todos os itens abaixo' : `${T.itemsOn(s, d.date).length} de ${s.items.length} itens abaixo`} />)}</div></div>
-        {ids.length ? <><h3>{I('map')}Onde fica · {m.short}</h3><button className="btn btn-map" onClick={() => nav(`mapa?local=${ctx}&s=${s.id}`)}>{I('map')}<span>Ver no mapa da escola<small>{ids.length} {ids.length === 1 ? 'local' : 'locais'} em destaque · toque e veja o caminho</small></span>{I('right')}</button><div className="place-chips">{ids.map((id) => <PlaceChip key={id} id={id} s={s.id} />)}</div></> : null}
-        <h3>{I('check')}O que é oferecido</h3><ul className="ul">{s.items.map((it, k) => <ItemLi key={k} it={it} date={dia} tags={<RoomTags it={it} venue={ctx} />} />)}</ul>
+        <div className="when-box" style={{ marginTop: '.7em' }}><small>{I('calendar')}Quando e onde · sem inscrição, por ordem de chegada</small>{s.days && !days.some((d) => s.days.includes(d.date)) ? <p className="tiny" style={{ margin: '.3em 0 0' }}><b>{s.days.map((d) => T.fmtDate(d, 'wdlong')).join(' e ')}</b>{s.venue && D.venues[s.venue] ? ` · ${D.venues[s.venue].name}` : ''}</p> : null}<div className="svc-days compact">{days.map((d) => <SvcDayCard key={`${d.date}-${d.venue}`} d={d} on={d.date === day && d.venue === ctx} onClick={() => nav(`servico/${s.id}?dia=${d.date}`)} sub={subOf(d)} />)}</div></div>
+        {liveDay && !qs.length ? <p className="note">{I('info')}<span>Sem atendimento de <b>{s.short || s.title}</b> {dayWord(day)} em {m.short}.{otherDays.length ? <> Atende {otherDays.map((d) => (d === clock.date ? 'hoje' : T.fmtDate(d, 'wd'))).join(' e ')}: toque no dia acima.</> : null}</span></p> : null}
+        {ids.length ? <><h3>{I('map')}Onde fica · {m.short}{liveDay ? <> · {dayWord(day)}</> : null}</h3><button className="btn btn-map" onClick={() => nav(`mapa?local=${ctx}&s=${s.id}${liveDay ? `&dia=${day}` : ''}`)}>{I('map')}<span>Ver no mapa da escola<small>{ids.length} {ids.length === 1 ? 'local' : 'locais'} em destaque · toque e veja o caminho</small></span>{I('right')}</button><div className="place-chips">{liveDay ? qs.map((q, k) => <QueueChip key={`${q.place.id}-${k}`} q={q} venue={ctx} date={day} s={s.id} />) : ids.map((id) => <PlaceChip key={id} id={id} s={s.id} />)}</div></> : null}
+        {liveDay && qs.length ? (
+          <>
+            <h3>{I('check')}O que é oferecido · {dayWord(day)} <span className="live-tag">{I('check')}triagem</span></h3>
+            {qs.map((q, k) => <div key={`${q.place.id}-${k}`} className="offer-room"><b>{q.place.name}</b><small>{A.hasNum(q.place) ? A.placeTitle(q.place) : 'sem número de sala'}{q.place.mapId && q.place.mapId !== q.place.id ? ` (na planta: ${M.placeLabel(T.placeInfo(q.place.mapId))})` : ''}</small>{q.items.length ? <ul className="ul">{q.items.map((it, j) => <LiveItemLi key={j} it={it} />)}</ul> : <p className="tiny muted" style={{ margin: '.3em 0 0' }}>{s.summary}</p>}</div>)}
+            <details className="inactive-places"><summary>{I('list')} Programação completa do serviço</summary><ul className="ul">{s.items.map((it, k) => <ItemLi key={k} it={it} date={dia} tags={<RoomTags it={it} venue={ctx} />} />)}</ul></details>
+          </>
+        ) : <><h3>{I('check')}O que é oferecido</h3><ul className="ul">{s.items.map((it, k) => <ItemLi key={k} it={it} date={dia} tags={<RoomTags it={it} venue={ctx} />} />)}</ul></>}
         {s.detail ? <p className="note">{I('info')}<span>{s.detail}</span></p> : null}
         <h3>{I('users')}Quem atende</h3><div className="partners">{s.partners.map((p) => <span key={p}>{p}</span>)}</div>
         {s.coursesLink ? <div className="actions"><button className="btn btn-primary" onClick={() => nav('cursos')}>{I('graduation')}Ver os {D.courses.length} cursos com inscrição</button></div> : null}
@@ -127,7 +144,7 @@ export function SheetLocal({ v, onClose }) {
 
 /** Mapa ampliado (rola com o dedo), aberto pelo botão "Ampliar". Não entra no histórico. */
 export function SheetMapaFull({ venue, onClose }) {
-  const { go } = useApp(); const { p, ent, svc, hl } = useMapParams();
+  const { go } = useApp(); const { p, ent, svc, hl, muted } = useMapParams();
   const [x3, setX3] = useState(false); const zoomRef = useRef(null);
   const m = M.mapOf(venue); const place = p.get('p') ? m.places.find((x) => x.id === p.get('p')) : null;
   useLayoutEffect(() => {
@@ -141,7 +158,7 @@ export function SheetMapaFull({ venue, onClose }) {
       <Head kicker={<>{I('map')}{m.title}</>} onClose={onClose} />
       <div className="sheet-body"><p className="tiny muted" style={{ margin: '0 0 .5em' }}>Arraste para mover. Toque em uma sala para ver o caminho.</p>
         <div ref={zoomRef} className={`map-zoom ${x3 ? 'x3' : ''}`} id="map-zoom">
-          <PlanMap venue={venue} entrance={ent} scale={1.1} place={p.get('p') || null} highlight={hl} showAll={!svc && !p.get('p')} onPick={(id) => { onClose(true); go(`#mapa?local=${venue}&p=${id}&entrada=${ent}${p.get('s') ? `&s=${p.get('s')}` : ''}`); }} />
+          <PlanMap venue={venue} entrance={ent} scale={1.1} place={p.get('p') || null} highlight={hl} muted={muted} showAll={!svc && !p.get('p')} onPick={(id) => { onClose(true); go(`#mapa?local=${venue}&p=${id}&entrada=${ent}${p.get('dia') ? `&dia=${p.get('dia')}` : ''}${p.get('s') ? `&s=${p.get('s')}` : ''}`); }} />
         </div>
         <div className="map-actions"><button className="btn btn-ghost" onClick={() => setX3((v) => !v)}>{I('zoomin')}{x3 ? 'Menos zoom' : 'Mais zoom'}</button></div>
       </div>

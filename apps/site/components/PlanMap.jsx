@@ -5,31 +5,32 @@ import { mapOf, entranceOf, route, placeFull, dist } from '@tce/core/map';
 /**
  * Planta do local com marcadores e rota a pé (porta do componente imperativo TCEMap.render do site antigo).
  * props: venue, entrance (id do acesso), place (id em destaque), alias (nome alternativo da sala em destaque),
- * highlight (ids em destaque leve), showAll, scale, onPick(id), onEntrance(id).
+ * highlight (ids em destaque leve), muted (ids esmaecidos: sem atendimento no dia), showAll, scale, onPick(id), onEntrance(id).
  * Precisa do CSS @tce/core/css/map.css na página.
  */
-export default function PlanMap({ venue, entrance, place, alias, highlight, showAll, scale, onPick, onEntrance, className, style }) {
-  const hlKey = (highlight || []).join(',');
+export default function PlanMap({ venue, entrance, place, alias, highlight, muted, showAll, scale, onPick, onEntrance, className, style }) {
+  const hlKey = (highlight || []).join(','); const mutedKey = (muted || []).join(',');
   const model = useMemo(() => {
     const map = mapOf(venue); if (!map) return null;
     const from = entranceOf(map, entrance);
     const r = place ? route(venue, place, from.id, alias) : null;
-    const hl = new Set(highlight || []);
+    const hl = new Set(highlight || []); const mt = new Set(muted || []);
     const places = map.places.filter((p) => !p.hide || p.id === place).map((p) => (alias && p.id === place ? Object.assign({}, p, { name: alias }) : p));
     const S = (Math.max(map.w, map.h) / 1000) * (scale || 1);
     const labelSoft = hl.size > 0 && hl.size <= 6 && !place;
     const softOrder = [...hl].map((id) => places.find((p) => p.id === id)).filter(Boolean).sort((a, b) => a.x - b.x).map((p) => p.id);
     const pts = r ? r.points.map((p) => p.join(',')).join(' ') : '';
     const len = r ? r.points.reduce((n, p, i) => (i ? n + dist(r.points[i - 1], p) : 0), 0) : 0;
-    return { map, from, r, hl, places, S, labelSoft, softOrder, pts, len };
+    return { map, from, r, hl, mt, places, S, labelSoft, softOrder, pts, len };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [venue, entrance, place, alias, hlKey, showAll, scale]);
+  }, [venue, entrance, place, alias, hlKey, mutedKey, showAll, scale]);
   if (!model) return null;
-  const { map, from, r, hl, places, S, labelSoft, softOrder, pts, len } = model;
+  const { map, from, r, hl, mt, places, S, labelSoft, softOrder, pts, len } = model;
 
   const pin = (p) => {
     const on = p.id === place; const soft = hl.has(p.id); const rr = (on ? 30 : soft ? 22 : 17) * S;
-    const cls = `mk ${p.kind} ${on ? 'on' : ''} ${soft ? 'soft' : ''} ${showAll || on || soft ? '' : 'dim'}`;
+    const off = mt.has(p.id) && !on && !soft; // sem atendimento no dia escolhido
+    const cls = `mk ${p.kind} ${on ? 'on' : ''} ${soft ? 'soft' : ''} ${off ? 'off' : showAll || on || soft ? '' : 'dim'}`;
     const crowded = soft && [...hl].some((id) => { const q = places.find((x) => x.id === id); return q && q !== p && Math.abs(q.y - p.y) < map.h * 0.06 && Math.abs(q.x - p.x) < map.w * 0.14; });
     const lblText = on ? placeFull(p) : (soft && labelSoft && !crowded ? p.name : '');
     const below = !on && softOrder.indexOf(p.id) % 2 === 1;
