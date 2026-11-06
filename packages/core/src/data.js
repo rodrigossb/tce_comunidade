@@ -177,7 +177,8 @@ const courses = [
   { id: 141, title: 'Painéis e Sistemas de Acompanhamento da Gestão Pública', short: 'Painéis da Gestão Pública', hours: 4,
     audience: 'Servidores públicos, gestores e técnicos', seats: 20,
     link: ESCON + '141/oiapoque-paineis-e-sistemas-de-acompanhamento-da-gestao-publica', tags: ['gestao-publica', 'tecnologia'],
-    sessions: [s('06', '14:00', 'jn', 'Sala IV')] },
+    // 06/11: passou da Sala IV (sala 13 na planta) para o Laboratório I (sala 01), por orientação da organização em 06/11.
+    sessions: [s('06', '14:00', 'jn', 'Laboratório I')] },
   { id: 114, title: 'Operacionalização do SIPIA', hours: 8,
     audience: 'Conselho Tutelar', seats: 20,
     link: ESCON + '114/oiapoque-fomento-a-operacionalizacao-do-sipia-para-o-conselho-tutelar', tags: ['infancia', 'gestao-publica'],
