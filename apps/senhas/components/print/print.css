@@ -1,18 +1,47 @@
-/* Módulo de impressão (app/impressao): tela simples e impressão limpa em A4 (filtros e botões somem no papel). */
+/* Módulo de impressão (app/impressao): tela simples e impressão limpa em A4 (filtros e botões somem no papel). A página não
+   fica dentro de .app, então os tokens do tema claro (app.css) são declarados aqui; o tema é sempre claro (prévia do papel). */
+.pr{--bg:#f4f6fb;--card:#fff;--ink:#0b1220;--ink2:#334155;--mut:#5f6b7d;--line:#e4e7ee;--chip:#eef1f6;--p-soft:color-mix(in srgb,var(--primary) 10%,#fff);--p-mid:color-mix(in srgb,var(--primary) 18%,#fff);--p-ink:color-mix(in srgb,var(--primary) 85%,#000);--a-soft:color-mix(in srgb,var(--accent) 22%,#fff);--radius:14px;--radius-sm:10px;color-scheme:light}
 .pr{max-width:900px;margin:0 auto;padding:1em max(16px,env(safe-area-inset-left,0px)) 3em max(16px,env(safe-area-inset-right,0px));color:var(--ink);font-variant-numeric:tabular-nums}
 .pr h1{font-family:var(--font-display);font-size:1.35em;margin:.1em 0 0;line-height:1.2;text-wrap:balance}
 .pr-lead{color:var(--mut);margin:.4em 0 0;max-width:70ch;font-size:.95em}
-.pr-filters{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:.8em 1em;margin:0 0 1.2em;display:grid;gap:.7em}
+.pr-filters{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:.9em 1em;margin:0 0 1.2em;display:grid;gap:.8em;box-shadow:0 1px 2px rgba(11,18,32,.04),0 2px 10px -4px rgba(11,18,32,.08)}
 .pr-row{display:flex;flex-wrap:wrap;gap:.7em 1.2em;align-items:end}
 .pr-row label{display:grid;gap:.25em;font-size:.82em;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
 .pr-row select{font:inherit;font-size:1.05rem;font-weight:500;color:var(--ink);text-transform:none;letter-spacing:0;padding:.45em .6em;border:1.5px solid var(--line);border-radius:9px;background:var(--bg);min-width:12em;max-width:100%}
 .pr-row label.chk{display:flex;align-items:center;gap:.4em;text-transform:none;letter-spacing:0;font-size:.95em;font-weight:500;color:var(--ink);padding:.5em 0}
-.pr-svcs{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:.4em .5em}
-.pr-svcs legend{font-size:.82em;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;padding:0;margin-bottom:.35em;width:100%}.pr-svcs legend small{font-weight:500;text-transform:none;letter-spacing:0}
-.pr-svcs label{display:inline-flex;align-items:center;gap:.35em;padding:.35em .7em .35em .5em;border:1.5px solid var(--line);border-radius:999px;background:var(--bg);font-size:.92em;cursor:pointer}
-.pr-svcs label:has(input:checked){border-color:var(--c);background:color-mix(in srgb,var(--c) 16%,var(--card));font-weight:700}
-.pr-svcs input,.pr-row input[type=checkbox]{accent-color:var(--primary);width:1.05em;height:1.05em;margin:0}
-.pr-actions{display:flex;gap:.6em;flex-wrap:wrap}
+.pr-fs{border:0;padding:0;margin:0;display:grid;gap:.5em;min-width:0}
+.pr-fs>legend{display:flex;align-items:center;gap:.5em;flex-wrap:wrap;width:100%;padding:0;margin:0 0 .4em;font-size:.82em;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.pr-fs>legend small{font-weight:500;text-transform:none;letter-spacing:0;color:var(--mut)}
+.pr-n{display:inline-grid;place-items:center;width:1.7em;height:1.7em;border-radius:50%;background:var(--primary);color:#fff;font-size:.9em;font-weight:800;flex:none}
+.pr-fs+.pr-fs{padding-top:.7em;border-top:1px dashed var(--line)}
+.pr-chips{display:flex;flex-wrap:wrap;gap:.4em .5em}
+.pr-chip{display:inline-flex;align-items:center;gap:.35em;padding:.35em .7em .35em .5em;border:1.5px solid var(--line);border-radius:999px;background:var(--bg);font-size:.92em;cursor:pointer;color:var(--ink)}
+.pr-chip:has(input:checked){border-color:var(--c,var(--primary));background:color-mix(in srgb,var(--c,var(--primary)) 16%,var(--card));font-weight:700}
+.pr-chip input,.pr-row input[type=checkbox]{accent-color:var(--primary);width:1.05em;height:1.05em;margin:0}
+.pr-rooms{display:grid;gap:.5em}
+.pr-rgroup{display:flex;flex-wrap:wrap;gap:.35em .45em;align-items:center;padding:.5em .6em .6em;border-radius:12px;background:color-mix(in srgb,var(--c) 6%,var(--bg));border:1px solid color-mix(in srgb,var(--c) 28%,var(--line))}
+.pr-rgroup[hidden]{display:none}
+.pr-rgroup-h{display:inline-flex;align-items:center;gap:.4em;width:100%;font-size:.76em;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}.pr-rgroup-h i{width:.8em;height:.8em;border-radius:3px;background:var(--c);flex:none}
+.pr-chip.room{display:inline-grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:.45em;row-gap:0;align-items:center;border-radius:10px;padding:.35em .7em .4em .5em;text-align:left;background:var(--card);max-width:100%}
+.pr-chip.room input{grid-row:span 2}
+.pr-chip.room b{font-weight:600;font-size:.92em;line-height:1.15;overflow-wrap:anywhere}.pr-chip.room:has(input:checked) b{font-weight:800}
+.pr-chip.room small{font-size:.72em;color:var(--mut);line-height:1.2;white-space:nowrap}
+.pr-chip.off{opacity:.65}.pr-chip.off b{text-decoration:line-through}
+.pr-range{display:grid;gap:.6em}
+.pr-seg{display:inline-flex;max-width:100%;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg);width:fit-content}
+.pr-seg label{position:relative;min-width:0}.pr-seg input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.pr-seg span{display:block;padding:.5em .9em;font-size:.92em;font-weight:600;cursor:pointer;border-right:1.5px solid var(--line);white-space:nowrap;color:var(--ink)}
+.pr-seg label:last-child span{border-right:0}
+.pr-seg input:checked+span{background:var(--primary);color:#fff}.pr-seg input:focus-visible+span{outline:2px solid var(--accent);outline-offset:-2px}
+.pr-nums{display:flex;flex-wrap:wrap;gap:.6em 1em;align-items:center}
+.pr-nums label{display:inline-flex;align-items:center;gap:.4em;font-size:.92em;font-weight:600;color:var(--ink)}
+.pr-nums input{font:inherit;font-size:1.05rem;font-weight:600;width:5.5em;padding:.4em .5em;border:1.5px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);text-align:center;font-variant-numeric:tabular-nums}
+.pr-presets{display:inline-flex;flex-wrap:wrap;gap:.35em}
+.pr-presets .btn{display:inline-grid;line-height:1.05;padding:.35em .7em}.pr-presets .btn small{font-size:.68em;font-weight:500;color:var(--mut)}.pr-presets .btn.on small{color:inherit}
+.pr-hint{margin:0;font-size:.82em;color:var(--mut);max-width:70ch}
+.pr-actions{display:flex;gap:.6em;flex-wrap:wrap;align-items:center;padding-top:.7em;border-top:1px dashed var(--line)}
+.pr-sum{margin:0 auto 0 0;font-size:.95em;font-weight:700;color:var(--ink)}
+.pr-filters.js .pr-apply{display:none}
 .pr-head{display:grid;gap:.4em;margin:0 0 1em;padding-bottom:.8em;border-bottom:2px solid var(--ink)}
 .pr-brand{display:flex;gap:.7em;align-items:center}.pr-brand img{width:36px;height:36px;flex:none}.pr-brand small{display:block;font-size:.78em;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
 .pr-totals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.6em;margin:0 0 1.1em}
@@ -36,7 +65,7 @@
 .pr-total{margin-top:.4em;border-top:2px solid var(--ink)}.pr-total td{font-weight:800;font-size:1.05em;border-bottom:0!important;padding:.7em .6em}
 .pr-empty{padding:1.2em;border:1.5px dashed var(--line);border-radius:12px;color:var(--mut);text-align:center}
 .pr-foot{color:var(--mut);font-size:.75em;margin-top:1.5em;word-break:break-all}
-@media (max-width:640px){.pr-totals{grid-template-columns:repeat(2,minmax(0,1fr))}.pr th:nth-child(3),.pr td.ord{display:none}.pr .who small{display:none}.pr th,.pr td{padding:.45em .4em}}
+@media (max-width:640px){.pr-sum{width:100%;margin:0}.pr-seg{display:grid;grid-template-columns:1fr 1fr 1fr;width:100%}.pr-seg span{text-align:center;padding:.5em .4em;font-size:.85em}.pr-totals{grid-template-columns:repeat(2,minmax(0,1fr))}.pr th:nth-child(3),.pr td.ord{display:none}.pr .who small{display:none}.pr th,.pr td{padding:.45em .4em}}
 /* ---- senhas para recortar (modelo do evento): A4 retrato, 4 × 6 por folha, corte tracejado ---- */
 .tk-wrap{display:grid;gap:1.2em;justify-items:center}
 .tk-cap{width:100%;max-width:190mm;font-size:.85em;color:var(--mut);margin:0 0 .3em}

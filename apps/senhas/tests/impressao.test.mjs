@@ -1,7 +1,7 @@
 // Módulo de impressão: previsão de senhas por sala (parseParams + previsao) a partir de um estado como o de db.state.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseParams, previsao, paramsOf, PREVISAO, ticketsOf, pagesOf, padTicket, PER_PAGE, FORMATOS } from '../lib/impressao.js';
+import { parseParams, previsao, paramsOf, rangeText, PREVISAO, SERIES, PRESETS, ticketsOf, pagesOf, padTicket, PER_PAGE, FORMATOS } from '../lib/impressao.js';
 
 const state = {
   day: '2026-11-06', venue: 'jn',
@@ -17,10 +17,41 @@ const state = {
 
 test('parseParams: local/dia válidos, serviços por lista ou caixas, previsão e inativas', () => {
   const f = parseParams({ local: 'jn', dia: '2026-11-06', servicos: 'consulta,xxx', svc: ['pilar-6', 'consulta'], previsao: 'todas', inativas: '1' }, '2026-11-05');
-  assert.deepEqual(f, { day: '2026-11-06', venue: 'jn', svcs: ['consulta', 'pilar-6'], previsao: 'todas', inativas: true, formato: 'senhas' });
+  assert.deepEqual(f, { day: '2026-11-06', venue: 'jn', svcs: ['consulta', 'pilar-6'], salas: [], previsao: 'todas', inativas: true, formato: 'senhas', serie: 'np', de: null, ate: null });
   const g = parseParams({ local: 'nada', dia: 'ontem' }, '2026-11-05');
   assert.equal(g.venue, 'manga', 'local inválido → primeiro dia de serviços'); assert.match(g.day, /^2026-11-\d\d$/); assert.deepEqual(g.svcs, []); assert.equal(g.previsao, 'com'); assert.equal(g.inativas, false);
   assert.equal(paramsOf(f), 'local=jn&dia=2026-11-06&servicos=consulta%2Cpilar-6&previsao=todas&inativas=1'); assert.equal(PREVISAO.length, 2);
+});
+
+test('parseParams: salas (lista ou caixas, ids válidos), série e faixa de números (de/ate trocados se invertidos)', () => {
+  const f = parseParams({ local: 'jn', dia: '2026-11-06', salas: 'jn-r09,lixo;x', sala: ['jn-x8', 'jn-r09'], serie: 'n', de: '48', ate: '25' }, '2026-11-05');
+  assert.deepEqual(f.salas, ['jn-r09', 'jn-x8']); assert.equal(f.serie, 'n'); assert.equal(f.de, 25); assert.equal(f.ate, 48);
+  assert.equal(paramsOf(f), 'local=jn&dia=2026-11-06&salas=jn-r09%2Cjn-x8&serie=n&de=25&ate=48');
+  assert.equal(rangeText(f), 'só comuns · do nº 25 ao 48');
+  const g = parseParams({ local: 'jn', serie: 'xx', de: '0', ate: 'abc' }, '2026-11-05'); assert.equal(g.serie, 'np'); assert.equal(g.de, null); assert.equal(g.ate, null); assert.equal(rangeText(g), '');
+  assert.equal(rangeText({ serie: 'p', de: 7 }), 'só prioritárias · a partir do nº 7'); assert.equal(rangeText({ serie: 'np', ate: 24 }), 'até o nº 24'); assert.equal(rangeText({ de: 3, ate: 3 }), 'só o nº 3');
+  assert.deepEqual(SERIES.map((x) => x.id), ['np', 'n', 'p']); assert.deepEqual(PRESETS.map((x) => [x.de, x.ate]), [[1, 24], [25, 48], [49, 72], [73, 96]]);
+});
+
+test('previsao: filtro por sala entra mesmo sem previsão ou desativada; rooms lista todas as salas do local com serviço e situação', () => {
+  const r = previsao(state, { salas: ['jn-x8', 'jn-r19', 'jn-t4'], previsao: 'com', inativas: false });
+  assert.deepEqual(r.groups.map((g) => [g.service.id, g.places.map((p) => p.id)]), [['consulta', ['jn-x8']], ['pilar-2', ['jn-r19']], ['pilar-6', ['jn-t4']]]);
+  assert.equal(r.groups[1].places[0].zero, true); assert.equal(r.groups[2].places[0].disabled, true);
+  const pet = r.rooms.find((x) => x.id === 'jn-t4'); assert.deepEqual([pet.service_id, pet.disabled, pet.has, pet.n, pet.p], ['pilar-6', true, true, 40, 0]);
+  const cm = r.rooms.find((x) => x.id === 'jn-r09'); assert.deepEqual([cm.name, cm.num, cm.service_id, cm.has], ['Consulta médica', '08', 'consulta', true]);
+  assert.ok(r.rooms.some((x) => x.id === 'jn-r18' && !x.has && !x.disabled), 'sala da planta sem previsão também aparece para marcar');
+  // sala marcada fora da categoria marcada não entra (os dois filtros valem juntos)
+  assert.deepEqual(previsao(state, { svcs: ['pilar-2'], salas: ['jn-x8'] }).groups, []);
+});
+
+test('faixa de senhas: série e intervalo valem dentro de cada série; folhas seguem a faixa', () => {
+  const r = previsao(state, { previsao: 'com' }); const cm = r.groups[0].places[0]; // 50 N + 10 P
+  assert.deepEqual(ticketsOf(cm, { serie: 'n', de: 49 }).map((t) => t.label), ['49', '50']);
+  assert.deepEqual(ticketsOf(cm, { serie: 'p', de: 9, ate: 10 }).map((t) => t.label), ['P09', 'P10']);
+  assert.deepEqual(ticketsOf(cm, { de: 1, ate: 2 }).map((t) => t.label), ['01', '02', 'P01', 'P02'], 'sem série: o intervalo vale nas duas');
+  assert.equal(ticketsOf(cm, { serie: 'np' }).length, 60); assert.equal(ticketsOf(cm, { de: 100 }).length, 0);
+  assert.deepEqual(pagesOf(cm, undefined, { serie: 'n', de: 25, ate: 48 }).map((p) => p.length), [24]);
+  assert.deepEqual(ticketsOf({ n: 3, p: 2, from: { n: 101, p: 7 } }, { de: 102, ate: 102 }).map((x) => x.label), ['102'], 'faixa compara o número impresso (com n_from)');
 });
 
 test('previsao: só salas com previsão (>0), por serviço, com subtotais e total; desativadas só com inativas', () => {
