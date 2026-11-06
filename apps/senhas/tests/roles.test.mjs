@@ -11,6 +11,6 @@ test('roleOfPin: um PIN por perfil; vazio ou desconhecido → null; PIN repetido
 test('capacidades: triagem só lança entregues; porta só chama; gestor/operador configuram; CSV só gestor', () => {
   assert.deepEqual(rolesWith('read'), ['gestor', 'operador', 'triagem', 'porta']);
   assert.deepEqual(rolesWith('issue'), ['gestor', 'operador', 'triagem']); assert.deepEqual(rolesWith('door'), ['gestor', 'operador', 'porta']);
-  assert.deepEqual(rolesWith('manage'), ['gestor', 'operador']); assert.deepEqual(rolesWith('csv'), ['gestor']);
+  assert.deepEqual(rolesWith('manage'), ['gestor', 'operador']); assert.deepEqual(rolesWith('csv'), ['gestor']); assert.deepEqual(rolesWith('days'), ['gestor'], 'desativar dias de atendimento: só administração');
   assert.ok(!can('triagem', 'manage') && !can('triagem', 'door') && !can('porta', 'issue') && !can('porta', 'painel') && can('porta', 'door')); assert.ok(CAPS.gestor.csv);
 });

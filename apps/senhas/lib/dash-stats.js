@@ -78,11 +78,13 @@ export function filterData(data, filters) {
 
 /** Dias para o filtro de data: dias do evento + dias com registros (data_days do servidor), em ordem; cada um com
     { date, venue (dia de serviços), service_day, has_data, venues (com registros) }. */
-export function filterDays(dataDays, venue) {
-  const by = {}; const add = (d) => (by[d] = by[d] || { date: d, service_day: false, has_data: false, venues: [] });
+export function filterDays(dataDays, venue, daysOff) {
+  const by = {}; const add = (d) => (by[d] = by[d] || { date: d, service_day: false, has_data: false, off: false, venues: [] });
   for (const d of T.eventDays()) add(d);
   for (const sd of T.serviceDays()) { const o = add(sd.date); if (!venue || sd.venue === venue) { o.service_day = true; o.venue = sd.venue; } }
   for (const r of dataDays || []) { if (!r || !r.day) continue; const o = add(r.day); if (!o.venues.includes(r.venue)) o.venues.push(r.venue); if (!venue || r.venue === venue) o.has_data = true; }
+  // dias desativados pela administração (strings = dias deste local; objetos { day, venue } = de qualquer local)
+  for (const x of daysOff || []) { const d = typeof x === 'string' ? x : x && x.day; if (!d || !by[d]) continue; if (typeof x === 'string' || !venue || x.venue === venue) by[d].off = true; }
   return Object.values(by).sort((a, b) => a.date.localeCompare(b.date));
 }
 

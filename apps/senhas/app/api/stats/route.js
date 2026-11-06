@@ -12,6 +12,6 @@ export function GET(req) {
   const u = new URL(req.url); const venue = u.searchParams.get('local') || 'jn'; const day = u.searchParams.get('dia') || today();
   try {
     const st = db.stats(day, venue);
-    return Response.json({ day: st.day, venue: st.venue, now: st.now, total: st.stats.total, services: st.stats.services, per_hour: st.stats.per_hour, issued_history: st.issued_history, extras: st.extras || [], count_only: st.count_only || [], calls: st.calls, data_days: st.data_days || [] }, { headers: H });
+    return Response.json({ day: st.day, venue: st.venue, now: st.now, total: st.stats.total, services: st.stats.services, per_hour: st.stats.per_hour, issued_history: st.issued_history, extras: st.extras || [], count_only: st.count_only || [], calls: st.calls, data_days: st.data_days || [], days_off: st.days_off_all || [] }, { headers: H });
   } catch (e) { return Response.json({ error: e.message || 'erro' }, { status: e.status || 500, headers: H }); }
 }

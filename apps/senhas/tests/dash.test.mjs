@@ -82,4 +82,8 @@ test('filterData: sem filtro devolve os números do servidor; com turno/serviço
   const days = filterDays([{ day: '2026-11-04', venue: 'manga' }, { day: '2026-11-05', venue: 'jn' }], 'jn');
   assert.equal(days[0].date, '2026-11-03'); const d4 = days.find((d) => d.date === '2026-11-04'); assert.equal(d4.service_day, false); assert.equal(d4.has_data, false); assert.deepEqual(d4.venues, ['manga']);
   const d5 = days.find((d) => d.date === '2026-11-05'); assert.equal(d5.has_data, true); const d7 = days.find((d) => d.date === '2026-11-07'); assert.equal(d7.service_day, true); assert.equal(d7.venue, 'jn');
+  // dias desativados pela administração: strings (dias deste local) ou { day, venue } (de qualquer local, filtrados pelo local pedido)
+  const off1 = filterDays([], 'jn', ['2026-11-06']); assert.equal(off1.find((d) => d.date === '2026-11-06').off, true); assert.equal(off1.find((d) => d.date === '2026-11-05').off, false);
+  const off2 = filterDays([], 'jn', [{ day: '2026-11-06', venue: 'manga' }, { day: '2026-11-07', venue: 'jn' }]); assert.equal(off2.find((d) => d.date === '2026-11-06').off, false); assert.equal(off2.find((d) => d.date === '2026-11-07').off, true);
+  const off3 = filterDays([], null, [{ day: '2026-11-06', venue: 'manga' }]); assert.equal(off3.find((d) => d.date === '2026-11-06').off, true, 'sem local: qualquer local conta');
 });

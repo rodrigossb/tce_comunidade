@@ -153,6 +153,16 @@ test('desativar fila na triagem: entra em disabled (estado e TV) e volta ao reat
   assert.throws(() => db.setQueueEnabled({ day: DAY, venue: V, service_id: S, place_id: '', enabled: false }), /dados/);
 });
 
+test('dias de atendimento desativados pela administração: entram em days_off do local (estado) e em days_off_all (stats); reativar tira', () => {
+  db.setDayEnabled({ day: '2026-11-06', venue: V, enabled: false, device: 't' });
+  assert.deepEqual(db.state(DAY, V).days_off, ['2026-11-06']); assert.deepEqual(db.state(DAY, 'manga').days_off, [], 'por local');
+  db.setDayEnabled({ day: '2026-11-06', venue: V, enabled: false, device: 't' }); // repetir não duplica
+  assert.deepEqual(db.stats(DAY, V).days_off_all, [{ day: '2026-11-06', venue: V }]);
+  db.setDayEnabled({ day: '2026-11-06', venue: V, enabled: true });
+  assert.deepEqual(db.state(DAY, V).days_off, []); assert.deepEqual(db.daysOff(), []);
+  assert.throws(() => db.setDayEnabled({ day: 'ontem', venue: V, enabled: false }), /day/);
+});
+
 test('ajustar número atual (fila_cursor): sequência recomeça do informado; chamadas anteriores ficam no histórico', async () => {
   const P2 = 'jn-r15';
   db.setQueueConfig({ day: DAY, venue: V, service_id: S, place_id: P2, n_total: 179, p_from: 180, p_total: 21, device: 't' });

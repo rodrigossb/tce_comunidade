@@ -108,7 +108,8 @@ function Dash() {
   const shiftLabel = SHIFT_FILTERS.find((x) => x.id === shift).label;
   const filterSummary = [shift !== 'all' ? shiftLabel : '', svcSel.length ? svcSel.map((id) => D.services.find((s) => s.id === id).short).join(', ') : ''].filter(Boolean).join(' · ');
   // opções dos filtros: dias do evento + dias com registros (de qualquer local); locais com planta; serviços com senha no local ou com registros
-  const dayOpts = useMemo(() => filterDays((data && data.data_days) || [], null), [data]);
+  // dias desativados pela administração neste local somem (a menos que tenham registros)
+  const dayOpts = useMemo(() => filterDays((data && data.data_days) || [], null, ((data && data.days_off) || []).filter((x) => x.venue === venue)).filter((d) => !d.off || d.has_data), [data, venue]);
   const venues = Object.keys(D.maps || {}).filter((v) => D.venues[v]);
   const svcOpts = useMemo(() => { const ids = new Set(); for (const g of T.ticketQueuesOf(venue)) ids.add(g.service.id); for (const s of (data && data.services) || []) ids.add(s.service_id); return [...ids].map((id) => D.services.find((s) => s.id === id)).filter(Boolean); }, [venue, data]);
   const toggleSvc = (id) => { const next = svcSel.includes(id) ? svcSel.filter((x) => x !== id) : svcSel.concat([id]); setParam({ servicos: next.join(',') }); };

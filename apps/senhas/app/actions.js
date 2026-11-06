@@ -7,7 +7,7 @@ import { rolesWith, CAPS } from '@/lib/roles';
 
 // Quem pode o quê (lib/roles.js): ler = todos; lançar entregues = gestor/operador/triagem; porta = gestor/operador/porta;
 // configurar/editar/criar/desativar = gestor/operador.
-const ANY = rolesWith('read'); const ISSUE = rolesWith('issue'); const DOOR = rolesWith('door'); const MANAGE = rolesWith('manage'); const PAINEL = rolesWith('painel');
+const ANY = rolesWith('read'); const ISSUE = rolesWith('issue'); const DOOR = rolesWith('door'); const MANAGE = rolesWith('manage'); const PAINEL = rolesWith('painel'); const DAYS = rolesWith('days');
 async function guard(roles, fn) {
   try {
     const role = await currentRole();
@@ -40,3 +40,4 @@ export async function setQueueEnabled(body) { return guard(MANAGE, async () => d
 export async function setQueueMode(body) { return guard(MANAGE, async () => db.setQueueMode(body || {})); }
 export async function setQueueInfo(body) { return guard(MANAGE, async () => db.setQueueInfo(body || {})); }
 export async function setCursor(body) { return guard(DOOR, async () => db.setCursor(body || {})); }
+export async function setDayEnabled(body) { return guard(DAYS, async () => db.setDayEnabled(body || {})); }

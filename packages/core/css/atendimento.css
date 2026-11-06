@@ -408,3 +408,10 @@
 .pl.co .pl-n b{color:var(--ink2)}
 @media (max-width:520px){.pl-n{grid-template-columns:repeat(3,1fr);gap:.35em .4em}.svc-stat .hd small{white-space:normal;font-size:.78em}.svc-stat .hd{flex-wrap:wrap}.svc-stat .hd b{flex-basis:calc(100% - 2.6em)}.svc-stat .hd small{flex-basis:100%;padding-left:2.6em}}
 @media (max-width:380px){.kpis{gap:.45em}.kpi{padding:.6em .7em}.kpi b{font-size:1.7em}}
+
+/* dias de atendimento (administração): desativar/reativar um dia do evento neste local */
+.tri-days{margin:.6em 0 .2em;padding:.6em .85em .4em;border:1.5px solid var(--line);border-radius:14px;background:var(--card)}
+.tri-days-h{display:flex;align-items:center;gap:.4em;flex-wrap:wrap;font-size:.9em}.tri-days-h .ico{width:1em;height:1em;color:var(--primary)}.tri-days-h small{color:var(--muted);margin-left:.2em}
+.tri-days .chips.scroll{margin:.35em -.85em 0;padding:.1em .85em}
+.chip.off{border-style:dashed;color:var(--muted);text-decoration:line-through;background:var(--bg)}.chip.off small,.chip.off .ico{text-decoration:none}
+.chip.off .ico{color:var(--bad)}.chip.off small{font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--bad)}

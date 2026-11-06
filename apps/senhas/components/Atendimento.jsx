@@ -20,7 +20,7 @@ const VER = '2.2';
 const KIND_LABEL = { sala: 'Sala', tenda: 'Tenda', area: 'Ambiente' };
 /** Texto livre da triagem ("o que é oferecido") → itens: uma linha ou ponto e vírgula por item. */
 const splitOffer = (txt) => String(txt || '').split(/\n|;/).map((x) => x.trim()).filter(Boolean);
-const ACTIONS = { setIssued: A.setIssued, setQueueConfig: A.setQueueConfig, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall, advance: A.advance, addExtraQueue: A.addExtraQueue, removeExtraQueue: A.removeExtraQueue, setQueueEnabled: A.setQueueEnabled, setCursor: A.setCursor, setQueueInfo: A.setQueueInfo, setQueueMode: A.setQueueMode };
+const ACTIONS = { setIssued: A.setIssued, setQueueConfig: A.setQueueConfig, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall, advance: A.advance, addExtraQueue: A.addExtraQueue, removeExtraQueue: A.removeExtraQueue, setQueueEnabled: A.setQueueEnabled, setCursor: A.setCursor, setQueueInfo: A.setQueueInfo, setQueueMode: A.setQueueMode, setDayEnabled: A.setDayEnabled };
 const EXTRA_BLANK = { service_id: '', name: '', kind: 'sala', num: '', n_total: String(DEFAULT_CFG.n_total), p_total: String(DEFAULT_CFG.p_total), pattern: DEFAULT_CFG.pattern, issued_n: '', issued_p: '' };
 const CFG_KEYS = ['n_prefix', 'p_prefix', 'n_from', 'p_from', 'n_total', 'p_total', 'pattern'];
 const cfgForm = (cfg) => { const o = {}; for (const k of CFG_KEYS) o[k] = String((cfg || DEFAULT_CFG)[k] ?? ''); return o; };
@@ -59,6 +59,7 @@ export default function Atendimento() {
   const setPf = (patch) => setPfRaw((p) => Object.assign({}, p, typeof patch === 'function' ? patch(p) : patch));
   const extrasRef = useRef([]); extrasRef.current = (data && data.extras) || []; // filas criadas no dia (vêm com o estado)
   const disabledRef = useRef([]); disabledRef.current = (data && data.disabled) || []; // filas desativadas na triagem (ids de ambiente)
+  const daysOffRef = useRef([]); daysOffRef.current = (data && data.days_off) || []; // dias sem atendimento neste local (marcados pela administração)
 
   // ---------- início ----------
   useEffect(() => {
@@ -191,7 +192,17 @@ export default function Atendimento() {
   // Triagem edita uma fila (fixa ou extra): nome do atendimento, tipo/número da sala e o que é oferecido (texto livre; em
   // branco vale o que está na programação para o dia). Fica no servidor: vale para triagem, porta, TV e painel.
   // Dias da agenda (hoje até o fim do evento) e turnos usados na oferta.
-  const schedDays = (c) => { const ds = (data && data.days) || T.eventDays().filter((d) => d >= c.day); return ds.length ? ds : [c.day]; };
+  // Dias desativados pela administração (perfil com `days`): somem das listas de dias de quem não é administração.
+  const dayOff = (d) => daysOffRef.current.includes(d);
+  const schedDays = (c) => { const all = (data && data.days) || T.eventDays().filter((d) => d >= c.day); const ds = canDo('days') ? all : all.filter((d) => !dayOff(d)); return ds.length ? ds : [c.day]; };
+  const setDayEnabled = (d, enabled) => { const c = ctxOf(st); const msg = enabled ? `Reativar ${T.fmtDate(d, 'wdlong')} em ${c.place}? O dia volta a aparecer para toda a equipe.` : `Desativar ${T.fmtDate(d, 'wdlong')} em ${c.place}? O dia some das listas de dias da triagem, do painel e do dashboard para quem não é administração (o que já foi registrado nele não muda).`; if (!confirm(msg)) return; run(async () => { await post('setDayEnabled', { day: d, venue: c.venue, enabled, device: st.device }); toast(enabled ? `${T.fmtDate(d, 'wd')}: dia reativado` : `${T.fmtDate(d, 'wd')}: sem atendimento`); await refresh(); }); };
+  /** Administração: faixa com os dias do evento deste local para desativar/reativar (toque no dia). */
+  const daysAdminView = (c) => { if (!canDo('days')) return null; const all = (data && data.days) || T.eventDays().filter((d) => d >= c.day); return (
+    <div className="tri-days">
+      <span className="tri-days-h">{I('calendar')}<b>Dias de atendimento</b><small>toque num dia para desativar ou reativar</small></span>
+      <div className="chips scroll">{all.map((d) => <button key={d} type="button" className={`chip ${dayOff(d) ? 'off' : 'on'}`} data-day-toggle={d} onClick={() => setDayEnabled(d, dayOff(d))} title={dayOff(d) ? 'desativado: toque para reativar' : 'ativo: toque para desativar'}>{I(dayOff(d) ? 'x' : 'check')}{T.fmtDate(d, 'wd')}{d === c.day ? <small>hoje</small> : null}{dayOff(d) ? <small>sem atendimento</small> : null}</button>)}</div>
+    </div>
+  ); };
   const OFFER_SHIFTS = ['manha', 'tarde'];
   // Itens do que é oferecido numa fila: editados na triagem (p.items), texto simples (p.offer) ou a programação do serviço.
   const offerItemsOf = (p, service, c) => {
@@ -434,7 +445,8 @@ export default function Atendimento() {
     const serviceOptions = D.services.filter((x) => (D.senhas && D.senhas.services ? D.senhas.services.includes(x.id) : true));
     return (
       <>
-        {top('Triagem · senhas', `${c.place} · ${T.fmtDate(c.day, 'wdlong')}${c.service_day ? ' · dia de serviços' : ''}`, goHome, svcBtn())}
+        {top('Triagem · senhas', `${c.place} · ${T.fmtDate(c.day, 'wdlong')}${dayOff(c.day) ? ' · sem atendimento (dia desativado)' : c.service_day ? ' · dia de serviços' : ''}`, goHome, svcBtn())}
+        {daysAdminView(c)}
         <p className="page-lead">Toque em <b>+1</b> a cada senha entregue. Toque no número para <b>digitar o total</b>.{manage ? <> Em <b>editar</b> você muda nome, sala e o que é oferecido; em <b>padrão</b>, a numeração e a ordem de chamada.</> : null}</p>
         {qs.map((g) => (
           <div key={g.service.id}>
@@ -636,7 +648,7 @@ export default function Atendimento() {
     const today = clock.date; const ready = data && data.stats && data.day === day && data.venue === venue;
     const sub = `${vn.short || venue} · ${T.fmtDate(day, 'wdlong')} · atualiza a cada 15 s`;
     // dias para o filtro: dias do evento + dias com registros neste local; locais com planta
-    const days = filterDays((data && data.data_days) || [], venue); const venues = Object.keys(D.maps || {}).filter((v) => D.venues[v]);
+    const days = filterDays((data && data.data_days) || [], venue, (data && data.days_off) || []).filter((d) => canDo('days') || !d.off); const venues = Object.keys(D.maps || {}).filter((v) => D.venues[v]);
     const all = ready ? mergeExtras(fixedQueues(venue, day), data.extras || []) : []; const live = ready ? withoutDisabled(all, data.disabled || []) : [];
     const svcList = live.map((g) => g.service);
     const selSvcs = new Set(pf.svcs.filter((id) => svcList.some((x) => x.id === id)));
@@ -645,7 +657,7 @@ export default function Atendimento() {
     const filters = (
       <div className="pf">
         <div className="chips scroll pf-days" aria-label="Dia">
-          {days.map((d) => <button key={d.date} type="button" className={`chip ${d.date === day ? 'on' : ''} ${d.has_data || d.service_day ? '' : 'dim'}`} data-day={d.date} onClick={() => setPf({ day: d.date })} title={d.service_day ? 'dia de serviços' : d.has_data ? 'tem registros' : 'sem registros'}>{I('calendar')}{T.fmtDate(d.date, 'wd')}{d.date === today ? <small>hoje</small> : d.service_day ? <small>serviços</small> : null}</button>)}
+          {days.map((d) => <button key={d.date} type="button" className={`chip ${d.date === day ? 'on' : ''} ${d.has_data || d.service_day ? '' : 'dim'} ${d.off ? 'off' : ''}`} data-day={d.date} onClick={() => setPf({ day: d.date })} title={d.off ? 'dia desativado pela administração' : d.service_day ? 'dia de serviços' : d.has_data ? 'tem registros' : 'sem registros'}>{I('calendar')}{T.fmtDate(d.date, 'wd')}{d.off ? <small>desativado</small> : d.date === today ? <small>hoje</small> : d.service_day ? <small>serviços</small> : null}</button>)}
         </div>
         <div className="pf-bar">
           <button type="button" className={`chip ${pf.open ? 'on' : ''}`} data-act="pf-toggle" onClick={() => setPf({ open: !pf.open })}>{I('sliders')}Filtros{nFilters ? <b className="pf-n">{nFilters}</b> : null}</button>

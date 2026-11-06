@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS lugares (id INTEGER PRIMARY KEY, name TEXT NOT NULL, 
 CREATE TABLE IF NOT EXISTS filas_extra (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL DEFAULT '', name TEXT NOT NULL, kind TEXT NOT NULL, num TEXT NOT NULL DEFAULT '', device TEXT, created_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS filas_off (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, device TEXT, ts INTEGER NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS filas_off_key ON filas_off(day, venue, place_id);
+CREATE TABLE IF NOT EXISTS dias_off (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, device TEXT, ts INTEGER NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS dias_off_key ON dias_off(day, venue);
 CREATE TABLE IF NOT EXISTS fila_cursor (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, normal_last INTEGER NOT NULL DEFAULT 0, prio_last INTEGER NOT NULL DEFAULT 0, device TEXT, ts INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS fila_cursor_key ON fila_cursor(day, venue, service_id, place_id, ts);
 CREATE TABLE IF NOT EXISTS fila_cfg (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, n_prefix TEXT NOT NULL DEFAULT 'N', p_prefix TEXT NOT NULL DEFAULT 'P', n_from INTEGER NOT NULL DEFAULT 1, p_from INTEGER NOT NULL DEFAULT 1, n_total INTEGER NOT NULL DEFAULT 100, p_total INTEGER NOT NULL DEFAULT 20, pattern TEXT NOT NULL DEFAULT '1:1', device TEXT, ts INTEGER NOT NULL);
@@ -84,6 +86,9 @@ function open(file) {
     offAll: db.prepare(`SELECT service_id, place_id, ts FROM filas_off WHERE day=? AND venue=? ORDER BY ts`),
     offInsert: db.prepare(`INSERT OR REPLACE INTO filas_off (day, venue, service_id, place_id, device, ts) VALUES (?,?,?,?,?,?)`),
     offDelete: db.prepare(`DELETE FROM filas_off WHERE day=? AND venue=? AND place_id=?`),
+    dayOffAll: db.prepare(`SELECT day, venue FROM dias_off ORDER BY day, venue`),
+    dayOffInsert: db.prepare(`INSERT OR REPLACE INTO dias_off (day, venue, device, ts) VALUES (?,?,?,?)`),
+    dayOffDelete: db.prepare(`DELETE FROM dias_off WHERE day=? AND venue=?`),
     cursorOf: db.prepare(`SELECT normal_last, prio_last, ts FROM fila_cursor WHERE day=? AND venue=? AND service_id=? AND place_id=? ORDER BY ts DESC, id DESC LIMIT 1`),
     cursorAll: db.prepare(`SELECT service_id, place_id, normal_last, prio_last, ts FROM fila_cursor f WHERE day=? AND venue=? AND id=(SELECT MAX(id) FROM fila_cursor WHERE day=f.day AND venue=f.venue AND service_id=f.service_id AND place_id=f.place_id)`),
     // a edição de uma fila vale do dia em que foi feita em diante (última linha por ambiente no local, qualquer dia)
@@ -132,13 +137,15 @@ export function state(day, venue) {
   // totais de senhas (N/P) já configurados por sala nos dias do evento a partir de hoje: a triagem edita "senhas por dia"
   const cfg_days = {}; const days = T.eventDays().filter((d) => d >= c.day); if (!days.includes(c.day)) days.unshift(c.day);
   for (const d of days) for (const r of q.cfgAll.all(d, c.venue)) { (cfg_days[r.place_id] = cfg_days[r.place_id] || {})[d] = { n_total: num(r.n_total), p_total: num(r.p_total), mode: r.mode === 'contagem' ? 'contagem' : 'chamada' }; }
-  return { day: c.day, venue: c.venue, now: Date.now(), issued: Object.values(imap), configs, default_cfg: DEFAULT_CFG, stats: summarize(issuedAgg(imap), calls, Date.now(), countOnly), extras: extras(c.day, c.venue), disabled: disabled(c.day, c.venue), cfg_days, days, count_only: [...countOnly] };
+  const days_off = daysOff().filter((x) => x.venue === c.venue).map((x) => x.day); // dias sem atendimento neste local (administração)
+  return { day: c.day, venue: c.venue, now: Date.now(), issued: Object.values(imap), configs, default_cfg: DEFAULT_CFG, stats: summarize(issuedAgg(imap), calls, Date.now(), countOnly), extras: extras(c.day, c.venue), disabled: disabled(c.day, c.venue), cfg_days, days, days_off, count_only: [...countOnly] };
 }
 export function stats(day, venue) {
   const st = state(day, venue); const { q } = conn();
   st.issued_history = rows(q.issuedHistory.all(st.day, st.venue));
   st.calls = rows(q.callsDay.all(st.day, st.venue)).map((c) => ({ id: c.id, service_id: c.service_id, place_id: c.place_id, ticket: c.ticket, priority: c.priority, status: c.status, called_at: c.called_at, status_at: c.status_at, ended_at: c.ended_at }));
   st.data_days = rows(q.dataDays.all()); // [{ day, venue }] com algum registro (filtro de data do painel e do dashboard)
+  st.days_off_all = daysOff(); // [{ day, venue }] desativados pela administração (todos os locais, para o dashboard)
   return st;
 }
 export function queue(day, venue, service, place) {
@@ -389,6 +396,16 @@ export function setQueueEnabled(b) {
   const { q } = conn();
   if (b.enabled) q.offDelete.run(c.day, c.venue, pid); else q.offInsert.run(c.day, c.venue, sid, pid, clean(b.device, 40), Date.now());
   notify(c.day, c.venue); return { ok: true, place_id: pid, enabled: !!b.enabled };
+}
+
+/** Dias sem atendimento marcados pela administração: [{ day, venue }]. Somem das listas de dias (triagem, painel, dashboard)
+    para quem não é administração; o histórico do dia não muda. */
+export function daysOff() { return rows(conn().q.dayOffAll.all()); }
+/** Liga/desliga um dia de atendimento num local { day, venue, enabled, device }. */
+export function setDayEnabled(b) {
+  const c = ctx(b && b.day, b && b.venue); const { q } = conn();
+  if (b.enabled) q.dayOffDelete.run(c.day, c.venue); else q.dayOffInsert.run(c.day, c.venue, clean(b.device, 40), Date.now());
+  notify(c.day, c.venue); return { ok: true, day: c.day, venue: c.venue, enabled: !!b.enabled };
 }
 
 // ---- lugares do mapa (mapa-eventos.html): cadastro da equipe, além dos locais fixos do evento (D.geo) ----
