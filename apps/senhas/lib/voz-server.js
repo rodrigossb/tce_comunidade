@@ -7,9 +7,10 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { dbPath, extras } from './db.js';
-import { nameKey, namePhrase } from './voz.js';
+import { nameKey, namePhrase, placePhrase } from './voz.js';
 import { fixedQueues, mergeExtras } from './filas-extra.js';
 
 const pubDir = () => process.env.VOZ_PUBLIC || path.join(process.cwd(), 'public', 'voz');
@@ -59,7 +60,29 @@ async function synth(file, text, pad) {
   } finally { fs.rmSync(wav, { force: true }); fs.rmSync(tmp, { force: true }); }
 }
 
-const pending = new Map();
+// Fila de geração: no máximo 2 piper ao mesmo tempo (cada um carrega o modelo; mais que isso só disputa CPU).
+const pending = new Map(); let running = 0; const waiting = [];
+const slot = () => new Promise((res) => { if (running < 2) { running++; res(); } else waiting.push(res); });
+const release = () => { running--; const next = waiting.shift(); if (next) { running++; next(); } };
+async function generate(file, text, pad) { await slot(); try { await synth(file, text, pad); } finally { release(); } }
+const phrasesFile = () => path.join(vozDir(), 'frases.json');
+/** Arquivo de uma frase qualquer: f-<hash do texto>. */
+export const phraseFile = (text) => `f-${crypto.createHash('sha1').update(String(text)).digest('hex').slice(0, 14)}`;
+/** Garante o áudio de uma frase inteira (ex.: "Consulta médica, sala oito.") → caminho do mp3, ou null sem gerador/falha. */
+export function ensurePhraseClip(text) {
+  const t = String(text || '').replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, 160); if (!t) return Promise.resolve(null);
+  const file = phraseFile(t); const mp3 = path.join(vozDir(), `${file}.mp3`);
+  if (fs.existsSync(mp3)) return Promise.resolve(mp3);
+  if (!ttsAvailable()) return Promise.resolve(null);
+  if (pending.has(file)) return pending.get(file);
+  const p = generate(file, t, { pre: 400, post: 0.3 })
+    .then(() => { try { const m = (() => { try { return JSON.parse(fs.readFileSync(phrasesFile(), 'utf8')) || {}; } catch { return {}; } })(); m[file] = t; fs.writeFileSync(phrasesFile(), JSON.stringify(m, null, 1)); } catch { /* só registro */ } console.log(`[voz] gerado ${file}.mp3 ("${t}")`); return mp3; })
+    .catch((e) => { console.error(`[voz] falha ao gerar frase "${t}": ${e.message}`); return null; })
+    .finally(() => pending.delete(file));
+  pending.set(file, p); return p;
+}
+/** Áudio da frase de uma sala como a TV fala ("<nome>, sala N.") — ao gravar na triagem e ao carregar a TV. */
+export const ensurePlaceClip = (place) => (place && place.name ? ensurePhraseClip(placePhrase(place)) : Promise.resolve(null));
 /** Garante o áudio do nome de um atendimento. → Promise<boolean>: true = existe (pronto ou gerado agora); false = sem gerador ou falhou. */
 export function ensureNameClip(name) {
   const key = nameKey(name); if (!key) return Promise.resolve(false);
@@ -68,16 +91,17 @@ export function ensureNameClip(name) {
   const st = staticManifest(); if (!dyn[file] && st && st.names && st.names[file] === phrase && fs.existsSync(path.join(pubDir(), `${file}.mp3`))) return Promise.resolve(true);
   if (!ttsAvailable()) return Promise.resolve(false);
   if (pending.has(file)) return pending.get(file);
-  const p = synth(file, phrase, { pre: 400, post: 0.12 })
+  const p = generate(file, phrase, { pre: 400, post: 0.12 })
     .then(() => { const d = dynamicNames(); d[file] = phrase; saveDynamic(d); console.log(`[voz] gerado ${file}.mp3 ("${phrase}")`); return true; })
     .catch((e) => { console.error(`[voz] falha ao gerar ${file}: ${e.message}`); return false; })
     .finally(() => pending.delete(file));
   pending.set(file, p); return p;
 }
-/** Dispara (sem esperar) a geração dos nomes de todas as filas do dia/local — chamado quando a TV pede o manifest. */
+/** Dispara (sem esperar) a geração da frase de cada sala do dia/local (nome + número, como a TV fala) e do nome avulso —
+    chamado quando a TV pede o manifest, para a primeira chamada já encontrar o áudio pronto. */
 export function ensureClipsFor(day, venue) {
   if (!ttsAvailable()) return 0;
   let n = 0;
-  try { for (const g of mergeExtras(fixedQueues(venue, day), extras(day, venue))) for (const p of g.places) { ensureNameClip(p.name); n++; } } catch (e) { console.error('[voz] ensureClipsFor:', e.message); }
+  try { for (const g of mergeExtras(fixedQueues(venue, day), extras(day, venue))) for (const p of g.places) { ensurePlaceClip(p); ensureNameClip(p.name); n++; } } catch (e) { console.error('[voz] ensureClipsFor:', e.message); }
   return n;
 }

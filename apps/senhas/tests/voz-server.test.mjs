@@ -34,3 +34,10 @@ test('ensureNameClip: existente → true; sem piper → false (nada gerado); nom
   assert.ok(!fs.existsSync(path.join(process.env.VOZ_DIR, 's-cardiologia.mp3')));
   assert.equal(V.ensureClipsFor('2026-11-06', 'jn'), 0, 'sem gerador não dispara nada');
 });
+
+test('ensurePhraseClip/ensurePlaceClip: sem gerador → null, nada gravado; nome do arquivo estável por texto', async () => {
+  assert.equal(await V.ensurePhraseClip('Consulta médica, sala oito.'), null); assert.equal(await V.ensurePhraseClip(''), null);
+  assert.equal(await V.ensurePlaceClip({ name: 'Nutrição', kind: 'sala', num: '3' }), null); assert.equal(await V.ensurePlaceClip(null), null);
+  assert.match(V.phraseFile('Oi.'), /^f-[0-9a-f]{14}$/); assert.equal(V.phraseFile('Oi.'), V.phraseFile('Oi.')); assert.notEqual(V.phraseFile('Oi.'), V.phraseFile('Oi!'));
+  assert.ok(!fs.existsSync(path.join(process.env.VOZ_DIR, 'frases.json')));
+});

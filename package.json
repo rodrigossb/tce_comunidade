@@ -17,7 +17,8 @@
     "backup": "node apps/senhas/scripts/backup.js",
     "test": "node --test \"packages/core/tests/*.test.mjs\" \"apps/senhas/tests/*.test.mjs\"",
     "test:core": "node --test \"packages/core/tests/*.test.mjs\"",
-    "senhas:padrao": "cd apps/senhas && node scripts/padrao-senhas.mjs"
+    "senhas:padrao": "cd apps/senhas && node scripts/padrao-senhas.mjs",
+    "voz:analisar": "node apps/senhas/scripts/analisar-voz.mjs"
   },
   "engines": {
     "node": ">=22.5"

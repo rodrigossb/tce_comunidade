@@ -1,7 +1,7 @@
 // Voz da TV: escolha da voz pt-BR e diagnóstico do estado (bloqueada até o gesto, sem voz, pronta).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pickVoice, voiceState, voiceLabel, numeroExtenso, cleanSpoken, placePhrase, ticketPhrase, clipsFor, announcementFor, placeClipOk, placeClips, nameKey, namePhrase, roomPhrase, ROOM_KINDS, CLIP_MAX } from '../lib/voz.js';
+import { pickVoice, voiceState, voiceLabel, numeroExtenso, cleanSpoken, placePhrase, ticketPhrase, clipsFor, announcementFor, placeClipOk, placeClips, nameKey, namePhrase, roomPhrase, phraseSpec, ROOM_KINDS, CLIP_MAX } from '../lib/voz.js';
 
 const V = (name, lang, localService = true) => ({ name, lang, localService });
 
@@ -58,13 +58,14 @@ test('sala renomeada depois da gravação não toca o áudio antigo (fala a fras
   assert.equal(placeClipOk('jn-r04', r04, m), true); assert.equal(placeClipOk('jn-r09', r09, m), false); assert.equal(placeClipOk('jn-r09', null, m), true, 'sem a sala atual, confia no manifest');
   assert.deepEqual(clipsFor({ ticket: 3, placeId: 'jn-r09', place: r09 }, m), ['n-3.mp3']);
   const a = announcementFor({ ticket: 3, place: r09 }, m);
-  assert.deepEqual(a.files, ['n-3.mp3']); assert.equal(a.after, 'Consulta médica, sala nove.'); assert.equal(a.text, 'Senha três. Consulta médica, sala nove.');
+  assert.deepEqual(a.files, ['n-3.mp3']); assert.equal(a.complete, false, 'sem áudio da sala nem gerador: incompleto (a TV fala tudo por síntese se puder)'); assert.equal(a.text, 'Senha três. Consulta médica, sala nove.');
   const b = announcementFor({ ticket: 3, place: r04, priority: true, again: true }, m);
-  assert.deepEqual(b.files, ['x-novamente.mp3', 'n-3.mp3', 'p-jn-r04.mp3']); assert.equal(b.after, null); assert.match(b.text, /^Atenção, chamando novamente. Senha prioritária. Senha três. Ginecologista, sala quatro.$/);
-  // fila criada na triagem (sem áudio): número pronto + sala por síntese; senha acima do gravado: tudo por síntese
+  assert.deepEqual(b.files, ['x-novamente.mp3', 'n-3.mp3', 'p-jn-r04.mp3']); assert.equal(b.complete, true); assert.match(b.text, /^Atenção, chamando novamente. Senha prioritária. Senha três. Ginecologista, sala quatro.$/);
+  // fila criada na triagem (sem áudio) e senha acima do gravado: incompleto sem gerador
   const x = announcementFor({ ticket: 3, place: { id: 'jn-x4', kind: 'sala', num: '08', name: 'Vacinação' } }, m);
-  assert.deepEqual(x.files, ['n-3.mp3']); assert.equal(x.after, 'Vacinação, sala oito.');
-  const y = announcementFor({ ticket: 999, place: r04 }, m); assert.equal(y.files, null); assert.equal(y.after, null); assert.equal(y.text, 'Senha novecentos e noventa e nove. Ginecologista, sala quatro.');
+  assert.deepEqual(x.files, ['n-3.mp3']); assert.equal(x.complete, false);
+  const y = announcementFor({ ticket: 999, place: r04 }, m); assert.deepEqual(y.files, ['p-jn-r04.mp3']); assert.equal(y.complete, false); assert.equal(y.text, 'Senha novecentos e noventa e nove. Ginecologista, sala quatro.');
+  assert.equal(announcementFor({ ticket: 3, place: r04 }, null).files, null);
   assert.equal(clipsFor({ ticket: CLIP_MAX + 1, placeId: 'jn-r04' }, m), null);
   assert.equal(clipsFor({ ticket: 7, placeId: 'jn-r04' }, null), null);
 });
@@ -77,17 +78,26 @@ test('sala renomeada/mudada de número com peças gravadas: monta nome (s-) + n�
   const r = { id: 'jn-r09', kind: 'sala', num: '08', name: 'Consulta médica' };
   assert.deepEqual(placeClips(r, m), { files: ['s-consulta-medica.mp3', 'w-sala-8.mp3'], missing: null });
   const a = announcementFor({ ticket: 12, place: r }, m);
-  assert.deepEqual(a.files, ['n-12.mp3', 's-consulta-medica.mp3', 'w-sala-8.mp3']); assert.equal(a.after, null);
+  assert.deepEqual(a.files, ['n-12.mp3', 's-consulta-medica.mp3', 'w-sala-8.mp3']); assert.equal(a.complete, true);
   // p- ainda correto: continua preferido (frase inteira gravada de uma vez)
   assert.deepEqual(placeClips({ id: 'jn-r09', kind: 'sala', num: '09', name: 'Pediatria' }, m), { files: ['p-jn-r09.mp3'], missing: null });
-  // nome criado na triagem sem áudio: toca o número da sala e deixa o nome para a síntese
+  // nome criado na triagem sem áudio e sem gerador: toca número da senha e da sala, incompleto (nome faltando)
   const b = announcementFor({ ticket: 12, place: { id: 'jn-x1', kind: 'sala', num: '3', name: 'Nutrição' } }, m);
-  assert.deepEqual(b.files, ['n-12.mp3', 'w-sala-3.mp3']); assert.equal(b.after, 'Nutrição.');
-  // número acima dos gravados ou tipo sem peças: nada pronto para a sala → frase inteira por síntese
+  assert.deepEqual(b.files, ['n-12.mp3', 'w-sala-3.mp3']); assert.equal(b.complete, false);
+  // número acima dos gravados: nada pronto para a sala → incompleto
   const c = announcementFor({ ticket: 12, place: { id: 'jn-x2', kind: 'sala', num: '41', name: 'Consulta médica' } }, m);
-  assert.deepEqual(c.files, ['n-12.mp3']); assert.equal(c.after, 'Consulta médica, sala quarenta e um.');
+  assert.deepEqual(c.files, ['n-12.mp3']); assert.equal(c.complete, false);
+  // com gerador no servidor (manifest.tts): o que falta vira uma frase gerada, tudo em áudio e numa voz só
+  const mt = Object.assign({}, m, { tts: true });
+  assert.deepEqual(announcementFor({ ticket: 12, place: { id: 'jn-x1', kind: 'sala', num: '3', name: 'Nutrição' } }, mt), { files: ['n-12.mp3', `frase.mp3?t=${encodeURIComponent('Nutrição, sala três.')}`], text: 'Senha doze. Nutrição, sala três.', complete: true });
+  assert.deepEqual(announcementFor({ ticket: 301, place: r }, mt).files, [`frase.mp3?t=${encodeURIComponent('Senha trezentos e um.')}`, 's-consulta-medica.mp3', 'w-sala-8.mp3']);
+  assert.equal(phraseSpec('Oi, tudo bem.'), 'frase.mp3?t=Oi%2C%20tudo%20bem.');
+  // "sala 0" (sem número) não fala "sala zero"
+  assert.equal(placePhrase({ kind: 'sala', num: '0', name: 'Superfácil' }), 'super fácil.'); assert.equal(placePhrase({ kind: 'sala', num: '', name: 'Detran' }), 'detrã.');
+  assert.deepEqual(announcementFor({ ticket: 7, place: { id: 'jn-r19', kind: 'sala', num: '0', name: 'Superfácil' } }, mt).files, ['n-7.mp3', `frase.mp3?t=${encodeURIComponent('super fácil.')}`]);
   // sem número (área): só o nome
   assert.deepEqual(placeClips({ id: 'jn-a1', kind: 'area', num: '', name: 'Consulta médica' }, m), { files: ['s-consulta-medica.mp3'], missing: null });
+  assert.deepEqual(placeClips({ id: 'jn-r19', kind: 'sala', num: '0', name: 'Consulta médica' }, m), { files: ['s-consulta-medica.mp3'], missing: null }, '"sala 0" = sem número: só o nome');
   // manifest antigo (sem peças): comportamento anterior
   assert.equal(placeClips(r, { numbers: CLIP_MAX, places: ['jn-r09'], phrases: { 'p-jn-r09': 'Pediatria, sala nove.' } }), null);
 });

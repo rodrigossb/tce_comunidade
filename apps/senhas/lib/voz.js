@@ -27,8 +27,9 @@ export function cleanSpoken(name) {
 }
 /** Frase da sala: "Ginecologista, sala quatro." (nome do atendimento = o que a pessoa procura). */
 export function placePhrase(p) {
-  const kind = p.kind === 'sala' ? 'sala' : p.kind === 'tenda' ? 'tenda' : p.num ? 'ambiente' : '';
-  const where = p.num ? `${kind} ${numeroExtenso(Number(p.num))}` : '';
+  const num = Number(p.num); const has = Number.isInteger(num) && num > 0; // "0" ou vazio = sem número (não fala "sala zero")
+  const kind = p.kind === 'sala' ? 'sala' : p.kind === 'tenda' ? 'tenda' : has ? 'ambiente' : '';
+  const where = has ? `${kind} ${numeroExtenso(num)}` : '';
   return `${cleanSpoken(p.name)}${where ? `, ${where}` : ''}.`;
 }
 export const ticketPhrase = (n) => `Senha ${numeroExtenso(n)}.`;
@@ -47,8 +48,8 @@ export function placeClips(place, manifest) {
   if (!place || !manifest) return null;
   if (place.id && placeClipOk(place.id, place, manifest)) return { files: [`p-${place.id}.mp3`], missing: null };
   const files = []; let missing = null;
-  const kind = roomKind(place); const n = Number(place.num);
-  if (kind) { if (Number.isInteger(n) && n >= 1 && n <= ((manifest.rooms && manifest.rooms[kind]) || 0)) files.push(`w-${kind}-${n}.mp3`); else return null; }
+  const n = Number(place.num); const has = Number.isInteger(n) && n > 0; const kind = has ? roomKind(place) : ''; // "0"/vazio: sem número
+  if (kind) { if (n <= ((manifest.rooms && manifest.rooms[kind]) || 0)) files.push(`w-${kind}-${n}.mp3`); else return null; }
   const key = nameKey(place.name); const rec = manifest.names && manifest.names[`s-${key}`];
   if (rec && rec === namePhrase(place.name)) files.unshift(`s-${key}.mp3`); else missing = namePhrase(place.name);
   return files.length ? { files, missing } : null;
@@ -71,16 +72,30 @@ export function placeClipOk(placeId, place, manifest) {
   if (!place || !manifest.phrases) return true;
   const rec = manifest.phrases[`p-${placeId}`]; return !rec || rec === placePhrase(place);
 }
-/** Anúncio completo de uma chamada: { files, text, after } — files: áudios prontos (ou null: só síntese); text: frase inteira
-    para a síntese quando não há áudios; after: o que falta falar por síntese depois dos áudios (sala/nome sem áudio pronto). */
+/** Pedido de uma frase qualquer como áudio gerado no servidor (GET /api/voz/frase.mp3?t=…; só quando manifest.tts). */
+export const phraseSpec = (text) => `frase.mp3?t=${encodeURIComponent(text)}`;
+/** Anúncio completo de uma chamada → { files, text, complete }. files: lista de áudios (relativos a /api/voz/) na ordem — avisos,
+    senha e sala — ou null sem manifest; complete: toda a frase tem áudio (a TV toca só áudios, numa voz só). Para cada parte:
+    áudio pronto da planta → peças gravadas (nome + número) → frase gerada no servidor (manifest.tts) → sem áudio (incompleto).
+    text: a frase inteira, para a síntese do navegador quando não dá para tocar tudo em áudio. */
 export function announcementFor({ ticket, place, again, priority }, manifest) {
   const pre = `${again ? 'Atenção, chamando novamente. ' : ''}${priority ? 'Senha prioritária. ' : ''}`;
   const where = place ? placePhrase(place) : '';
   const text = `${pre}${ticketPhrase(ticket)}${where ? ` ${where}` : ''}`;
-  const files = clipsFor({ ticket, placeId: place && place.id, place, again, priority }, manifest);
-  const pc = files && place ? placeClips(place, manifest) : null;
-  const after = files && place ? (pc ? pc.missing : where) : null;
-  return { files, text, after };
+  if (!manifest) return { files: null, text, complete: false };
+  const files = []; let complete = true; const tts = !!manifest.tts;
+  if (again) files.push('x-novamente.mp3');
+  if (priority && manifest.extras && manifest.extras.includes('x-prioridade')) files.push('x-prioridade.mp3');
+  if (ticket >= 1 && ticket <= (manifest.numbers || 0)) files.push(`n-${ticket}.mp3`);
+  else if (tts) files.push(phraseSpec(ticketPhrase(ticket)));
+  else complete = false;
+  if (place) {
+    const pc = placeClips(place, manifest);
+    if (pc && !pc.missing) files.push(...pc.files);
+    else if (tts) files.push(phraseSpec(where));
+    else { if (pc) files.push(...pc.files); complete = false; }
+  }
+  return { files, text, complete };
 }
 
 

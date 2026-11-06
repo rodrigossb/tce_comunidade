@@ -78,7 +78,7 @@ export default async function Page({ searchParams }) {
                       {t.prio ? <span className="tk-bar">PRIORIDADE</span> : null}
                       <span className="tk-name">{p.name}</span>
                       <span className="tk-num">{t.label}</span>
-                      {p.num ? <span className="tk-room">{KIND[p.kind] || 'Ambiente'} {p.num}</span> : null}
+                      {Number(p.num) > 0 ? <span className="tk-room">{KIND[p.kind] || 'Ambiente'} {p.num}</span> : null}
                     </div>
                   </div>
                 ))}

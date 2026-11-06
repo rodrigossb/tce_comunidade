@@ -18,7 +18,7 @@ import { TCEMap as M } from '@tce/core/map';
 import Icon from '@/components/Icon';
 import { selectQueues } from '@/lib/tv-grupos';
 import { extraQueues, placeOf } from '@/lib/filas-extra';
-import { pickVoice, voiceState, voiceLabel, announcementFor, placeClips } from '@/lib/voz';
+import { pickVoice, voiceState, voiceLabel, announcementFor } from '@/lib/voz';
 
 const D = T.D;
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -134,19 +134,26 @@ function Board() {
       if (synth.speaking || synth.pending) { synth.cancel(); setTimeout(() => synth.speak(u), 250); } else synth.speak(u);
     } catch (e) { console.warn('[tv] voz indisponível:', e); setVoiceErr('exception'); }
   }, [supported, showBanner]);
-  /** Anúncio completo: campainha e, 0,8 s depois, os áudios prontos (ou a síntese de voz com `text` se não houver/falhar);
-      `after` = o que falta falar por síntese depois dos áudios (sala sem áudio pronto ou renomeada na triagem). */
-  const announce = useCallback(async (files, text, after) => {
+  /** Anúncio completo: campainha e, 0,8 s depois, os áudios (todos na mesma voz) — ou, só se não houver/falharem, a frase
+      inteira `text` pela síntese do navegador. Nunca mistura áudio pronto com síntese na mesma chamada. */
+  const announce = useCallback(async (files, text) => {
     playing.current = true;
     try {
       const t0 = chime(); let played = false;
-      if (files && audio.current) { try { await playViaCtx(files, t0 + 0.8); played = true; } catch (e) { console.warn('[tv] Web Audio falhou, usando <audio>:', e.message); } }
+      if (files && files.length && audio.current) { try { await playViaCtx(files, t0 + 0.8); played = true; } catch (e) { console.warn('[tv] Web Audio falhou, usando <audio>:', e.message); } }
       if (!played) await new Promise((res) => setTimeout(res, 700));
-      if (files && !played) { try { await playViaElement(files); played = true; } catch (e) { console.warn('[tv] áudio pronto falhou:', e.message); } }
-      if (played) { if (after) speak(after); return; }
-      if (text) speak(text);
+      if (files && files.length && !played) { try { await playViaElement(files); played = true; } catch (e) { console.warn('[tv] áudio falhou:', e.message); } }
+      if (!played && text) speak(text);
     } finally { playing.current = false; }
   }, [chime, playViaCtx, playViaElement, speak]);
+  /** Pré-carrega (e manda o servidor gerar, se faltar) os áudios das salas desta TV: a primeira chamada não espera download. */
+  const preload = useCallback(() => {
+    if (!manifest || !audio.current) return;
+    const specs = new Set(['x-novamente.mp3']);
+    for (const q of sel.queues) { const a = announcementFor({ ticket: 1, place: placeOf(q.place.id, data && data.extras) || q.place }, manifest); for (const f of a.files || []) if (!f.startsWith('n-')) specs.add(f); }
+    specs.forEach((f) => loadBuf(f).catch(() => {}));
+  }, [manifest, sel, data, loadBuf]);
+  useEffect(() => { if (unlocked) preload(); }, [unlocked, preload]);
   // Libera o som: precisa rodar de forma síncrona dentro do gesto (toque/tecla), por isso usa ref e não o estado.
   const unlock = useCallback(() => {
     if (!voice || unlockedRef.current) return;
@@ -154,10 +161,9 @@ function Board() {
     ensureCtx(); // dentro do gesto: cria/resume o AudioContext e liga o loop que mantém a saída de áudio da TV acordada
     try { player.current = new Audio(); player.current.preload = 'auto'; } catch { player.current = null; }
     announce(manifest ? ['x-som.mp3'] : null, 'Som ativado. As senhas serão anunciadas.');
-    // Pré-carrega as frases das salas desta TV e os avisos, para o anúncio não esperar download/decodificação.
-    if (manifest && audio.current) { const pre = ['x-novamente.mp3', ...sel.queues.flatMap((q) => { const pc = placeClips(placeOf(q.place.id, data && data.extras) || q.place, manifest); return pc ? pc.files : []; })]; pre.forEach((f) => loadBuf(f).catch(() => {})); }
+    preload(); // frases das salas desta TV e avisos (gera no servidor o que faltar)
     setTimeout(() => { const vs = supported ? window.speechSynthesis.getVoices() : []; showBanner(`Som ativado · ${voiceLabel(voiceState({ wanted: true, supported, voices: vs, unlocked: true, lastError: '', clips: !!manifest }), pickVoice(vs))}`); }, 2500);
-  }, [voice, supported, manifest, sel, data, ensureCtx, announce, loadBuf, showBanner]);
+  }, [voice, supported, manifest, ensureCtx, announce, preload, showBanner]);
   useEffect(() => {
     if (!voice) return;
     const load = () => setVoices(supported ? window.speechSynthesis.getVoices() : []);
@@ -249,10 +255,10 @@ function Board() {
     setFlash({ id: `${c.id}:${c.again ? Date.now() : 0}`, ticket: c.ticket, place: c.place, service: c.service, again: c.again, priority: c.priority, until: Date.now() + FLASH_MS });
     if (voice) { // campainha e, depois dela, a voz: áudios prontos; se não houver (senha > 300, sala nova/renomeada, falha), síntese do navegador
       const a = announcementFor({ ticket: c.ticket, place: c.place, again: c.again, priority: c.priority }, manifest);
-      // Uma voz só por chamada: se falta o áudio de alguma parte (nome novo ainda sem áudio) e o aparelho tem síntese, fala
-      // a frase inteira por síntese em vez de misturar áudio pronto + síntese; sem síntese, toca o que há (número e sala).
-      if (a.after && supported) announce(null, a.text); else announce(a.files, a.text, a.after);
-      if (a.after && Date.now() - manifestAt.current > 20000) setTimeout(loadManifest, 4000); // o servidor pode ter gerado o nome nesse meio-tempo
+      // Uma voz só por chamada: tudo em áudio (prontos + frases geradas no servidor) ou, se ainda falta alguma parte e o
+      // aparelho tem síntese, a frase inteira por síntese; sem síntese nem gerador, toca o que há (ao menos a senha).
+      if (a.files && a.complete) announce(a.files, a.text); else if (supported) announce(null, a.text); else announce(a.files, a.text);
+      if (a.files && !a.complete && Date.now() - manifestAt.current > 20000) setTimeout(loadManifest, 4000);
     }
     timer.current = setTimeout(() => { setFlash(null); timer.current = setTimeout(next, 400); }, FLASH_MS);
   }, [voice, supported, manifest, announce, loadManifest]);

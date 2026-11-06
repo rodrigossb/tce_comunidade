@@ -4,7 +4,7 @@
 import * as db from '@/lib/db';
 import { currentRole, roleOfPin, setPinCookie, clearPinCookie } from '@/lib/auth';
 import { rolesWith, CAPS } from '@/lib/roles';
-import { ensureNameClip } from '@/lib/voz-server';
+import { ensurePlaceClip } from '@/lib/voz-server';
 
 // Quem pode o quê (lib/roles.js): ler = todos; lançar entregues = gestor/operador/triagem; porta = gestor/operador/porta;
 // configurar/editar/criar/desativar = gestor/operador.
@@ -35,10 +35,10 @@ export async function setStatus(id, status) { return guard(DOOR, async () => db.
 export async function endCall(id) { return guard(DOOR, async () => db.endCall(id)); }
 export async function recall(id) { return guard(DOOR, async () => db.recall(id)); }
 export async function advance(body) { return guard(DOOR, async () => db.advance(body || {})); }
-export async function addExtraQueue(body) { return guard(MANAGE, async () => { const r = db.addExtra(body || {}); ensureNameClip(body && body.name); return r; }); } // gera o áudio do nome para a TV (se houver piper)
+export async function addExtraQueue(body) { return guard(MANAGE, async () => { const r = db.addExtra(body || {}); ensurePlaceClip(body); return r; }); } // gera o áudio da sala para a TV (se houver piper)
 export async function removeExtraQueue(id) { return guard(MANAGE, async () => db.removeExtra(id)); }
 export async function setQueueEnabled(body) { return guard(MANAGE, async () => db.setQueueEnabled(body || {})); }
 export async function setQueueMode(body) { return guard(MANAGE, async () => db.setQueueMode(body || {})); }
-export async function setQueueInfo(body) { return guard(MANAGE, async () => { const r = db.setQueueInfo(body || {}); ensureNameClip(body && body.name); return r; }); }
+export async function setQueueInfo(body) { return guard(MANAGE, async () => { const r = db.setQueueInfo(body || {}); ensurePlaceClip(body); return r; }); }
 export async function setCursor(body) { return guard(DOOR, async () => db.setCursor(body || {})); }
 export async function setDayEnabled(body) { return guard(DAYS, async () => db.setDayEnabled(body || {})); }
