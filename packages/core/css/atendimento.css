@@ -415,3 +415,6 @@
 .tri-days .chips.scroll{margin:.35em -.85em 0;padding:.1em .85em}
 .chip.off{border-style:dashed;color:var(--muted);text-decoration:line-through;background:var(--bg)}.chip.off small,.chip.off .ico{text-decoration:none}
 .chip.off .ico{color:var(--bad)}.chip.off small{font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--bad)}
+/* só contagem: contador sem limite de senhas por dia e rodapé sem "padrão" */
+.tri-cfg-btn.static{cursor:default;opacity:.85}.tri-cfg-btn.static .ico{width:1em;height:1em}
+.tri-cnt.count .tri-cnt-k .ico{width:1.1em;height:1.1em;color:var(--ok,#16a34a)}

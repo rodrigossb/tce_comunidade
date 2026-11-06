@@ -63,7 +63,11 @@ function Board() {
   const supported = typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
   // Áudios prontos (public/voz, gerados por scripts/gerar-voz.mjs): caminho preferido, funciona em TV sem speechSynthesis.
   const [manifest, setManifest] = useState(null);
-  useEffect(() => { if (!voice) return; fetch(`${BP}/voz/manifest.json`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((m) => { if (m && m.numbers) setManifest(m); }).catch(() => {}); }, [voice]);
+  // Manifest dinâmico (/api/voz/manifest.json): áudios prontos + nomes gerados no servidor; pedir o manifest já manda gerar os
+  // nomes das salas deste local que ainda não têm áudio. Relido ao carregar, a cada 5 min e depois de uma chamada sem áudio do nome.
+  const manifestAt = useRef(0);
+  const loadManifest = useCallback(() => { manifestAt.current = Date.now(); fetch(`${BP}/api/voz/manifest.json?local=${encodeURIComponent(venue)}&dia=${encodeURIComponent(day)}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((m) => { if (m && m.numbers) setManifest(m); }).catch(() => {}); }, [venue, day]);
+  useEffect(() => { if (!voice) return; loadManifest(); const id = setInterval(loadManifest, 5 * 60000); return () => clearInterval(id); }, [voice, loadManifest]);
   const player = useRef(null); // <audio> de reserva (quando não há Web Audio ou a decodificação falha)
   const playing = useRef(false);
   const audio = useRef(null); // AudioContext único: campainha + áudios prontos (criado no gesto que libera o som)
@@ -91,7 +95,7 @@ function Board() {
   /** Baixa e decodifica um áudio pronto (com cache). */
   const loadBuf = useCallback(async (file) => {
     const ctx = audio.current; if (bufs.current.has(file)) return bufs.current.get(file);
-    const r = await fetch(`${BP}/voz/${file}`); if (!r.ok) throw new Error(`${file}: ${r.status}`);
+    const r = await fetch(`${BP}/api/voz/${file}`); if (!r.ok) throw new Error(`${file}: ${r.status}`);
     const ab = await r.arrayBuffer();
     const buf = await new Promise((res, rej) => { try { const pr = ctx.decodeAudioData(ab, res, rej); if (pr && pr.then) pr.then(res, rej); } catch (e) { rej(e); } });
     if (bufs.current.size > 150) bufs.current.delete(bufs.current.keys().next().value);
@@ -115,7 +119,7 @@ function Board() {
     const a = player.current; if (!a || !files || !files.length) { reject(new Error('sem áudio')); return; }
     let i = 0;
     const done = (err) => { a.onended = a.onerror = null; if (err) reject(err); else resolve(); };
-    const step = () => { if (i >= files.length) { done(); return; } a.src = `${BP}/voz/${files[i++]}`; a.onended = step; a.onerror = () => done(new Error('áudio falhou')); a.play().catch(done); };
+    const step = () => { if (i >= files.length) { done(); return; } a.src = `${BP}/api/voz/${files[i++]}`; a.onended = step; a.onerror = () => done(new Error('áudio falhou')); a.play().catch(done); };
     step();
   }), []);
   const speak = useCallback((text) => {
@@ -245,10 +249,13 @@ function Board() {
     setFlash({ id: `${c.id}:${c.again ? Date.now() : 0}`, ticket: c.ticket, place: c.place, service: c.service, again: c.again, priority: c.priority, until: Date.now() + FLASH_MS });
     if (voice) { // campainha e, depois dela, a voz: áudios prontos; se não houver (senha > 300, sala nova/renomeada, falha), síntese do navegador
       const a = announcementFor({ ticket: c.ticket, place: c.place, again: c.again, priority: c.priority }, manifest);
-      announce(a.files, a.text, a.after);
+      // Uma voz só por chamada: se falta o áudio de alguma parte (nome novo ainda sem áudio) e o aparelho tem síntese, fala
+      // a frase inteira por síntese em vez de misturar áudio pronto + síntese; sem síntese, toca o que há (número e sala).
+      if (a.after && supported) announce(null, a.text); else announce(a.files, a.text, a.after);
+      if (a.after && Date.now() - manifestAt.current > 20000) setTimeout(loadManifest, 4000); // o servidor pode ter gerado o nome nesse meio-tempo
     }
     timer.current = setTimeout(() => { setFlash(null); timer.current = setTimeout(next, 400); }, FLASH_MS);
-  }, [voice, supported, manifest, announce]);
+  }, [voice, supported, manifest, announce, loadManifest]);
   useEffect(() => () => { clearTimeout(timer.current); clearTimeout(bannerT.current); }, []);
   useEffect(() => {
     if (!data) return;

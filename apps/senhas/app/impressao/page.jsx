@@ -36,7 +36,9 @@ export default async function Page({ searchParams }) {
   const venue = D.venues[f.venue] || { name: f.venue, short: f.venue };
   const days = T.eventDays(); if (!days.includes(f.day)) days.push(f.day); days.sort();
   const title = `${f.formato === 'lista' ? 'Previsão de senhas' : 'Senhas para recortar'} · ${venue.short || venue.name} · ${T.fmtDate(f.day, 'wdlong')}`;
-  const nPages = r ? r.groups.reduce((a, g) => a + g.places.reduce((b, p) => b + pagesOf(p).length, 0), 0) : 0;
+  const withTickets = (g) => g.places.filter((p) => p.mode !== 'contagem'); // só contagem: a quantidade lançada já é o atendimento, não há senhas para recortar
+  const nPages = r ? r.groups.reduce((a, g) => a + withTickets(g).reduce((b, p) => b + pagesOf(p).length, 0), 0) : 0;
+  const nCount = r ? r.groups.reduce((a, g) => a + g.places.filter((p) => p.mode === 'contagem').length, 0) : 0;
   const sum = [f.svcs.length ? `serviços: ${f.svcs.map((id) => (D.services.find((s) => s.id === id) || { short: id }).short).join(', ')}` : 'todos os serviços', f.previsao === 'todas' ? 'todas as salas' : 'só salas com previsão', f.inativas ? 'inclui desativadas' : ''].filter(Boolean).join(' · ');
   return (
     <main className="pr">
@@ -65,8 +67,8 @@ export default async function Page({ searchParams }) {
 
       {f.formato === 'senhas' && r && r.groups.length ? (
         <div className="tk-wrap">
-          <p className="pr-lead tk-screen">{r.total.total} senhas em {nPages} {nPages === 1 ? 'folha' : 'folhas'} A4 ({r.total.n} comuns e {r.total.p} prioritárias, {r.total.count} {r.total.count === 1 ? 'sala' : 'salas'}; cada sala começa em folha nova). Recorte pelas linhas tracejadas. Filtro: {sum}.</p>
-          {r.groups.map((g) => g.places.map((p) => pagesOf(p).map((pg, i, all) => (
+          <p className="pr-lead tk-screen">{r.total.total} senhas em {nPages} {nPages === 1 ? 'folha' : 'folhas'} A4 ({r.total.n} comuns e {r.total.p} prioritárias, {r.total.count} {r.total.count === 1 ? 'sala' : 'salas'}; cada sala começa em folha nova). Recorte pelas linhas tracejadas.{nCount ? ` ${nCount} ${nCount === 1 ? 'sala em só contagem não tem senhas' : 'salas em só contagem não têm senhas'} (a quantidade lançada na triagem já é o atendimento realizado).` : ''} Filtro: {sum}.</p>
+          {r.groups.map((g) => withTickets(g).map((p) => pagesOf(p).map((pg, i, all) => (
             <div key={`${p.id}-${i}`} className="tk-page">
               <div className="tk-screen tk-cap"><b>{p.name}</b> · {KIND[p.kind] || 'Ambiente'} {p.num || '—'} · {g.service.title} · folha {i + 1} de {all.length} · {ticketsOf(p).length} senhas</div>
               <div className="tk-grid">
