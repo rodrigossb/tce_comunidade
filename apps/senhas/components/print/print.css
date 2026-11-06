@@ -37,7 +37,27 @@
 .pr-empty{padding:1.2em;border:1.5px dashed var(--line);border-radius:12px;color:var(--mut);text-align:center}
 .pr-foot{color:var(--mut);font-size:.75em;margin-top:1.5em;word-break:break-all}
 @media (max-width:640px){.pr-totals{grid-template-columns:repeat(2,minmax(0,1fr))}.pr th:nth-child(3),.pr td.ord{display:none}.pr .who small{display:none}.pr th,.pr td{padding:.45em .4em}}
+/* ---- senhas para recortar (modelo do evento): A4 retrato, 4 × 6 por folha, corte tracejado ---- */
+.tk-wrap{display:grid;gap:1.2em;justify-items:center}
+.tk-cap{width:100%;max-width:190mm;font-size:.85em;color:var(--mut);margin:0 0 .3em}
+.tk-page{width:100%;max-width:190mm}
+.tk-grid{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:45mm;width:100%;background:#fff;color:#000;border:1px dashed #777;border-right:0;border-bottom:0}
+.tk{border-right:1px dashed #777;border-bottom:1px dashed #777;padding:2mm;display:flex;min-width:0}
+.tk-in{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:.6mm;min-width:0;padding:1.5mm 1mm;font-family:Helvetica,Arial,sans-serif;color:#000}
+.tk.prio .tk-in{border:1.2px solid #000;padding-top:0}
+.tk-bar{align-self:stretch;background:#000;color:#fff;font-size:7pt;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:1mm 0 .9mm;margin:0 0 .4mm}
+.tk-name{font-size:10pt;font-weight:600;letter-spacing:.14em;text-transform:uppercase;line-height:1.1;max-width:100%;overflow-wrap:anywhere;text-wrap:balance}
+.tk-num{font-size:30pt;font-weight:400;line-height:1;letter-spacing:-.01em;font-variant-numeric:tabular-nums;margin:.6mm 0}
+.tk-foot{font-size:5.4pt;letter-spacing:.14em;text-transform:uppercase;color:#333;line-height:1.1;max-width:100%}
+@media (max-width:640px){.tk-grid{grid-auto-rows:34mm}.tk-num{font-size:22pt}.tk-name{font-size:8pt;letter-spacing:.08em}.tk-foot{font-size:4.6pt}}
 @media print{
+  .tk-screen{display:none!important}
+  .tk-wrap{display:block}
+  .tk-page{max-width:none;width:100%;break-after:page;page-break-after:always}
+  .tk-grid{grid-auto-rows:44mm}
+  .tk-page:last-child{break-after:auto;page-break-after:auto}
+  .tk-grid{border-color:#999}.tk{border-color:#999}
+  .tk-bar{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   @page{size:A4;margin:12mm}
   body{background:#fff;color:#000}
   .pr{max-width:none;padding:0;font-size:11pt;color:#000}

@@ -1,7 +1,7 @@
 // Módulo de impressão: previsão de senhas por sala (parseParams + previsao) a partir de um estado como o de db.state.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseParams, previsao, paramsOf, PREVISAO } from '../lib/impressao.js';
+import { parseParams, previsao, paramsOf, PREVISAO, ticketsOf, pagesOf, padTicket, PER_PAGE, FORMATOS } from '../lib/impressao.js';
 
 const state = {
   day: '2026-11-06', venue: 'jn',
@@ -17,7 +17,7 @@ const state = {
 
 test('parseParams: local/dia válidos, serviços por lista ou caixas, previsão e inativas', () => {
   const f = parseParams({ local: 'jn', dia: '2026-11-06', servicos: 'consulta,xxx', svc: ['pilar-6', 'consulta'], previsao: 'todas', inativas: '1' }, '2026-11-05');
-  assert.deepEqual(f, { day: '2026-11-06', venue: 'jn', svcs: ['consulta', 'pilar-6'], previsao: 'todas', inativas: true });
+  assert.deepEqual(f, { day: '2026-11-06', venue: 'jn', svcs: ['consulta', 'pilar-6'], previsao: 'todas', inativas: true, formato: 'senhas' });
   const g = parseParams({ local: 'nada', dia: 'ontem' }, '2026-11-05');
   assert.equal(g.venue, 'manga', 'local inválido → primeiro dia de serviços'); assert.match(g.day, /^2026-11-\d\d$/); assert.deepEqual(g.svcs, []); assert.equal(g.previsao, 'com'); assert.equal(g.inativas, false);
   assert.equal(paramsOf(f), 'local=jn&dia=2026-11-06&servicos=consulta%2Cpilar-6&previsao=todas&inativas=1'); assert.equal(PREVISAO.length, 2);
@@ -42,4 +42,14 @@ test('previsao "todas": planta inteira; sem previsão vale o padrão (100 N / 20
   assert.equal(superfacil.zero, true); assert.equal(superfacil.n, 0); assert.equal(superfacil.total, 0);
   assert.equal(detran.default, true); assert.equal(detran.n, 100); assert.equal(detran.p, 20);
   assert.ok(!r.groups.some((g) => g.places.some((p) => p.id === 'jn-t4')), 'desativada continua fora sem inativas');
+});
+
+test('senhas para recortar: comuns só com o número (01…), prioritárias P01…, a partir do início configurado; 24 por folha; formato na URL', () => {
+  const r = previsao(state, { previsao: 'com' }); const cm = r.groups[0].places[0];
+  const t = ticketsOf(cm); assert.equal(t.length, 60); assert.deepEqual(t[0], { num: 1, prio: false, label: '01' }); assert.equal(t[49].label, '50'); assert.deepEqual(t[50], { num: 1, prio: true, label: 'P01' }); assert.equal(t[59].label, 'P10');
+  assert.deepEqual(pagesOf(cm).map((p) => p.length), [24, 24, 12]); assert.equal(PER_PAGE, 24);
+  assert.deepEqual(ticketsOf({ n: 3, p: 2, from: { n: 101, p: 7 }, labels: { n: 'N', p: 'P' } }).map((x) => x.label), ['101', '102', '103', 'P07', 'P08']);
+  assert.equal(padTicket(5), '05'); assert.equal(padTicket(120), '120'); assert.deepEqual(ticketsOf({ n: 0, p: 0 }), []);
+  const f = parseParams({ local: 'jn', dia: '2026-11-06', formato: 'lista' }, '2026-11-05'); assert.equal(f.formato, 'lista'); assert.match(paramsOf(f), /formato=lista$/);
+  assert.equal(parseParams({ local: 'jn' }, '2026-11-05').formato, 'senhas'); assert.equal(FORMATOS[0].id, 'senhas');
 });

@@ -667,7 +667,7 @@ export default function Atendimento() {
             {[...selSvcs].map((id) => { const x = svc(id); return x ? <span key={id} className="chip static c" style={{ '--c': x.color }}>{x.short}</span> : null; })}
             {pf.only ? <span className="chip static">só com movimento</span> : null}
           </div>
-          <a className="chip" href={`${BP}/impressao?local=${venue}&dia=${day}`} target="_blank" rel="noopener" data-act="imprimir" title="Senhas previstas por sala (senhas por dia) para imprimir">{I('printer')}Imprimir</a>
+          <a className="chip" href={`${BP}/impressao?local=${venue}&dia=${day}`} target="_blank" rel="noopener" data-act="imprimir" title="Imprimir as senhas previstas de cada sala (24 por folha A4, para recortar)">{I('printer')}Senhas</a>
           {canDo('csv') ? <a className="chip" href={`${BP}/api/export.csv?day=${day}`} download={`atendimentos-${day}.csv`} data-act="csv">{I('download')}CSV</a> : null}
         </div>
         {pf.open ? (
