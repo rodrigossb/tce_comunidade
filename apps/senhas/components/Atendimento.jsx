@@ -20,7 +20,7 @@ const VER = '2.2';
 const KIND_LABEL = { sala: 'Sala', tenda: 'Tenda', area: 'Ambiente' };
 /** Texto livre da triagem ("o que é oferecido") → itens: uma linha ou ponto e vírgula por item. */
 const splitOffer = (txt) => String(txt || '').split(/\n|;/).map((x) => x.trim()).filter(Boolean);
-const ACTIONS = { setIssued: A.setIssued, setQueueConfig: A.setQueueConfig, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall, advance: A.advance, addExtraQueue: A.addExtraQueue, removeExtraQueue: A.removeExtraQueue, setQueueEnabled: A.setQueueEnabled, setCursor: A.setCursor, setQueueInfo: A.setQueueInfo, setQueueMode: A.setQueueMode, setDayEnabled: A.setDayEnabled };
+const ACTIONS = { setIssued: A.setIssued, setQueueConfig: A.setQueueConfig, call: A.call, setStatus: A.setStatus, endCall: A.endCall, recall: A.recall, advance: A.advance, addExtraQueue: A.addExtraQueue, removeExtraQueue: A.removeExtraQueue, setQueueEnabled: A.setQueueEnabled, setCursor: A.setCursor, setQueueInfo: A.setQueueInfo, setQueueMode: A.setQueueMode, setDayEnabled: A.setDayEnabled, setTvGroup: A.setTvGroup, removeTvGroup: A.removeTvGroup };
 const EXTRA_BLANK = { service_id: '', name: '', kind: 'sala', num: '', n_total: String(DEFAULT_CFG.n_total), p_total: String(DEFAULT_CFG.p_total), pattern: DEFAULT_CFG.pattern, issued_n: '', issued_p: '' };
 const CFG_KEYS = ['n_prefix', 'p_prefix', 'n_from', 'p_from', 'n_total', 'p_total', 'pattern'];
 const cfgForm = (cfg) => { const o = {}; for (const k of CFG_KEYS) o[k] = String((cfg || DEFAULT_CFG)[k] ?? ''); return o; };
@@ -196,6 +196,33 @@ export default function Atendimento() {
   const dayOff = (d) => daysOffRef.current.includes(d);
   const schedDays = (c) => { const all = (data && data.days) || T.eventDays().filter((d) => d >= c.day); const ds = canDo('days') ? all : all.filter((d) => !dayOff(d)); return ds.length ? ds : [c.day]; };
   const setDayEnabled = (d, enabled) => { const c = ctxOf(st); const msg = enabled ? `Reativar ${T.fmtDate(d, 'wdlong')} em ${c.place}? O dia volta a aparecer para toda a equipe.` : `Desativar ${T.fmtDate(d, 'wdlong')} em ${c.place}? O dia some das listas de dias da triagem, do painel e do dashboard para quem não é administração (o que já foi registrado nele não muda).`; if (!confirm(msg)) return; run(async () => { await post('setDayEnabled', { day: d, venue: c.venue, enabled, device: st.device }); toast(enabled ? `${T.fmtDate(d, 'wd')}: dia reativado` : `${T.fmtDate(d, 'wd')}: sem atendimento`); await refresh(); }); };
+  // Grupos de TV (gestão): cada TV abre ?grupo=<chave> e mostra/chama só as salas do grupo (ex.: entrada, fundos).
+  const [grpOpen, setGrpOpen] = useState(false); const [grpForm, setGrpForm] = useState(null); // { key|null, name, places: [] }
+  const groupsView = (c) => {
+    if (!canDo('manage')) return null;
+    const list = (data && data.grupos) || []; const all = allQueues();
+    const save = () => { const f = grpForm; if (!f) return; if (f.name.trim().length < 2) { toast('Dê um nome ao grupo', 'alert'); return; } if (!f.places.length) { toast('Marque ao menos uma sala', 'alert'); return; } run(async () => { const r = await post('setTvGroup', { venue: c.venue, key: f.key, name: f.name.trim(), places: f.places, device: st.device }); if (r) { toast(`Grupo ${r.name}: ${r.places.length} salas`); setGrpForm(null); } await refresh(); }); };
+    const remove = (g) => { if (!confirm(`Remover o grupo "${g.name}"? As TVs abertas com ?grupo=${g.key} voltam a mostrar todas as salas.`)) return; run(async () => { await post('removeTvGroup', { venue: c.venue, key: g.key }); toast(`Grupo ${g.name} removido`); await refresh(); }); };
+    const tog = (id) => setGrpForm((f) => Object.assign({}, f, { places: f.places.includes(id) ? f.places.filter((x) => x !== id) : f.places.concat([id]) }));
+    const tvLink = (g) => `${BP}/tv?local=${c.venue}&grupo=${g.key}`;
+    return (
+      <div className="tri-days tri-groups">
+        <span className="tri-days-h">{I('tv')}<b>Grupos de TV</b><small>cada TV mostra e chama só as salas do seu grupo</small><button type="button" className="btn btn-ghost sm" data-act="grp-toggle" onClick={() => setGrpOpen((v) => !v)}>{grpOpen ? 'fechar' : `${list.length ? `${list.length} grupo${list.length === 1 ? '' : 's'}` : 'configurar'}`}</button></span>
+        {grpOpen ? (
+          <div className="grp-body">
+            {list.length ? <ul className="grp-list">{list.map((g) => <li key={g.key}><b>{g.name}</b><small>{g.places.length} {g.places.length === 1 ? 'sala' : 'salas'} · TV: <code>?grupo={g.key}</code></small><span className="grp-acts"><a className="link" href={tvLink(g)} target="_blank" rel="noopener">abrir TV</a><button type="button" className="link" data-act="grp-edit" data-key={g.key} onClick={() => setGrpForm({ key: g.key, name: g.name, places: g.places.slice() })}>editar</button><button type="button" className="link rm" data-act="grp-rm" data-key={g.key} onClick={() => remove(g)}>remover</button></span></li>)}</ul> : <p className="tiny muted" style={{ margin: '.3em 0' }}>Nenhum grupo ainda. Sem grupos, <code>?grupo=entrada</code> e <code>?grupo=fundos</code> seguem a planta (metade de baixo e de cima).</p>}
+            {grpForm ? (
+              <form className="grp-form" onSubmit={(e) => { e.preventDefault(); save(); }}>
+                <label>Nome do grupo<input type="text" value={grpForm.name} autoComplete="off" placeholder="ex.: Entrada, Fundos, Bloco B" data-grp="name" onChange={(e) => setGrpForm((f) => Object.assign({}, f, { name: e.target.value }))} /></label>
+                <div className="grp-places">{all.map((g) => <div key={g.service.id} className="grp-svc"><small style={{ '--c': g.service.color }}>{g.service.title}</small>{g.places.map((p) => <label key={p.id} className={grpForm.places.includes(p.id) ? 'on' : ''}><input type="checkbox" checked={grpForm.places.includes(p.id)} data-grp-place={p.id} onChange={() => tog(p.id)} /> {p.num ? `${KIND_LABEL[p.kind] || 'Amb.'} ${p.num} · ` : ''}{p.name}</label>)}</div>)}</div>
+                <div className="actions"><button type="button" className="btn btn-ghost" onClick={() => setGrpForm(null)}>Cancelar</button><button type="submit" className="btn btn-primary" data-act="grp-save" disabled={busy}>{I('check')}{grpForm.key ? 'Gravar' : 'Criar grupo'}</button></div>
+              </form>
+            ) : <button type="button" className="btn btn-ghost sm" data-act="grp-new" onClick={() => setGrpForm({ key: null, name: '', places: [] })}>{I('plus')}Novo grupo</button>}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
   /** Administração: faixa com os dias do evento deste local para desativar/reativar (toque no dia). */
   const daysAdminView = (c) => { if (!canDo('days')) return null; const all = (data && data.days) || T.eventDays().filter((d) => d >= c.day); return (
     <div className="tri-days">
@@ -448,6 +475,7 @@ export default function Atendimento() {
       <>
         {top('Triagem · senhas', `${c.place} · ${T.fmtDate(c.day, 'wdlong')}${dayOff(c.day) ? ' · sem atendimento (dia desativado)' : c.service_day ? ' · dia de serviços' : ''}`, goHome, svcBtn())}
         {daysAdminView(c)}
+        {groupsView(c)}
         <p className="page-lead">Toque em <b>+1</b> a cada senha entregue. Toque no número para <b>digitar o total</b>.{manage ? <> Em <b>editar</b> você muda nome, sala e o que é oferecido; em <b>padrão</b>, a numeração e a ordem de chamada.</> : null}</p>
         {qs.map((g) => (
           <div key={g.service.id}>
@@ -729,7 +757,10 @@ export default function Atendimento() {
         <div className="stack">
           {sorted.map(({ g, x, rows }) => { const s = g.service; return (
             <div key={s.id} className="svc-stat" style={{ '--c': s.color }}>
-              <div className="hd"><i>{I(s.icon)}</i><b>{s.title}</b><small>{x.issued} entr. · {x.served} atend.{x.avg_min != null ? ` · ${x.avg_min} min` : ''}</small></div>
+              <div className="hd"><i>{I(s.icon)}</i><b>{s.title}</b><small>{rows.length} {rows.length === 1 ? 'sala' : 'salas'}</small></div>
+              <div className="pl-n svc-tot" aria-label={`Totais de ${s.title}`}>
+                {cell('Entregues', x.issued)}{cell('Chamadas', x.called)}{cell('Atendidas', x.served)}{cell('Faltas', x.absent)}{cell('Aguardando', x.not_called)}{cell('Média', x.avg_min == null ? '—' : `${x.avg_min}′`)}
+              </div>
               <div className="pls">{rows.map((r) => { const base = Math.max(1, r.issued, r.called); const w = (n) => `${Math.round((100 * n) / base)}%`; const live2 = r.current && r.current.status === 'served' && r.current.in_service_min != null; const co = countOnly.has(r.place.id); return (
                 <div key={r.place.id} className={`pl ${co ? 'co' : ''}`} data-place={r.place.id}>
                   <div className="pl-h"><div className="pl-who"><b>{r.place.name}</b><small>{placeLabel(r.place)}{co ? <> · <em className="tag-count">{I('list')}contagem</em></> : null}</small></div>{r.current ? <span className={`badge ${live2 ? 'served' : r.current.status}`}>{r.current.ticket ?? '—'}{live2 ? <small> {r.current.in_service_min}′</small> : null}</span> : null}</div>
@@ -742,6 +773,14 @@ export default function Atendimento() {
             </div>
           ); })}
         </div>
+        {sorted.length ? (
+          <div className="svc-stat grand" data-total="geral">
+            <div className="hd"><i>{I('layers')}</i><b>Totais gerais</b><small>{sorted.length} {sorted.length === 1 ? 'serviço' : 'serviços'} · {sorted.reduce((n, o) => n + o.rows.length, 0)} salas{fd.filtered ? ' · recorte dos filtros' : ''}</small></div>
+            <div className="pl-n svc-tot">
+              {cell('Entregues', t.issued)}{cell('Chamadas', t.called)}{cell('Atendidas', t.served)}{cell('Faltas', t.absent)}{cell('Aguardando', t.not_called)}{cell('Média', t.avg_min == null ? '—' : `${t.avg_min}′`)}
+            </div>
+          </div>
+        ) : null}
       </>
     );
   }

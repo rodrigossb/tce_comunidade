@@ -42,3 +42,5 @@ export async function setQueueMode(body) { return guard(MANAGE, async () => db.s
 export async function setQueueInfo(body) { return guard(MANAGE, async () => { const r = db.setQueueInfo(body || {}); ensurePlaceClip(body); return r; }); }
 export async function setCursor(body) { return guard(DOOR, async () => db.setCursor(body || {})); }
 export async function setDayEnabled(body) { return guard(DAYS, async () => db.setDayEnabled(body || {})); }
+export async function setTvGroup(body) { return guard(MANAGE, async () => db.setTvGroup(body || {})); }
+export async function removeTvGroup(body) { return guard(MANAGE, async () => db.removeTvGroup(body || {})); }

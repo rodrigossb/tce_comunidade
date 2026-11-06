@@ -181,6 +181,16 @@ test('porta chama além do entregue na triagem: a senha passa a contar como entr
   const adv = db.advance({ day: D2, venue: V, service_id: S, place_id: P2, ticket: 6, priority: 0, device: 'd1', prev_id: rp.id, prev_status: 'served' }); assert.deepEqual(adv.issued_fix, { kind: 'n', from: 5, to: 6 });
 });
 
+test('grupos de TV: criar (chave pelo nome), alterar sem mudar a chave, listar no estado e no quadro da TV, remover', () => {
+  const r = db.setTvGroup({ venue: V, name: 'Entrada principal', places: ['jn-r03', 'jn-r04', 'jn-r03', ' '], device: 't' });
+  assert.deepEqual(r, { ok: true, key: 'entrada-principal', name: 'Entrada principal', places: ['jn-r03', 'jn-r04'] });
+  assert.deepEqual(db.tvGroups(V), [{ key: 'entrada-principal', name: 'Entrada principal', places: ['jn-r03', 'jn-r04'] }]); assert.deepEqual(db.tvGroups('manga'), []);
+  db.setTvGroup({ venue: V, key: 'entrada-principal', name: 'Entrada', places: ['jn-r05'], device: 't' });
+  assert.deepEqual(db.state(DAY, V).grupos, [{ key: 'entrada-principal', name: 'Entrada', places: ['jn-r05'] }]); assert.equal(db.tvBoard(DAY, V).grupos[0].key, 'entrada-principal');
+  assert.throws(() => db.setTvGroup({ venue: V, name: 'x' }), /nome/); assert.equal(db.groupKey('Fundos · Bloco B'), 'fundos-bloco-b');
+  db.removeTvGroup({ venue: V, key: 'entrada-principal' }); assert.deepEqual(db.tvGroups(V), []);
+});
+
 test('ajustar número atual (fila_cursor): sequência recomeça do informado; chamadas anteriores ficam no histórico', async () => {
   const P2 = 'jn-r15';
   db.setQueueConfig({ day: DAY, venue: V, service_id: S, place_id: P2, n_total: 179, p_from: 180, p_total: 21, device: 't' });

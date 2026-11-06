@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS lugares (id INTEGER PRIMARY KEY, name TEXT NOT NULL, 
 CREATE TABLE IF NOT EXISTS filas_extra (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL DEFAULT '', name TEXT NOT NULL, kind TEXT NOT NULL, num TEXT NOT NULL DEFAULT '', device TEXT, created_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS filas_off (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, device TEXT, ts INTEGER NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS filas_off_key ON filas_off(day, venue, place_id);
+CREATE TABLE IF NOT EXISTS grupos_tv (id INTEGER PRIMARY KEY, venue TEXT NOT NULL, key TEXT NOT NULL, name TEXT NOT NULL, places TEXT NOT NULL DEFAULT '[]', device TEXT, ts INTEGER NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS grupos_tv_key ON grupos_tv(venue, key);
 CREATE TABLE IF NOT EXISTS dias_off (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, device TEXT, ts INTEGER NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS dias_off_key ON dias_off(day, venue);
 CREATE TABLE IF NOT EXISTS fila_cursor (id INTEGER PRIMARY KEY, day TEXT NOT NULL, venue TEXT NOT NULL, service_id TEXT NOT NULL, place_id TEXT NOT NULL, normal_last INTEGER NOT NULL DEFAULT 0, prio_last INTEGER NOT NULL DEFAULT 0, device TEXT, ts INTEGER NOT NULL);
@@ -87,6 +89,9 @@ function open(file) {
     offInsert: db.prepare(`INSERT OR REPLACE INTO filas_off (day, venue, service_id, place_id, device, ts) VALUES (?,?,?,?,?,?)`),
     offDelete: db.prepare(`DELETE FROM filas_off WHERE day=? AND venue=? AND place_id=?`),
     dayOffAll: db.prepare(`SELECT day, venue FROM dias_off ORDER BY day, venue`),
+    grpAll: db.prepare(`SELECT key, name, places FROM grupos_tv WHERE venue=? ORDER BY name`),
+    grpUpsert: db.prepare(`INSERT INTO grupos_tv (venue, key, name, places, device, ts) VALUES (?,?,?,?,?,?) ON CONFLICT(venue, key) DO UPDATE SET name=excluded.name, places=excluded.places, device=excluded.device, ts=excluded.ts`),
+    grpDelete: db.prepare(`DELETE FROM grupos_tv WHERE venue=? AND key=?`),
     dayOffInsert: db.prepare(`INSERT OR REPLACE INTO dias_off (day, venue, device, ts) VALUES (?,?,?,?)`),
     dayOffDelete: db.prepare(`DELETE FROM dias_off WHERE day=? AND venue=?`),
     cursorOf: db.prepare(`SELECT normal_last, prio_last, ts FROM fila_cursor WHERE day=? AND venue=? AND service_id=? AND place_id=? ORDER BY ts DESC, id DESC LIMIT 1`),
@@ -138,7 +143,7 @@ export function state(day, venue) {
   const cfg_days = {}; const days = T.eventDays().filter((d) => d >= c.day); if (!days.includes(c.day)) days.unshift(c.day);
   for (const d of days) for (const r of q.cfgAll.all(d, c.venue)) { (cfg_days[r.place_id] = cfg_days[r.place_id] || {})[d] = { n_total: num(r.n_total), p_total: num(r.p_total), mode: r.mode === 'contagem' ? 'contagem' : 'chamada' }; }
   const days_off = daysOff().filter((x) => x.venue === c.venue).map((x) => x.day); // dias sem atendimento neste local (administração)
-  return { day: c.day, venue: c.venue, now: Date.now(), issued: Object.values(imap), configs, default_cfg: DEFAULT_CFG, stats: summarize(issuedAgg(imap), calls, Date.now(), countOnly), extras: extras(c.day, c.venue), disabled: disabled(c.day, c.venue), cfg_days, days, days_off, count_only: [...countOnly] };
+  return { day: c.day, venue: c.venue, now: Date.now(), issued: Object.values(imap), configs, default_cfg: DEFAULT_CFG, stats: summarize(issuedAgg(imap), calls, Date.now(), countOnly), extras: extras(c.day, c.venue), disabled: disabled(c.day, c.venue), cfg_days, days, days_off, grupos: tvGroups(c.venue), count_only: [...countOnly] };
 }
 export function stats(day, venue) {
   const st = state(day, venue); const { q } = conn();
@@ -281,7 +286,7 @@ export function tvBoard(day, venue) {
   for (const k of Object.keys(cfgs)) { const pid = k.split('|')[1]; if (!labels[pid]) labels[pid] = { n: cfgs[k].n_prefix, p: cfgs[k].p_prefix }; }
   const recent = calls.slice().sort((a, b) => b.called_at - a.called_at || b.id - a.id).slice(0, 60)
     .map((x) => ({ id: x.id, ticket: x.ticket, service_id: x.service_id, place_id: x.place_id, status: x.status, called_at: x.called_at, recalled_at: x.recalled_at || null, priority: x.priority ? 1 : 0, status_at: x.status_at, ended_at: x.ended_at }));
-  return { day: c.day, venue: c.venue, now, places, recent, labels, default_labels: { n: DEFAULT_CFG.n_prefix, p: DEFAULT_CFG.p_prefix }, extras: extras(c.day, c.venue), disabled: [...new Set(disabled(c.day, c.venue).concat([...countOnly]))], count_only: [...countOnly], total: { issued: st.total.issued, called: st.total.called, waiting: st.total.not_called, in_service: st.total.in_service } };
+  return { day: c.day, venue: c.venue, now, places, recent, grupos: tvGroups(c.venue), labels, default_labels: { n: DEFAULT_CFG.n_prefix, p: DEFAULT_CFG.p_prefix }, extras: extras(c.day, c.venue), disabled: [...new Set(disabled(c.day, c.venue).concat([...countOnly]))], count_only: [...countOnly], total: { issued: st.total.issued, called: st.total.called, waiting: st.total.not_called, in_service: st.total.in_service } };
 }
 /** Chamadas do dia no local (para o dashboard: séries por hora e linha do tempo). */
 export function callsOfDay(day, venue) { const c = ctx(day, venue); return rows(conn().q.callsDay.all(c.day, c.venue)); }
@@ -405,6 +410,25 @@ export function setQueueEnabled(b) {
   if (b.enabled) q.offDelete.run(c.day, c.venue, pid); else q.offInsert.run(c.day, c.venue, sid, pid, clean(b.device, 40), Date.now());
   notify(c.day, c.venue); return { ok: true, place_id: pid, enabled: !!b.enabled };
 }
+
+// ---- grupos de TV (por local): cada TV mostra/chama só as salas do seu grupo (?grupo=<chave>) ----
+/** Chave de um grupo a partir do nome: "Entrada principal" → "entrada-principal". */
+export const groupKey = (name) => String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24);
+/** Grupos configurados de um local: [{ key, name, places }]. */
+export function tvGroups(venue) {
+  const v = clean(venue, 16); if (!v) return [];
+  return rows(conn().q.grpAll.all(v)).map((r) => { let places = []; try { places = JSON.parse(r.places) || []; } catch { /* vazio */ } return { key: r.key, name: r.name, places: Array.isArray(places) ? places : [] }; });
+}
+/** Cria ou altera um grupo { venue, key?, name, places: [ids], device }. A chave nasce do nome e não muda ao renomear. */
+export function setTvGroup(b) {
+  const v = clean(b && b.venue, 16); const name = String((b && b.name) || '').trim().slice(0, 40); if (!v || name.length < 2) throw err(400, 'informe o local e um nome com 2+ letras');
+  const key = groupKey(b.key || name); if (!key) throw err(400, 'nome inválido'); if (['entrada', 'fundos'].includes(key) && !b.key) { /* pode sobrescrever os automáticos de propósito */ }
+  const places = [...new Set((Array.isArray(b.places) ? b.places : []).map((x) => String(clean(x, 32) || '').trim()).filter(Boolean))].slice(0, 200);
+  conn().q.grpUpsert.run(v, key, name, JSON.stringify(places), clean(b.device, 40), Date.now());
+  notify(T.now().date, v); return { ok: true, key, name, places };
+}
+/** Remove um grupo { venue, key }. */
+export function removeTvGroup(b) { const v = clean(b && b.venue, 16); const key = groupKey(b && b.key); if (!v || !key) throw err(400, 'dados'); conn().q.grpDelete.run(v, key); notify(T.now().date, v); return { ok: true, key }; }
 
 /** Dias sem atendimento marcados pela administração: [{ day, venue }]. Somem das listas de dias (triagem, painel, dashboard)
     para quem não é administração; o histórico do dia não muda. */

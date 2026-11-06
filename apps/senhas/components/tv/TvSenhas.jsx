@@ -52,10 +52,11 @@ function Board() {
   // Dia mostrado = o mesmo do app de atendimento (T.ticketDay): o dia de serviços de hoje; outro dia do evento → hoje
   // (filas criadas na triagem); fora do evento → o próximo/último dia de serviços. ?dia=AAAA-MM-DD força outro.
   const day = useMemo(() => { const q = sp.get('dia'); if (q && /^\d{4}-\d{2}-\d{2}$/.test(q)) return q; const d = T.ticketDay(clock.date, D.maps && D.maps[sp.get('local')] ? sp.get('local') : null); return d ? d.date : clock.date; }, [sp, clock.date]);
-  const sel = useMemo(() => selectQueues(sp, day), [sp, day]);
+  const [data, setData] = useState(null); // quadro público (declarado aqui: a seleção usa os grupos configurados e a voz as salas editadas na triagem)
+  const grupos = data && data.grupos; // grupos de TV configurados na triagem (por local)
+  const sel = useMemo(() => selectQueues(sp, day, grupos), [sp, day, grupos]);
   const venue = sel.venue; const venueName = D.venues[venue] ? D.venues[venue].name : venue;
-  const voice = sp.get('voz') === '1';
-  const [data, setData] = useState(null); // quadro público (declarado aqui porque a voz usa as salas editadas na triagem)
+  const voice = sp.get('voz') !== '0'; // voz sempre ligada (?voz=0 desliga)
   // ---- voz: o Chrome (sobretudo em TV/Android) só deixa falar depois de um gesto do usuário na página ----
   const [voices, setVoices] = useState(null); // null = ainda não lidas
   const [unlocked, setUnlocked] = useState(false);
@@ -147,10 +148,12 @@ function Board() {
     } finally { playing.current = false; }
   }, [chime, playViaCtx, playViaElement, speak]);
   /** Pré-carrega (e manda o servidor gerar, se faltar) os áudios das salas desta TV: a primeira chamada não espera download. */
+  const rowsRef = useRef([]); // filas mostradas (planta + criadas na triagem, já filtradas pelo grupo) — preenchido abaixo
   const preload = useCallback(() => {
     if (!manifest || !audio.current) return;
     const specs = new Set(['x-novamente.mp3']);
-    for (const q of sel.queues) { const a = announcementFor({ ticket: 1, place: placeOf(q.place.id, data && data.extras) || q.place }, manifest); for (const f of a.files || []) if (!f.startsWith('n-')) specs.add(f); }
+    const list = rowsRef.current.length ? rowsRef.current.map((r) => r.place) : sel.queues.map((q) => placeOf(q.place.id, data && data.extras) || q.place);
+    for (const place of list) { const a = announcementFor({ ticket: 1, place }, manifest); for (const f of a.files || []) if (!f.startsWith('n-')) specs.add(f); }
     specs.forEach((f) => loadBuf(f).catch(() => {}));
   }, [manifest, sel, data, loadBuf]);
   useEffect(() => { if (unlocked) preload(); }, [unlocked, preload]);
@@ -170,11 +173,26 @@ function Board() {
     load(); if (supported) window.speechSynthesis.addEventListener('voiceschanged', load);
     // Já houve interação nesta página (ex.: tecla F para tela cheia)? Então o som já está liberado.
     if (navigator.userActivation && navigator.userActivation.hasBeenActive) { unlockedRef.current = true; setUnlocked(true); }
-    else showBanner('Som: aperte OK no controle (ou toque na tela) para ativar os anúncios das senhas', 12000);
     const gesture = () => unlock();
     window.addEventListener('pointerdown', gesture); window.addEventListener('keydown', gesture);
-    return () => { if (supported) window.speechSynthesis.removeEventListener('voiceschanged', load); window.removeEventListener('pointerdown', gesture); window.removeEventListener('keydown', gesture); };
-  }, [voice, supported, unlock, showBanner]);
+    // Libera o som sozinha: cria o AudioContext e tenta retomá-lo; se o navegador deixar (TVs em geral, Chrome com histórico de
+    // reprodução ou --autoplay-policy=no-user-gesture-required), a voz já fica ativa sem toque. Se bloquear, tenta de novo a
+    // cada 5 s e mostra o aviso "Ativar som" como último recurso.
+    let tries = 0; let t1 = null; let t2 = null; let warned = false;
+    const tryAuto = () => {
+      if (unlockedRef.current) return;
+      const ctx = ensureCtx(); if (!ctx) return;
+      try { const r = ctx.resume(); if (r && r.catch) r.catch(() => {}); } catch { /* bloqueado */ }
+      t1 = setTimeout(() => {
+        if (unlockedRef.current) return;
+        if (ctx.state === 'running') { unlockedRef.current = true; setUnlocked(true); setVoiceErr(''); try { player.current = new Audio(); player.current.preload = 'auto'; } catch { player.current = null; } showBanner('Som ativo · as senhas serão anunciadas por voz', 5000); return; }
+        if (!warned) { warned = true; showBanner('Som bloqueado pelo navegador: aperte OK no controle (ou toque na tela) uma vez', 12000); }
+        if (++tries < 120) t2 = setTimeout(tryAuto, 5000);
+      }, 500);
+    };
+    tryAuto();
+    return () => { clearTimeout(t1); clearTimeout(t2); if (supported) window.speechSynthesis.removeEventListener('voiceschanged', load); window.removeEventListener('pointerdown', gesture); window.removeEventListener('keydown', gesture); };
+  }, [voice, supported, unlock, ensureCtx, showBanner]);
   const vState = voiceState({ wanted: voice, supported, voices, unlocked, lastError: voiceErr, clips: unlocked && !!manifest });
   const vLabel = voiceLabel(vState, voices ? pickVoice(voices) : null);
   const [zoom, setZoom] = useState(() => Math.min(1.6, Math.max(0.6, asScale(sp.get('zoom')) || 1)));
@@ -185,7 +203,7 @@ function Board() {
   // ---- dados: polling leve do quadro público ----
   const [offline, setOffline] = useState(false);
   const lastOk = useRef(Date.now());
-  const take = useCallback((j) => { lastOk.current = Date.now(); setOffline(false); setData((prev) => (prev && JSON.stringify(prev.places) === JSON.stringify(j.places) && JSON.stringify(prev.recent) === JSON.stringify(j.recent) && JSON.stringify(prev.extras || []) === JSON.stringify(j.extras || []) && JSON.stringify(prev.disabled || []) === JSON.stringify(j.disabled || []) ? Object.assign(prev, { now: j.now }) : j)); }, []);
+  const take = useCallback((j) => { lastOk.current = Date.now(); setOffline(false); setData((prev) => (prev && JSON.stringify(prev.places) === JSON.stringify(j.places) && JSON.stringify(prev.recent) === JSON.stringify(j.recent) && JSON.stringify(prev.extras || []) === JSON.stringify(j.extras || []) && JSON.stringify(prev.grupos || []) === JSON.stringify(j.grupos || []) && JSON.stringify(prev.disabled || []) === JSON.stringify(j.disabled || []) ? Object.assign(prev, { now: j.now }) : j)); }, []);
   const refresh = useCallback(async () => {
     try {
       const r = await fetch(`${BP}/api/tv?local=${encodeURIComponent(venue)}&dia=${day}`, { cache: 'no-store', signal: AbortSignal.timeout(6000) });
@@ -229,12 +247,14 @@ function Board() {
     // Ordem: serviço (é o que está na senha impressa) e, dentro dele, sala/tenda por número.
     // Filas extras criadas na triagem entram quando a TV não está limitada a salas específicas (?salas=); ?servicos= filtra também elas.
     const svcFilter = new Set(String(sp.get('servicos') || '').split(/[,;+ ]+/).filter(Boolean));
-    const extra = sp.get('salas') ? [] : extraQueues((data && data.extras) || [], svcFilter);
+    // Grupo configurado na triagem: as filas criadas na triagem também obedecem (só as listadas no grupo); grupo automático (planta): entram todas.
+    const extra = sp.get('salas') ? [] : extraQueues((data && data.extras) || [], svcFilter).filter((q) => !(sel.custom && sel.places) || sel.places.has(q.place.id));
     const off = new Set((data && data.disabled) || []); // filas desativadas na triagem
     const fixed = sel.queues.map((q) => ({ service: q.service, place: placeOf(q.place.id, data && data.extras) || q.place })); // nome/sala editados na triagem
     return fixed.concat(extra).filter((q) => !off.has(q.place.id)).map((q) => ({ key: q.place.id, place: q.place, service: q.service, stat: byPlace.get(q.place.id) || null }))
       .sort((a, b) => svcIdx(a.service) - svcIdx(b.service) || numOf(a.place) - numOf(b.place) || String(a.place.name).localeCompare(String(b.place.name), 'pt-BR'));
   }, [sel, data, sp]);
+  rowsRef.current = rows;
   const selected = useMemo(() => new Set(rows.map((r) => r.key)), [rows]);
   const recent = useMemo(() => ((data && data.recent) || []).filter((c) => selected.has(c.place_id)), [data, selected]);
   const waitingTotal = rows.reduce((n, r) => n + (r.stat ? r.stat.waiting : 0), 0);
@@ -364,11 +384,11 @@ function Board() {
         </aside>
       </div>
 
-      <footer className="tv-foot"><span>{D.event.organizer} · {D.event.datesLabel} <span className="tv-build">· v{BUILD}{voice ? ' · voz=1' : ''}</span></span><span className="tv-foot-msg">Fique atento ao número da sua senha e à sala · atendimento por ordem de chegada</span>{vLabel ? <span className={`tv-voice ${vState === 'ready' ? 'ok' : vState === 'locked' || vState.startsWith('error') || vState === 'novoice' ? 'warn' : ''}`} title={vLabel}><Icon name="megaphone" />{vLabel}</span> : null}</footer>
+      <footer className="tv-foot"><span>{D.event.organizer} · {D.event.datesLabel} <span className="tv-build">· v{BUILD}{voice ? '' : ' · sem voz'}</span></span><span className="tv-foot-msg">Fique atento ao número da sua senha e à sala · atendimento por ordem de chegada</span>{vLabel ? <span className={`tv-voice ${vState === 'ready' ? 'ok' : vState === 'locked' || vState.startsWith('error') || vState === 'novoice' ? 'warn' : ''}`} title={vLabel}><Icon name="megaphone" />{vLabel}</span> : null}</footer>
 
       {voice && !unlocked ? (
         <button type="button" className="tv-sound" autoFocus onClick={unlock}>
-          <Icon name="megaphone" /><span><b>Ativar som</b><small>pressione OK ou qualquer seta no controle da TV (ou toque na tela) para liberar os anúncios por voz</small></span>
+          <Icon name="megaphone" /><span><b>Ativar som</b><small>o navegador desta TV bloqueou o som automático: pressione OK ou qualquer seta no controle (ou toque na tela) uma vez</small></span>
         </button>
       ) : null}
       {banner ? <div className="tv-banner" role="status"><Icon name="megaphone" />{banner}</div> : null}

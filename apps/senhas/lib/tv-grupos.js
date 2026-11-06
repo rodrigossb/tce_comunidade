@@ -4,8 +4,10 @@
 //   ?local=jn|manga                      local (padrão: o local com serviços gratuitos no dia; senão jn)
 //   ?salas=jn-r03,jn-r04 | 03,04,t2      ids da planta ou só o número (03 → jn-r03; t2 → jn-t2)
 //   ?servicos=pilar-1,pilar-2            só as filas desses serviços (pilares)
-//   ?grupo=entrada|fundos|<nome>         agrupamento por localização (abaixo)
+//   ?grupo=entrada|fundos|<chave>        grupo: os configurados na triagem ("Grupos de TV", tabela grupos_tv, vêm na API
+//                                        do quadro como `grupos`) ou os automáticos por localização (abaixo)
 // `salas` e `grupo` somam (união de salas); `servicos` filtra o resultado. Sem nada: todas as filas do local.
+// Voz: sempre ligada (?voz=0 desliga); a TV tenta liberar o som sozinha e só pede um toque se o navegador bloquear.
 //
 // GRUPOS POR LOCALIZAÇÃO — como foram deduzidos: a planta tem o acesso principal (a1) na borda de baixo
 // (Joaquim Nabuco: a1 em x=467, y=1170 numa planta de 1208 px de altura; Manga: a1 em y=1340 de 1484).
@@ -39,8 +41,9 @@ export function queuesFor(venue, day) {
   return list.sort((a, b) => (kindOrder[a.place.kind] ?? 3) - (kindOrder[b.place.kind] ?? 3) || numOf(a.place) - numOf(b.place) || String(a.place.name).localeCompare(String(b.place.name), 'pt-BR'));
 }
 
-/** Grupos disponíveis no local: automáticos (entrada/fundos pela planta) + CUSTOM. */
-export function groupsOf(venue) {
+/** Grupos disponíveis no local: automáticos (entrada/fundos pela planta) + CUSTOM + configurados na triagem (`custom`:
+    [{ key, name, places }] vindos da API; prevalecem sobre os demais com a mesma chave). */
+export function groupsOf(venue, custom) {
   const map = D.maps && D.maps[venue]; const out = {};
   if (map) {
     const split = map.h * Y_SPLIT; const entrance = map.entrances.find((e) => e.default) || map.entrances[0];
@@ -52,6 +55,7 @@ export function groupsOf(venue) {
     out.fundos = { label: 'Fundos', places: entranceBelow ? above : below, auto: true };
   }
   for (const [k, g] of Object.entries(CUSTOM[venue] || {})) out[k] = { label: g.label || k, places: g.places || [] };
+  for (const g of Array.isArray(custom) ? custom : []) if (g && g.key) out[norm(g.key)] = { label: g.name || g.key, places: Array.isArray(g.places) ? g.places : [], custom: true };
   return out;
 }
 
@@ -75,15 +79,17 @@ export function defaultVenue(today) {
 }
 
 /**
- * Lê os parâmetros (objeto ou URLSearchParams) e devolve { venue, queues, title, group, unknown }.
- * `today` (AAAA-MM-DD) decide o local padrão.
+ * Lê os parâmetros (objeto ou URLSearchParams) e devolve { venue, queues, title, group, unknown, places, custom }.
+ * `today` (AAAA-MM-DD) decide o local padrão; `custom` = grupos configurados na triagem (API). `places` = Set dos ids
+ * selecionados por grupo/salas (null = sem restrição); `custom` = true quando o grupo escolhido é configurado (então as
+ * filas criadas na triagem também obedecem ao grupo).
  */
-export function selectQueues(params, today) {
+export function selectQueues(params, today, custom) {
   const get = (k) => (params && typeof params.get === 'function' ? params.get(k) : params ? params[k] : null) || '';
   const venue = D.venues[get('local')] && D.maps && D.maps[get('local')] ? get('local') : defaultVenue(today);
-  const all = queuesFor(venue, today); const groups = groupsOf(venue); const unknown = [];
-  const places = new Set(); let group = null;
-  for (const g of splitList(get('grupo'))) { const k = norm(g); if (groups[k]) { group = group || { key: k, label: groups[k].label }; groups[k].places.forEach((id) => places.add(id)); } else unknown.push(`grupo ${g}`); }
+  const all = queuesFor(venue, today); const groups = groupsOf(venue, custom); const unknown = [];
+  const places = new Set(); let group = null; let isCustom = false;
+  for (const g of splitList(get('grupo'))) { const k = norm(g); if (groups[k]) { group = group || { key: k, label: groups[k].label }; if (groups[k].custom) isCustom = true; groups[k].places.forEach((id) => places.add(id)); } else unknown.push(`grupo ${g}`); }
   for (const s of splitList(get('salas'))) { const id = placeIdOf(venue, s); if (id) places.add(id); else unknown.push(`sala ${s}`); }
   const svcs = new Set(); for (const s of splitList(get('servicos'))) { const id = norm(s); if (D.services.some((x) => x.id === id)) svcs.add(id); else unknown.push(`serviço ${s}`); }
   let queues = all;
@@ -93,5 +99,5 @@ export function selectQueues(params, today) {
   if (group) parts.push(group.label);
   if (svcs.size) parts.push([...svcs].map((id) => D.services.find((x) => x.id === id).short).join(', '));
   if (places.size && !group) parts.push(`${places.size} ${places.size === 1 ? 'sala' : 'salas'}`);
-  return { venue, queues, group, title: parts.join(' · '), unknown, groups: Object.keys(groups) };
+  return { venue, queues, group, title: parts.join(' · '), unknown, groups: Object.keys(groups), places: places.size ? places : null, custom: isCustom };
 }

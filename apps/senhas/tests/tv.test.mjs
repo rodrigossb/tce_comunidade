@@ -65,3 +65,15 @@ test('quadro da TV: senha atual por sala, aguardando e últimas chamadas', async
   assert.equal(b.places.find((p) => p.place_id === 'jn-r17').issued, 7); assert.equal(b.total.waiting, 9);
   assert.throws(() => db.tvBoard('ontem', 'jn'), (e) => e.status === 400);
 });
+
+test('grupos configurados na triagem: ?grupo=<chave> usa o grupo da API (prevalece sobre o automático) e marca custom', () => {
+  const custom = [{ key: 'bloco-b', name: 'Bloco B', places: ['jn-r14', 'jn-r15', 'jn-x9'] }, { key: 'entrada', name: 'Entrada (ajustada)', places: ['jn-r03'] }];
+  const g = groupsOf('jn', custom); assert.equal(g['bloco-b'].custom, true); assert.deepEqual(g.entrada.places, ['jn-r03']); assert.equal(g.fundos.auto, true);
+  const r = selectQueues({ local: 'jn', grupo: 'bloco-b' }, DAY, custom);
+  assert.deepEqual(r.queues.map((q) => q.place.id).sort(), ['jn-r14', 'jn-r15'], 'jn-x9 é extra da triagem: entra pela API, não pela planta');
+  assert.equal(r.custom, true); assert.ok(r.places.has('jn-x9')); assert.equal(r.title, 'Bloco B'); assert.deepEqual(r.unknown, []);
+  const e = selectQueues({ local: 'jn', grupo: 'entrada' }, DAY, custom); assert.deepEqual(e.queues.map((q) => q.place.id), ['jn-r03']); assert.equal(e.custom, true);
+  const auto = selectQueues({ local: 'jn', grupo: 'fundos' }, DAY, custom); assert.equal(auto.custom, false); assert.ok(auto.places.size > 3);
+  const none = selectQueues({ local: 'jn' }, DAY, custom); assert.equal(none.places, null); assert.equal(none.custom, false);
+  assert.deepEqual(selectQueues({ local: 'jn', grupo: 'bloco-b' }, DAY).unknown, ['grupo bloco-b'], 'sem a API, chave desconhecida');
+});
