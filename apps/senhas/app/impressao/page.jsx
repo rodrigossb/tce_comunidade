@@ -2,7 +2,7 @@
 // &inativas=1&formato=senhas|lista). Página renderizada no servidor a partir do banco local (db.state): precisa do cookie do
 // PIN de um perfil com painel (administração ou equipe). Formato "senhas" (padrão): as senhas previstas de cada sala para
 // recortar, no modelo do evento — A4 retrato, 24 por folha (4 × 6) com linhas de corte tracejadas; cada senha traz o nome
-// do atendimento em caixa alta, o número grande ("01"…"50") e a legenda "SENHA DE ATENDIMENTO"; as prioritárias levam tarja
+// do atendimento em caixa alta, o número grande ("01"…"50") e a sala em destaque ("SALA 08"); as prioritárias levam tarja
 // preta "PRIORIDADE", borda cheia e numeração "P01"…; cada sala começa em folha nova. Formato "lista": tabela por serviço.
 import { TCE as T } from '@tce/core';
 import * as db from '@/lib/db';
@@ -76,7 +76,7 @@ export default async function Page({ searchParams }) {
                       {t.prio ? <span className="tk-bar">PRIORIDADE</span> : null}
                       <span className="tk-name">{p.name}</span>
                       <span className="tk-num">{t.label}</span>
-                      <span className="tk-foot">{p.num ? `${KIND[p.kind] || 'Ambiente'} ${p.num} · ` : ''}SENHA DE ATENDIMENTO</span>
+                      {p.num ? <span className="tk-room">{KIND[p.kind] || 'Ambiente'} {p.num}</span> : null}
                     </div>
                   </div>
                 ))}
