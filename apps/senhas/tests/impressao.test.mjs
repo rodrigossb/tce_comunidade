@@ -7,7 +7,7 @@ const state = {
   day: '2026-11-06', venue: 'jn',
   configs: [
     { service_id: 'consulta', place_id: 'jn-r09', n_total: 50, p_total: 10, n_prefix: 'N', p_prefix: 'P', pattern: '1:1', mode: 'chamada' },
-    { service_id: 'pilar-2', place_id: 'jn-r19', n_total: 0, p_total: 0, n_prefix: 'N', p_prefix: 'P', pattern: '1:1', mode: 'chamada' }, // lançado com zero
+    { service_id: 'pilar-2', place_id: 'jn-r19', n_total: 0, p_total: 0, n_prefix: 'N', p_prefix: 'P', pattern: '1:1', mode: 'chamada' }, // previsão zero
     { service_id: 'consulta', place_id: 'jn-x8', n_total: 10, p_total: 6, n_prefix: 'N', p_prefix: 'P', pattern: '1:2', mode: 'chamada' },
     { service_id: 'pilar-6', place_id: 'jn-t4', n_total: 40, p_total: 0, n_prefix: 'N', p_prefix: 'P', pattern: '1:1', mode: 'contagem' },
   ],
@@ -23,7 +23,7 @@ test('parseParams: local/dia válidos, serviços por lista ou caixas, previsão 
   assert.equal(paramsOf(f), 'local=jn&dia=2026-11-06&servicos=consulta%2Cpilar-6&previsao=todas&inativas=1'); assert.equal(PREVISAO.length, 2);
 });
 
-test('previsao: só salas com previsão lançada (>0), por serviço, com subtotais e total; desativadas só com inativas', () => {
+test('previsao: só salas com previsão (>0), por serviço, com subtotais e total; desativadas só com inativas', () => {
   const r = previsao(state, { svcs: [], previsao: 'com', inativas: false });
   assert.deepEqual(r.groups.map((g) => g.service.id), ['consulta']);
   const c = r.groups[0]; assert.deepEqual(c.places.map((p) => [p.name, p.num, p.n, p.p, p.total, p.pattern, p.extra]), [['Consulta médica', '08', 50, 10, 60, '1P : 1N', false], ['Pediatra', '08', 10, 6, 16, '1P : 2N', true]]);
@@ -36,7 +36,7 @@ test('previsao: só salas com previsão lançada (>0), por serviço, com subtota
   const s = previsao(state, { svcs: ['pilar-2'], previsao: 'com' }); assert.deepEqual(s.groups, []); assert.equal(s.total.count, 0);
 });
 
-test('previsao "todas": planta inteira; sem lançamento vale o padrão (100 N / 20 P) marcado como padrão; lançado com zero fica 0', () => {
+test('previsao "todas": planta inteira; sem previsão vale o padrão (100 N / 20 P) marcado como padrão; previsão zero fica 0', () => {
   const r = previsao(state, { previsao: 'todas' });
   const p2 = r.groups.find((g) => g.service.id === 'pilar-2'); const superfacil = p2.places.find((p) => p.id === 'jn-r19'); const detran = p2.places.find((p) => p.id === 'jn-r18');
   assert.equal(superfacil.zero, true); assert.equal(superfacil.n, 0); assert.equal(superfacil.total, 0);

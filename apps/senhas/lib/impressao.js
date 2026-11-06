@@ -1,12 +1,13 @@
 // Módulo de impressão: previsão de senhas de um dia/local (puro, sem Next: testável). Lê o estado do banco (db.state) e
-// monta, por serviço (pilar), as salas com a quantidade de senhas comuns (N) e prioritárias (P) lançada na triagem para o
-// dia (fila_cfg), com subtotais e total. Filtros: dia, local, serviços, "só com previsão lançada" e incluir desativadas.
+// monta, por serviço (pilar), as salas com a quantidade de senhas PREVISTAS — comuns (N) e prioritárias (P) — para o dia
+// ("senhas por dia" da triagem, fila_cfg.n_total/p_total; não são as senhas entregues, que ficam em issued_log), com
+// subtotais e total. Filtros: dia, local, serviços, "só salas com previsão" e incluir desativadas.
 import { TCE as T } from '@tce/core';
 import { DEFAULT_CFG, patternOf } from '@tce/core/fila';
 import { fixedQueues, mergeExtras } from './filas-extra.js';
 
 const D = T.D;
-export const PREVISAO = [{ id: 'com', label: 'Só salas com previsão lançada' }, { id: 'todas', label: 'Todas as salas (sem previsão = padrão)' }];
+export const PREVISAO = [{ id: 'com', label: 'Só salas com previsão de senhas' }, { id: 'todas', label: 'Todas as salas (sem previsão = padrão do app)' }];
 
 /** Parâmetros da URL → filtros normalizados. sp: objeto { local, dia, servicos, previsao, inativas } (strings). */
 export function parseParams(sp, today) {

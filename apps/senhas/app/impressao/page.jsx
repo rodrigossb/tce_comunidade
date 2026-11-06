@@ -33,7 +33,7 @@ export default async function Page({ searchParams }) {
   const venue = D.venues[f.venue] || { name: f.venue, short: f.venue };
   const days = T.eventDays(); if (!days.includes(f.day)) days.push(f.day); days.sort();
   const title = `Previsão de senhas · ${venue.short || venue.name} · ${T.fmtDate(f.day, 'wdlong')}`;
-  const sum = [f.svcs.length ? `serviços: ${f.svcs.map((id) => (D.services.find((s) => s.id === id) || { short: id }).short).join(', ')}` : 'todos os serviços', f.previsao === 'todas' ? 'todas as salas' : 'só com previsão lançada', f.inativas ? 'inclui desativadas' : ''].filter(Boolean).join(' · ');
+  const sum = [f.svcs.length ? `serviços: ${f.svcs.map((id) => (D.services.find((s) => s.id === id) || { short: id }).short).join(', ')}` : 'todos os serviços', f.previsao === 'todas' ? 'todas as salas' : 'só salas com previsão', f.inativas ? 'inclui desativadas' : ''].filter(Boolean).join(' · ');
   return (
     <main className="pr">
       <form method="get" className="pr-filters" id="filtros">
@@ -58,30 +58,30 @@ export default async function Page({ searchParams }) {
 
       <header className="pr-head">
         <div className="pr-brand"><img src={`${BP}/img/tce-mark.png`} alt="" width="36" height="36" /><div><small>TCE na Comunidade · 9ª edição · controle de senhas</small><h1>{title}</h1></div></div>
-        <p className="pr-lead">{venue.name}. Quantidades de senhas lançadas na triagem para o dia: comuns (N) e prioritárias (P) são séries separadas. Filtro: {sum}.</p>
+        <p className="pr-lead">{venue.name}. Senhas <b>previstas</b> por sala para o dia (campo "senhas por dia" da triagem): comuns (N) e prioritárias (P) são séries separadas. Não são senhas entregues nem chamadas. Filtro: {sum}.</p>
       </header>
 
       {error ? <p className="pr-empty">Não foi possível ler o banco: {error}</p> : null}
-      {r && !r.groups.length ? <p className="pr-empty">Nenhuma sala com previsão lançada para {T.fmtDate(f.day, 'wdlong')} em {venue.short || venue.name} com esses filtros. Troque para "Todas as salas" para ver a planta inteira com o padrão.</p> : null}
+      {r && !r.groups.length ? <p className="pr-empty">Nenhuma sala com previsão de senhas para {T.fmtDate(f.day, 'wdlong')} em {venue.short || venue.name} com esses filtros. Troque para "Todas as salas" para ver a planta inteira com o padrão.</p> : null}
 
       {r && r.groups.length ? (
         <>
           <div className="pr-totals">
-            <div><small>Salas</small><b>{r.total.count}</b></div>
-            <div className="n"><small>Comuns (N)</small><b>{r.total.n}</b></div>
-            <div className="p"><small>Prioritárias (P)</small><b>{r.total.p}</b></div>
-            <div><small>Total de senhas</small><b>{r.total.total}</b></div>
+            <div><small>Salas com previsão</small><b>{r.total.count}</b></div>
+            <div className="n"><small>Comuns previstas (N)</small><b>{r.total.n}</b></div>
+            <div className="p"><small>Prioritárias previstas (P)</small><b>{r.total.p}</b></div>
+            <div><small>Total previsto</small><b>{r.total.total}</b></div>
           </div>
           {r.groups.map((g) => (
             <section key={g.service.id} className="pr-sec" style={{ '--c': g.service.color }}>
               <h2><i />{g.service.title}<span>{g.sub.count} {g.sub.count === 1 ? 'sala' : 'salas'} · {g.sub.n} N · {g.sub.p} P</span></h2>
               <table>
-                <thead><tr><th>Sala</th><th>Atendimento</th><th>Ordem</th><th className="num">Comuns</th><th className="num">Priorit.</th><th className="num">Total</th></tr></thead>
+                <thead><tr><th>Sala</th><th>Atendimento</th><th>Ordem</th><th className="num">Previstas N</th><th className="num">Previstas P</th><th className="num">Total previsto</th></tr></thead>
                 <tbody>
                   {g.places.map((p) => (
                     <tr key={p.id} className={p.disabled ? 'off' : ''}>
                       <td><span className="pr-room"><small>{KIND[p.kind] || 'Ambiente'}</small><b>{p.num || '—'}</b></span></td>
-                      <td className="who"><b>{p.name}</b><small>{[p.extra ? 'criado na triagem' : 'sala da planta', p.disabled ? 'desativada' : '', p.zero ? 'lançado com zero' : '', p.default ? 'sem previsão · padrão' : '', p.mode === 'contagem' ? 'só contagem' : ''].filter(Boolean).join(' · ')}</small></td>
+                      <td className="who"><b>{p.name}</b><small>{[p.extra ? 'criado na triagem' : 'sala da planta', p.disabled ? 'desativada' : '', p.zero ? 'previsão zero' : '', p.default ? 'sem previsão · padrão do app' : '', p.mode === 'contagem' ? 'só contagem' : ''].filter(Boolean).join(' · ')}</small></td>
                       <td className="ord">{p.pattern}</td>
                       <td className="num n">{p.n}</td>
                       <td className="num p">{p.p}</td>
@@ -89,16 +89,16 @@ export default async function Page({ searchParams }) {
                     </tr>
                   ))}
                 </tbody>
-                <tfoot><tr><td colSpan={3}>Subtotal · {g.service.short}</td><td className="num n">{g.sub.n}</td><td className="num p">{g.sub.p}</td><td className="num t">{g.sub.total}</td></tr></tfoot>
+                <tfoot><tr><td colSpan={3}>Subtotal previsto · {g.service.short}</td><td className="num n">{g.sub.n}</td><td className="num p">{g.sub.p}</td><td className="num t">{g.sub.total}</td></tr></tfoot>
               </table>
             </section>
           ))}
           <table className="pr-total">
-            <tbody><tr><td>Total · {venue.name} · {T.fmtDate(f.day, 'wdlong')}</td><td className="num n">{r.total.n} N</td><td className="num p">{r.total.p} P</td><td className="num t">{r.total.total}</td></tr></tbody>
+            <tbody><tr><td>Total previsto · {venue.name} · {T.fmtDate(f.day, 'wdlong')}</td><td className="num n">{r.total.n} N</td><td className="num p">{r.total.p} P</td><td className="num t">{r.total.total}</td></tr></tbody>
           </table>
         </>
       ) : null}
-      <p className="pr-foot">Emitido em {T.fmtDate(T.now().date, 'wdlong')} às {T.now().time} por {ROLE_LABEL[role] || role} · fonte: banco do app de senhas (fila_cfg do dia). Link: {`${BP}/impressao?${paramsOf(f)}`}</p>
+      <p className="pr-foot">Emitido em {T.fmtDate(T.now().date, 'wdlong')} às {T.now().time} por {ROLE_LABEL[role] || role} · fonte: senhas por dia da triagem (fila_cfg do dia), não inclui entregues. Link: {`${BP}/impressao?${paramsOf(f)}`}</p>
     </main>
   );
 }
