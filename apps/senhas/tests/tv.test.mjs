@@ -61,6 +61,7 @@ test('quadro da TV: senha atual por sala, aguardando e últimas chamadas', async
   const r11 = b.places.find((p) => p.place_id === 'jn-r11');
   assert.equal(r11.current.ticket, 2); assert.equal(r11.current.status, 'called'); assert.equal(r11.waiting, 3); assert.equal(r11.issued, 5);
   assert.equal(b.recent[0].id, c3.id); assert.equal(b.recent[1].id, c2.id); assert.equal(b.recent.length, 3);
-  assert.equal(b.total.waiting, 3);
+  // jn-r17 chamou a 7 sem a triagem ter lançado nada: a porta passou a contar 7 entregues (6 aguardando) → 3 + 6
+  assert.equal(b.places.find((p) => p.place_id === 'jn-r17').issued, 7); assert.equal(b.total.waiting, 9);
   assert.throws(() => db.tvBoard('ontem', 'jn'), (e) => e.status === 400);
 });

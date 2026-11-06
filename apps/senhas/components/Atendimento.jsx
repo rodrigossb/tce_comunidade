@@ -565,22 +565,29 @@ export default function Atendimento() {
     const svcStat = data && data.stats.services.find((x) => x.service_id === s.id); const plStat = svcStat ? svcStat.places.find((p) => p.place_id === room.id) : null;
     const called = plStat ? plStat.called : calls.length;
     const go = (t) => (atDoor ? act.resolve(room, atDoor.id, 'served', t) : act.call(room, t.ticket, t.priority));
+    // Além do que a triagem lançou como entregue nessa série (ou a triagem não lançou nada): pode chamar, mas avisa bem claro
+    // e, se chamar, o servidor passa a contar a senha como entregue (falha de lançamento na triagem).
+    const beyond = (t) => { if (!plan || !t || t.ticket == null) return false; const sr = t.priority ? plan.prio : plan.normal; return t.ticket > (sr.from || 1) - 1 + (sr.issued || 0); };
+    const nxtBeyond = beyond(nxt); const nxtSeries = nxt.priority ? plan && plan.prio : plan && plan.normal;
     // Botões explícitos: a seguinte de cada série; quando acabou o que a triagem lançou, ainda deixa chamar (contagem atrasada), avisando.
     const alt = (pr) => { if (!plan) return null; const sr = pr ? plan.prio : plan.normal; const n = sr.next != null ? sr.next : sr.over; return n == null ? null : { ticket: n, priority: pr, why: sr.next != null ? '' : 'sem-registro' }; };
     const altN = alt(false); const altP = plan && plan.has_prio ? alt(true) : null;
     const nextBtn = (
-      <button className="door-next big" data-act={atDoor ? 'advance' : 'call'} disabled={busy || !q} onClick={() => go(nxt)}>
+      <>
+        {nxtBeyond ? <div className="door-warn" role="alert">{I('alert')}<span><b>{nxtSeries && nxtSeries.issued ? `Não há mais senhas ${nxt.priority ? 'prioritárias' : 'comuns'} entregues na triagem` : `A triagem não lançou nenhuma senha ${nxt.priority ? 'prioritária' : 'comum'} entregue para esta sala`}</b><small>{nxtSeries && nxtSeries.issued ? `A triagem lançou ${nxtSeries.issued} entregue${nxtSeries.issued === 1 ? '' : 's'}; a ${lbl(nxt.ticket, nxt.priority)} está além disso.` : ''} Confira com a triagem. Se a pessoa está com a senha na mão, pode chamar: ela passa a contar como entregue.</small></span></div> : null}
+      <button className={`door-next big ${nxtBeyond ? 'over' : ''}`} data-act={atDoor ? 'advance' : 'call'} disabled={busy || !q} onClick={() => go(nxt)}>
         <span className="dn-top">{I('megaphone')}{atDoor ? 'Chamar a próxima' : 'Chamar a senha'}</span>
         <span className="dn-num">{lbl(nxt.ticket, nxt.priority)}</span>
         {plan && plan.has_prio ? <span className={`dn-type ${nxt.priority ? 'p' : 'n'}`}>{nxt.priority ? I('star') : null}{nxt.priority ? 'Prioridade' : 'Comum'}</span> : null}
-        <small>{atDoor ? `a senha ${lbl(atDoor.ticket, atDoor.priority)} foi atendida` : 'a chamada já registra a entrada na sala'}{nxt.why ? ` · ${whyLabel(nxt.why)}` : ''}</small>
+        <small>{nxtBeyond ? 'ALÉM DO ENTREGUE NA TRIAGEM · ao chamar, conta como entregue' : `${atDoor ? `a senha ${lbl(atDoor.ticket, atDoor.priority)} foi atendida` : 'a chamada já registra a entrada na sala'}${nxt.why ? ` · ${whyLabel(nxt.why)}` : ''}`}</small>
       </button>
+      </>
     );
     // Exceções à ordem: chamar explicitamente a próxima comum ou a próxima prioritária (ex.: duas prioridades seguidas).
     const altRow = plan && plan.has_prio ? (
       <div className="door-alt">
-        <button className={`alt n ${!nxt.priority ? 'is-next' : ''} ${altN && altN.why ? 'over' : ''}`} data-act="call-n" disabled={busy || !altN} onClick={() => altN && go(altN)}><small>próxima comum</small><b>{altN ? lbl(altN.ticket, false) : '—'}</b><em>{plan.normal.left ? `faltam ${plan.normal.left}` : 'além do lançado'}</em></button>
-        <button className={`alt p ${nxt.priority ? 'is-next' : ''} ${altP && altP.why ? 'over' : ''}`} data-act="call-p" disabled={busy || !altP} onClick={() => altP && go(altP)}><small>{I('star')}próxima prioridade</small><b>{altP ? lbl(altP.ticket, true) : '—'}</b><em>{plan.prio.left ? `faltam ${plan.prio.left}` : 'além do lançado'}</em></button>
+        <button className={`alt n ${!nxt.priority ? 'is-next' : ''} ${beyond(altN) ? 'over' : ''}`} data-act="call-n" disabled={busy || !altN} onClick={() => altN && go(altN)}><small>próxima comum</small><b>{altN ? lbl(altN.ticket, false) : '—'}</b><em>{beyond(altN) ? (plan.normal.issued ? 'além do entregue' : 'triagem não lançou') : plan.normal.left ? `faltam ${plan.normal.left}` : 'além do lançado'}</em></button>
+        <button className={`alt p ${nxt.priority ? 'is-next' : ''} ${beyond(altP) ? 'over' : ''}`} data-act="call-p" disabled={busy || !altP} onClick={() => altP && go(altP)}><small>{I('star')}próxima prioridade</small><b>{altP ? lbl(altP.ticket, true) : '—'}</b><em>{beyond(altP) ? (plan.prio.issued ? 'além do entregue' : 'triagem não lançou') : plan.prio.left ? `faltam ${plan.prio.left}` : 'além do lançado'}</em></button>
       </div>
     ) : null;
     const adj = adjust && adjust.place_id === room.id ? (

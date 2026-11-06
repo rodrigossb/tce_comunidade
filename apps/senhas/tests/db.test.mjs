@@ -163,6 +163,24 @@ test('dias de atendimento desativados pela administração: entram em days_off d
   assert.throws(() => db.setDayEnabled({ day: 'ontem', venue: V, enabled: false }), /day/);
 });
 
+test('porta chama além do entregue na triagem: a senha passa a contar como entregue (issued_log sobe até ela, por série)', () => {
+  const D2 = '2026-11-03'; const P2 = 'jn-r05';
+  db.issued({ day: D2, venue: V, service_id: S, place_id: P2, kind: 'n', count: 2, device: 't' });
+  // dentro do lançado: nada muda
+  assert.equal(db.call({ day: D2, venue: V, service_id: S, place_id: P2, ticket: 2, priority: 0, status: 'served', device: 'd1' }).issued_fix, null);
+  assert.equal(db.queue(D2, V, S, P2).issued.n, 2);
+  // além: issued sobe para o número chamado, registrado pela porta
+  const r = db.call({ day: D2, venue: V, service_id: S, place_id: P2, ticket: 5, priority: 0, status: 'served', device: 'd1' });
+  assert.deepEqual(r.issued_fix, { kind: 'n', from: 2, to: 5 }); const q1 = db.queue(D2, V, S, P2); assert.equal(q1.issued.n, 5); assert.equal(q1.plan.normal.issued, 5);
+  // triagem não lançou nada na série P: chamar P1 conta 1 entregue prioritária; a série N não muda
+  const rp = db.call({ day: D2, venue: V, service_id: S, place_id: P2, ticket: 1, priority: 1, status: 'served', device: 'd1' });
+  assert.deepEqual(rp.issued_fix, { kind: 'p', from: 0, to: 1 }); const q2 = db.queue(D2, V, S, P2); assert.equal(q2.issued.p, 1); assert.equal(q2.issued.n, 5);
+  // estatísticas: entregues acompanham
+  const st = db.state(D2, V).stats.services.find((x) => x.service_id === S).places.find((x) => x.place_id === P2); assert.equal(st.issued, 6);
+  // advance (chamar a próxima) passa pelo mesmo caminho
+  const adv = db.advance({ day: D2, venue: V, service_id: S, place_id: P2, ticket: 6, priority: 0, device: 'd1', prev_id: rp.id, prev_status: 'served' }); assert.deepEqual(adv.issued_fix, { kind: 'n', from: 5, to: 6 });
+});
+
 test('ajustar número atual (fila_cursor): sequência recomeça do informado; chamadas anteriores ficam no histórico', async () => {
   const P2 = 'jn-r15';
   db.setQueueConfig({ day: DAY, venue: V, service_id: S, place_id: P2, n_total: 179, p_from: 180, p_total: 21, device: 't' });
@@ -175,7 +193,8 @@ test('ajustar número atual (fila_cursor): sequência recomeça do informado; ch
   assert.equal(qd.plan.normal.last, 2); assert.equal(qd.plan.normal.next, 3); assert.equal(qd.plan.prio.next, 180); assert.equal(qd.last_ticket, 2);
   assert.equal(qd.cursor.normal, 2); assert.equal(qd.calls.length, 6); // histórico intacto
   db.call({ day: DAY, venue: V, service_id: S, place_id: P2, ticket: 180, status: 'served', priority: 1, device: 't' }); await sleep(2);
-  qd = db.queue(DAY, V, S, P2); assert.deepEqual(qd.plan.next, { ticket: 3, priority: false, why: 'alternado' });
+  // P180 foi além do que a triagem lançou (nada): a porta passou a contar 1 prioritária entregue, então "só restam comuns" até a triagem lançar mais
+  qd = db.queue(DAY, V, S, P2); assert.deepEqual(qd.plan.next, { ticket: 3, priority: false, why: 'so-normais' }); assert.equal(qd.issued.p, 1);
   const tv = db.tvBoard(DAY, V); const pl = tv.places.find((x) => x.place_id === P2); assert.equal(pl.seq.normal.next, 3); assert.equal(pl.seq.prio.last, 180);
   // zerar pela porta
   db.setCursor({ day: DAY, venue: V, service_id: S, place_id: P2, normal: 0, prio: 0, device: 't' }); await sleep(2);

@@ -217,7 +217,15 @@ export function call(b) {
   const r = q.callInsert.run(day, venue, s, p, ticket, now, clean(b.device, 40), priority);
   const id = Number(r.lastInsertRowid);
   if (status) q.callStatus.run(status, now, id);
-  notify(day, venue); return { ok: true, id, called_at: now, status: status || 'called', priority };
+  // Chamou além do que a triagem lançou como entregue (ou a triagem não lançou nada): a senha existe, então foi falha de
+  // lançamento — a porta passa a contar como entregue (issued_log sobe até esse número na série).
+  let issued_fix = null;
+  if (ticket != null && ticket >= 1) {
+    const kind = priority ? 'p' : 'n'; const cfg = cfgOf(day, venue, s, p); const from = Number(cfg[`${kind}_from`]) || 1;
+    const cur = (issuedMap(day, venue)[p] || { n: 0, p: 0 })[kind] || 0; const want = ticket - from + 1;
+    if (want > cur && want <= 100000) { q.issuedInsert.run(day, venue, s, p, kind, want, `porta:${clean(b.device, 32) || ''}`, now); issued_fix = { kind, from: cur, to: want }; }
+  }
+  notify(day, venue); return { ok: true, id, called_at: now, status: status || 'called', priority, issued_fix };
 }
 export function setStatus(idRaw, status) {
   const id = Number(idRaw); const { q } = conn(); const c = q.callGet.get(id); if (!c) throw err(404, 'chamada não encontrada');
