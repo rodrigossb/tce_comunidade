@@ -18,7 +18,7 @@ import { TCEMap as M } from '@tce/core/map';
 import Icon from '@/components/Icon';
 import { selectQueues } from '@/lib/tv-grupos';
 import { extraQueues, placeOf } from '@/lib/filas-extra';
-import { pickVoice, voiceState, voiceLabel, announcementFor } from '@/lib/voz';
+import { pickVoice, voiceState, voiceLabel, announcementFor, placeClips } from '@/lib/voz';
 
 const D = T.D;
 const BP = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -55,6 +55,7 @@ function Board() {
   const sel = useMemo(() => selectQueues(sp, day), [sp, day]);
   const venue = sel.venue; const venueName = D.venues[venue] ? D.venues[venue].name : venue;
   const voice = sp.get('voz') === '1';
+  const [data, setData] = useState(null); // quadro público (declarado aqui porque a voz usa as salas editadas na triagem)
   // ---- voz: o Chrome (sobretudo em TV/Android) só deixa falar depois de um gesto do usuário na página ----
   const [voices, setVoices] = useState(null); // null = ainda não lidas
   const [unlocked, setUnlocked] = useState(false);
@@ -150,9 +151,9 @@ function Board() {
     try { player.current = new Audio(); player.current.preload = 'auto'; } catch { player.current = null; }
     announce(manifest ? ['x-som.mp3'] : null, 'Som ativado. As senhas serão anunciadas.');
     // Pré-carrega as frases das salas desta TV e os avisos, para o anúncio não esperar download/decodificação.
-    if (manifest && audio.current) { const pre = ['x-novamente.mp3', ...sel.queues.map((q) => `p-${q.place.id}.mp3`).filter((f) => manifest.places && manifest.places.includes(f.slice(2, -4)))]; pre.forEach((f) => loadBuf(f).catch(() => {})); }
+    if (manifest && audio.current) { const pre = ['x-novamente.mp3', ...sel.queues.flatMap((q) => { const pc = placeClips(placeOf(q.place.id, data && data.extras) || q.place, manifest); return pc ? pc.files : []; })]; pre.forEach((f) => loadBuf(f).catch(() => {})); }
     setTimeout(() => { const vs = supported ? window.speechSynthesis.getVoices() : []; showBanner(`Som ativado · ${voiceLabel(voiceState({ wanted: true, supported, voices: vs, unlocked: true, lastError: '', clips: !!manifest }), pickVoice(vs))}`); }, 2500);
-  }, [voice, supported, manifest, sel, ensureCtx, announce, loadBuf, showBanner]);
+  }, [voice, supported, manifest, sel, data, ensureCtx, announce, loadBuf, showBanner]);
   useEffect(() => {
     if (!voice) return;
     const load = () => setVoices(supported ? window.speechSynthesis.getVoices() : []);
@@ -172,7 +173,6 @@ function Board() {
   useEffect(() => { const m = () => setPortrait(window.innerHeight > window.innerWidth); m(); window.addEventListener('resize', m); return () => window.removeEventListener('resize', m); }, []);
 
   // ---- dados: polling leve do quadro público ----
-  const [data, setData] = useState(null);
   const [offline, setOffline] = useState(false);
   const lastOk = useRef(Date.now());
   const take = useCallback((j) => { lastOk.current = Date.now(); setOffline(false); setData((prev) => (prev && JSON.stringify(prev.places) === JSON.stringify(j.places) && JSON.stringify(prev.recent) === JSON.stringify(j.recent) && JSON.stringify(prev.extras || []) === JSON.stringify(j.extras || []) && JSON.stringify(prev.disabled || []) === JSON.stringify(j.disabled || []) ? Object.assign(prev, { now: j.now }) : j)); }, []);

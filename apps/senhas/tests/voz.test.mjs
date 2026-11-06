@@ -1,7 +1,7 @@
 // Voz da TV: escolha da voz pt-BR e diagnóstico do estado (bloqueada até o gesto, sem voz, pronta).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pickVoice, voiceState, voiceLabel, numeroExtenso, cleanSpoken, placePhrase, ticketPhrase, clipsFor, announcementFor, placeClipOk, CLIP_MAX } from '../lib/voz.js';
+import { pickVoice, voiceState, voiceLabel, numeroExtenso, cleanSpoken, placePhrase, ticketPhrase, clipsFor, announcementFor, placeClipOk, placeClips, nameKey, namePhrase, roomPhrase, ROOM_KINDS, CLIP_MAX } from '../lib/voz.js';
 
 const V = (name, lang, localService = true) => ({ name, lang, localService });
 
@@ -67,4 +67,27 @@ test('sala renomeada depois da gravação não toca o áudio antigo (fala a fras
   const y = announcementFor({ ticket: 999, place: r04 }, m); assert.equal(y.files, null); assert.equal(y.after, null); assert.equal(y.text, 'Senha novecentos e noventa e nove. Ginecologista, sala quatro.');
   assert.equal(clipsFor({ ticket: CLIP_MAX + 1, placeId: 'jn-r04' }, m), null);
   assert.equal(clipsFor({ ticket: 7, placeId: 'jn-r04' }, null), null);
+});
+
+test('sala renomeada/mudada de número com peças gravadas: monta nome (s-) + número (w-) em vez de falar por síntese', () => {
+  const m = { numbers: CLIP_MAX, places: ['jn-r09'], phrases: { 'p-jn-r09': 'Pediatria, sala nove.' }, names: { 's-consulta-medica': 'Consulta médica.', 's-detra': 'detrã.' }, rooms: ROOM_KINDS };
+  assert.equal(nameKey('Consulta médica'), 'consulta-medica'); assert.equal(nameKey('Superfácil + IDHAMP'), 'super-facil-e-idamp'); assert.equal(nameKey('DETRAN'), 'detra', 'siglas: a pronúncia vale em qualquer caixa');
+  assert.equal(namePhrase('Consulta médica'), 'Consulta médica.'); assert.equal(roomPhrase('sala', 8), 'Sala oito.'); assert.equal(roomPhrase('tenda', '2'), 'Tenda dois.');
+  // Consulta médica mudou da sala 9 para a 8: o p- antigo não serve; entra s-consulta-medica + w-sala-8 e não sobra nada para a síntese
+  const r = { id: 'jn-r09', kind: 'sala', num: '08', name: 'Consulta médica' };
+  assert.deepEqual(placeClips(r, m), { files: ['s-consulta-medica.mp3', 'w-sala-8.mp3'], missing: null });
+  const a = announcementFor({ ticket: 12, place: r }, m);
+  assert.deepEqual(a.files, ['n-12.mp3', 's-consulta-medica.mp3', 'w-sala-8.mp3']); assert.equal(a.after, null);
+  // p- ainda correto: continua preferido (frase inteira gravada de uma vez)
+  assert.deepEqual(placeClips({ id: 'jn-r09', kind: 'sala', num: '09', name: 'Pediatria' }, m), { files: ['p-jn-r09.mp3'], missing: null });
+  // nome criado na triagem sem áudio: toca o número da sala e deixa o nome para a síntese
+  const b = announcementFor({ ticket: 12, place: { id: 'jn-x1', kind: 'sala', num: '3', name: 'Nutrição' } }, m);
+  assert.deepEqual(b.files, ['n-12.mp3', 'w-sala-3.mp3']); assert.equal(b.after, 'Nutrição.');
+  // número acima dos gravados ou tipo sem peças: nada pronto para a sala → frase inteira por síntese
+  const c = announcementFor({ ticket: 12, place: { id: 'jn-x2', kind: 'sala', num: '41', name: 'Consulta médica' } }, m);
+  assert.deepEqual(c.files, ['n-12.mp3']); assert.equal(c.after, 'Consulta médica, sala quarenta e um.');
+  // sem número (área): só o nome
+  assert.deepEqual(placeClips({ id: 'jn-a1', kind: 'area', num: '', name: 'Consulta médica' }, m), { files: ['s-consulta-medica.mp3'], missing: null });
+  // manifest antigo (sem peças): comportamento anterior
+  assert.equal(placeClips(r, { numbers: CLIP_MAX, places: ['jn-r09'], phrases: { 'p-jn-r09': 'Pediatria, sala nove.' } }), null);
 });

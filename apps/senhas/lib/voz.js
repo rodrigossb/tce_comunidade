@@ -22,7 +22,7 @@ export function numeroExtenso(n) {
 const SPOKEN = { MPC: 'ême pê cê', CEE: 'cê ê ê', GEA: 'guéa', IDHAMP: 'idámp', CERPIS: 'cérpis', SEJUSP: 'sejúspi', Detran: 'detrã', Politec: 'politéc', Superfácil: 'super fácil', Castramóvel: 'castra móvel' };
 export function cleanSpoken(name) {
   let t = String(name || '').replace(/\s*\(([^)]*)\)/g, ', $1').replace(/\s*\+\s*/g, ' e ').replace(/\s*·\s*/g, ', ').replace(/\s+/g, ' ').trim();
-  for (const [k, v] of Object.entries(SPOKEN)) t = t.replace(new RegExp(`\\b${k}\\b`, 'g'), v);
+  for (const [k, v] of Object.entries(SPOKEN)) t = t.replace(new RegExp(`\\b${k}\\b`, 'gi'), v);
   return t;
 }
 /** Frase da sala: "Ginecologista, sala quatro." (nome do atendimento = o que a pessoa procura). */
@@ -32,15 +32,37 @@ export function placePhrase(p) {
   return `${cleanSpoken(p.name)}${where ? `, ${where}` : ''}.`;
 }
 export const ticketPhrase = (n) => `Senha ${numeroExtenso(n)}.`;
-/** Arquivos (relativos a /voz/) que compõem um anúncio; null se não há áudio pronto para essa senha/sala.
-    Com `place` (sala atual, já com edições da triagem), o áudio da sala só entra se a frase gravada (manifest.phrases)
-    for a mesma de hoje: sala renomeada (ex.: "Pediatria" → "Consulta médica") não pode tocar o áudio antigo. */
+/** Chave de arquivo do nome de um atendimento: "Consulta médica" → "consulta-medica" (áudio s-consulta-medica.mp3). */
+export function nameKey(name) { return cleanSpoken(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60); }
+/** Frase só do nome ("Consulta médica.") e só do número ("Sala oito."): peças para montar a sala atual quando o áudio
+    gravado da planta não serve (sala renomeada ou mudada de número na triagem, ou criada na triagem). */
+export const namePhrase = (name) => `${cleanSpoken(name)}.`;
+export const ROOM_KINDS = { sala: 40, tenda: 10, ambiente: 40 }; // w-<tipo>-N.mp3 gerados de 1 a N
+export const roomKind = (p) => (p.kind === 'sala' ? 'sala' : p.kind === 'tenda' ? 'tenda' : p.num ? 'ambiente' : '');
+export const roomPhrase = (kind, num) => `${kind.charAt(0).toUpperCase()}${kind.slice(1)} ${numeroExtenso(Number(num))}.`;
+/** Áudios prontos da sala atual: o gravado da planta (p-<id>) se ainda diz o que a tela mostra; senão, montado com o nome
+    (s-<chave>) e o número (w-<tipo>-N). → { files, missing } — missing: o que falta falar por síntese (nome sem áudio);
+    null quando não há nada pronto para essa sala (fala-se a frase inteira por síntese). */
+export function placeClips(place, manifest) {
+  if (!place || !manifest) return null;
+  if (place.id && placeClipOk(place.id, place, manifest)) return { files: [`p-${place.id}.mp3`], missing: null };
+  const files = []; let missing = null;
+  const kind = roomKind(place); const n = Number(place.num);
+  if (kind) { if (Number.isInteger(n) && n >= 1 && n <= ((manifest.rooms && manifest.rooms[kind]) || 0)) files.push(`w-${kind}-${n}.mp3`); else return null; }
+  const key = nameKey(place.name); const rec = manifest.names && manifest.names[`s-${key}`];
+  if (rec && rec === namePhrase(place.name)) files.unshift(`s-${key}.mp3`); else missing = namePhrase(place.name);
+  return files.length ? { files, missing } : null;
+}
+/** Arquivos (relativos a /voz/) que compõem um anúncio; null se não há áudio pronto para essa senha.
+    Com `place` (sala atual, já com edições da triagem), a sala entra pelo áudio gravado só se a frase for a mesma de hoje
+    (sala renomeada não pode tocar o áudio antigo); senão, montada com nome + número (placeClips). */
 export function clipsFor({ ticket, placeId, place, again, priority }, manifest) {
   if (!manifest || !(ticket >= 1 && ticket <= (manifest.numbers || 0))) return null;
   const out = []; if (again) out.push('x-novamente.mp3');
   if (priority && manifest.extras && manifest.extras.includes('x-prioridade')) out.push('x-prioridade.mp3');
   out.push(`n-${ticket}.mp3`);
-  if (placeId && placeClipOk(placeId, place, manifest)) out.push(`p-${placeId}.mp3`);
+  if (place) { const pc = placeClips(Object.assign({ id: placeId }, place), manifest); if (pc) out.push(...pc.files); }
+  else if (placeId && placeClipOk(placeId, null, manifest)) out.push(`p-${placeId}.mp3`);
   return out;
 }
 /** O áudio pronto da sala existe e (quando se sabe a sala atual) diz exatamente o que a tela mostra. */
@@ -50,13 +72,14 @@ export function placeClipOk(placeId, place, manifest) {
   const rec = manifest.phrases[`p-${placeId}`]; return !rec || rec === placePhrase(place);
 }
 /** Anúncio completo de uma chamada: { files, text, after } — files: áudios prontos (ou null: só síntese); text: frase inteira
-    para a síntese quando não há áudios; after: o que falta falar por síntese depois dos áudios (sala sem áudio ou renomeada). */
+    para a síntese quando não há áudios; after: o que falta falar por síntese depois dos áudios (sala/nome sem áudio pronto). */
 export function announcementFor({ ticket, place, again, priority }, manifest) {
   const pre = `${again ? 'Atenção, chamando novamente. ' : ''}${priority ? 'Senha prioritária. ' : ''}`;
   const where = place ? placePhrase(place) : '';
   const text = `${pre}${ticketPhrase(ticket)}${where ? ` ${where}` : ''}`;
   const files = clipsFor({ ticket, placeId: place && place.id, place, again, priority }, manifest);
-  const after = files && place && !files.some((f) => f.startsWith('p-')) ? where : null;
+  const pc = files && place ? placeClips(place, manifest) : null;
+  const after = files && place ? (pc ? pc.missing : where) : null;
   return { files, text, after };
 }
 
