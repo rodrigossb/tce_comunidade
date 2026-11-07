@@ -42,6 +42,9 @@
 .pr-actions{display:flex;gap:.6em;flex-wrap:wrap;align-items:center;padding-top:.7em;border-top:1px dashed var(--line)}
 .pr-sum{margin:0 auto 0 0;font-size:.95em;font-weight:700;color:var(--ink)}
 .pr-filters.js .pr-apply{display:none}
+.pr-range-on{display:flex;flex-wrap:wrap;gap:.5em 1em;align-items:center;margin:0;padding:.6em .8em;border-radius:10px;background:color-mix(in srgb,var(--accent) 22%,#fff);border:1.5px solid color-mix(in srgb,var(--accent) 70%,#000 10%);font-size:.9em;color:var(--ink)}
+.pr-range-on span{flex:1 1 20em}
+.pr-pdf-hint{margin-top:-.2em}
 .pr-head{display:grid;gap:.4em;margin:0 0 1em;padding-bottom:.8em;border-bottom:2px solid var(--ink)}
 .pr-brand{display:flex;gap:.7em;align-items:center}.pr-brand img{width:36px;height:36px;flex:none}.pr-brand small{display:block;font-size:.78em;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
 .pr-totals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.6em;margin:0 0 1.1em}
@@ -83,11 +86,11 @@
   .tk-screen{display:none!important}
   .tk-wrap{display:block}
   .tk-page{max-width:none;width:100%;break-after:page;page-break-after:always}
-  .tk-grid{grid-auto-rows:44mm}
+  .tk-grid{grid-auto-rows:42mm}
   .tk-page:last-child{break-after:auto;page-break-after:auto}
   .tk-grid{border-color:#999}.tk{border-color:#999}
   .tk-bar{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  @page{size:A4;margin:12mm}
+  @page{size:A4 portrait;margin:12mm}
   body{background:#fff;color:#000}
   .pr{max-width:none;padding:0;font-size:11pt;color:#000}
   .pr-filters,.pr-actions{display:none!important}

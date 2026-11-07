@@ -1,10 +1,11 @@
 'use client';
 // Formulário de filtros do módulo de impressão (GET: o estado fica na URL). Com JS: aplica sozinho a cada mudança (números com
 // pequena espera), esconde as salas das categorias não marcadas (e desmarca as escondidas), atalhos de faixa preenchem
-// "do nº/até o nº" e botões Limpar/Imprimir. Sem JS, o botão "Aplicar" envia o formulário normalmente.
+// "do nº/até o nº" e botões Limpar/PDF/Imprimir. Sem JS, o botão "Aplicar" envia o formulário normalmente. `pdfHref`: link do
+// PDF A4 gerado no servidor (vazio quando não há senhas ou no formato lista) — é o caminho recomendado para o papel.
 import { useEffect, useRef } from 'react';
 
-export default function PrintForm({ children, summary, clearHref }) {
+export default function PrintForm({ children, summary, clearHref, pdfHref }) {
   const ref = useRef(null);
   useEffect(() => {
     const form = ref.current; if (!form) return undefined;
@@ -31,10 +32,12 @@ export default function PrintForm({ children, summary, clearHref }) {
     const onKey = (e) => { if (e.key === 'Enter' && e.target && e.target.type === 'number') { e.preventDefault(); submit(); } };
     // URL limpa: campos vazios ou no valor padrão não vão na query (a página seguinte recria o formulário inteiro)
     const DEFAULTS = { serie: 'np', formato: 'senhas', previsao: 'com' };
-    const onSubmit = () => { for (const el of form.elements) { if (!el.name) continue; if (el.value === '' || DEFAULTS[el.name] === el.value) el.disabled = true; } };
+    const enableAll = () => { for (const el of form.elements) el.disabled = false; };
+    const onSubmit = () => { for (const el of form.elements) { if (!el.name) continue; if (el.value === '' || DEFAULTS[el.name] === el.value) el.disabled = true; } setTimeout(enableAll, 0); };
+    window.addEventListener('pageshow', enableAll); // voltar pelo histórico (bfcache) não pode deixar campos desabilitados
     form.addEventListener('change', onChange); form.addEventListener('click', onClick); form.addEventListener('keydown', onKey); form.addEventListener('submit', onSubmit);
     form.classList.add('js');
-    return () => { clearTimeout(timer); form.removeEventListener('change', onChange); form.removeEventListener('click', onClick); form.removeEventListener('keydown', onKey); form.removeEventListener('submit', onSubmit); };
+    return () => { clearTimeout(timer); form.removeEventListener('change', onChange); form.removeEventListener('click', onClick); form.removeEventListener('keydown', onKey); form.removeEventListener('submit', onSubmit); window.removeEventListener('pageshow', enableAll); };
   }, []);
   return (
     <form method="get" className="pr-filters" id="filtros" ref={ref}>
@@ -43,8 +46,10 @@ export default function PrintForm({ children, summary, clearHref }) {
         {summary ? <p className="pr-sum">{summary}</p> : null}
         <a className="btn btn-ghost sm" href={clearHref} data-act="limpar">Limpar filtros</a>
         <button type="submit" className="btn btn-ghost sm pr-apply" data-act="aplicar">Aplicar filtros</button>
-        <button type="button" className="btn btn-primary" data-act="imprimir" onClick={() => { try { window.print(); } catch { /* navegador sem impressão */ } }}>Imprimir</button>
+        <button type="button" className={`btn ${pdfHref ? 'btn-ghost sm' : 'btn-primary'}`} data-act="imprimir" onClick={() => { try { window.print(); } catch { /* navegador sem impressão */ } }}>{pdfHref ? 'Imprimir pela tela' : 'Imprimir'}</button>
+        {pdfHref ? <a className="btn btn-primary" href={pdfHref} target="_blank" rel="noopener" data-act="pdf">Baixar PDF (A4)</a> : null}
       </div>
+      {pdfHref ? <p className="pr-hint pr-pdf-hint">O PDF já vem em A4 com 24 senhas por folha e cada sala em folha nova. Ao imprimir, use tamanho real (100%), sem "ajustar à página".</p> : null}
     </form>
   );
 }

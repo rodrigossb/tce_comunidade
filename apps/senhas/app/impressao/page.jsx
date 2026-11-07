@@ -57,9 +57,11 @@ export default async function Page({ searchParams }) {
     ? (out.total ? `${out.total} senhas · ${nPages} ${nPages === 1 ? 'folha' : 'folhas'} A4 · ${out.rooms} ${out.rooms === 1 ? 'sala' : 'salas'}` : 'Nenhuma senha com esses filtros')
     : (r ? `${r.total.count} ${r.total.count === 1 ? 'sala' : 'salas'} · ${r.total.total} senhas previstas` : '');
   const roomsBySvc = r ? r.services.map((s) => ({ s, list: r.rooms.filter((x) => x.service_id === s.id) })).filter((x) => x.list.length) : [];
+  const pdfHref = `${BP}/impressao/pdf?${paramsOf(f)}`; const pdfOn = f.formato === 'senhas' && out.total > 0;
+  const allHref = `${BP}/impressao?${paramsOf(Object.assign({}, f, { serie: 'np', de: null, ate: null }))}`;
   return (
     <main className="pr">
-      <PrintForm summary={summary} clearHref={`${BP}/impressao?local=${f.venue}&dia=${f.day}${f.formato === 'lista' ? '&formato=lista' : ''}`}>
+      <PrintForm summary={summary} clearHref={`${BP}/impressao?local=${f.venue}&dia=${f.day}${f.formato === 'lista' ? '&formato=lista' : ''}`} pdfHref={pdfOn ? pdfHref : ''}>
         <fieldset className="pr-fs">
           <legend><span className="pr-n">1</span>Local, dia e formato</legend>
           <div className="pr-row">
@@ -104,6 +106,7 @@ export default async function Page({ searchParams }) {
         </fieldset>
         <fieldset className="pr-fs">
           <legend><span className="pr-n">4</span>Faixa de senhas <small>só nas senhas para recortar; em branco = todas</small></legend>
+          {rangeOn ? <p className="pr-range-on"><span><b>Faixa ativa: {rangeText(f)}.</b> As senhas de cada sala saem só nesse intervalo{f.de ? `, começando no nº ${f.de}` : ''}.</span> <a className="btn btn-ghost sm" href={allHref} data-act="todas">Voltar a todas as senhas</a></p> : null}
           <div className="pr-range">
             <div className="pr-seg" role="radiogroup" aria-label="Série">
               {SERIES.map((o) => <label key={o.id}><input type="radio" name="serie" value={o.id} id={`f-serie-${o.id}`} defaultChecked={f.serie === o.id} /><span>{o.label}</span></label>)}
@@ -112,8 +115,8 @@ export default async function Page({ searchParams }) {
               <label>do nº <input type="number" name="de" id="f-de" min="1" step="1" inputMode="numeric" placeholder="1" defaultValue={f.de || ''} /></label>
               <label>até o nº <input type="number" name="ate" id="f-ate" min="1" step="1" inputMode="numeric" placeholder="último" defaultValue={f.ate || ''} /></label>
               <span className="pr-presets" aria-label="Atalhos: uma folha">
-                {PRESETS.map((x) => <button key={x.folha} type="button" className={`btn btn-ghost sm ${f.de === x.de && f.ate === x.ate ? 'on' : ''}`} data-de={x.de} data-ate={x.ate} title={`Só a ${x.folha}ª folha de cada sala (${x.label})`}>{x.label}<small>{x.folha}ª folha</small></button>)}
-                <button type="button" className={`btn btn-ghost sm ${!f.de && !f.ate ? 'on' : ''}`} data-de="" data-ate="" title="Sem limite de números">Todas</button>
+                {PRESETS.map((x) => <button key={x.folha} type="button" className={`btn btn-ghost sm ${f.de === x.de && f.ate === x.ate ? 'on' : ''}`} data-de={x.de} data-ate={x.ate} title={`Só a ${x.folha}ª folha de cada sala (${x.label})`}>{x.label}<small>só a {x.folha}ª folha</small></button>)}
+                <button type="button" className={`btn btn-ghost sm ${!f.de && !f.ate ? 'on' : ''}`} data-de="" data-ate="" title="Sem limite de números">Todas<small>sem faixa</small></button>
               </span>
             </div>
             <p className="pr-hint">Os números valem dentro de cada série (comuns 01, 02… e prioritárias P01, P02…). Exemplo: para reimprimir só a segunda metade das comuns de uma sala, marque a sala no passo 3, "Só comuns" e do nº 51 até o 100.</p>
@@ -123,7 +126,7 @@ export default async function Page({ searchParams }) {
 
       {f.formato === 'senhas' && printable.length ? (
         <div className="tk-wrap">
-          <p className="pr-lead tk-screen">{out.total} senhas em {nPages} {nPages === 1 ? 'folha' : 'folhas'} A4 ({out.total - out.p} comuns e {out.p} prioritárias, {out.rooms} {out.rooms === 1 ? 'sala' : 'salas'}; cada sala começa em folha nova). Recorte pelas linhas tracejadas.{nCount ? ` ${nCount} ${nCount === 1 ? 'sala em só contagem não tem senhas' : 'salas em só contagem não têm senhas'} (a quantidade lançada na triagem já é o atendimento realizado).` : ''} Filtro: {sum}.</p>
+          <p className="pr-lead tk-screen">{out.total} senhas em {nPages} {nPages === 1 ? 'folha' : 'folhas'} A4 ({out.total - out.p} comuns e {out.p} prioritárias, {out.rooms} {out.rooms === 1 ? 'sala' : 'salas'}; cada sala começa em folha nova). Prévia da tela; para imprimir use <a href={pdfHref} target="_blank" rel="noopener">Baixar PDF (A4)</a> e imprima em tamanho real (100%, sem "ajustar à página"). Recorte pelas linhas tracejadas.{nCount ? ` ${nCount} ${nCount === 1 ? 'sala em só contagem não tem senhas' : 'salas em só contagem não têm senhas'} (a quantidade lançada na triagem já é o atendimento realizado).` : ''} Filtro: {sum}.</p>
           {printable.map(({ g, places }) => places.map((p) => pagesOf(p, undefined, range).map((pg, i, all) => (
             <div key={`${p.id}-${i}`} className="tk-page">
               <div className="tk-screen tk-cap"><b>{p.name}</b> · {KIND[p.kind] || 'Ambiente'} {p.num || '—'} · {g.service.title} · folha {i + 1} de {all.length} · {tk(p).length} senhas{rangeOn ? ` (${rangeText(f)})` : ''}</div>
