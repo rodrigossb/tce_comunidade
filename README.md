@@ -207,6 +207,10 @@ painel); `PIN_PORTA` = **porta da sala** (só chama senhas e ajusta o número at
 (`app/actions.js`: ler = todos; entregues = gestor/operador/triagem; porta = gestor/operador/porta; configurar = gestor/operador; dias = gestor).
 Perfil com uma função só entra direto nela. Ao entrar na triagem ou na porta, o aparelho **escolhe os serviços** que vai lançar
 (um ou vários, ou todos) e só vê as filas deles; o botão **Serviços** no alto da tela reabre a escolha (guardado no aparelho).
+Dentro de cada serviço dá para escolher **sala a sala** (chips embaixo do cartão, como na porta): tocar no serviço pega todas as
+salas; tocar numa sala marca só ela (o serviço fica "em parte"); num serviço inteiro, tocar numa sala tira só ela; "todas" volta
+ao serviço inteiro. Guardado como `st.svcs` (serviços) e `st.places` (salas dos serviços em parte): num serviço com alguma sala
+listada só essas aparecem; sem nenhuma listada aparecem todas, inclusive as criadas depois na triagem (`visibleQueues`).
 
 **Novo serviço / sala** (triagem, botão no fim da lista): cria uma fila extra para um atendimento que não estava na planta —
 nome, pilar, tipo (sala/tenda/outro) e número, já com o padrão de senhas (N/P possíveis, ordem) e as já entregues. Fica na

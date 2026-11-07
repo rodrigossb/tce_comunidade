@@ -442,3 +442,16 @@
 /* painel: totais por serviço e gerais */
 .svc-stat .svc-tot{margin:.2em 0 .6em;padding:.5em .6em;border-radius:10px;background:color-mix(in srgb,var(--c,var(--primary)) 10%,var(--card));border:1px solid color-mix(in srgb,var(--c,var(--primary)) 30%,var(--line))}
 .svc-stat.grand{--c:var(--primary);margin-top:1em}.svc-stat.grand .svc-tot{background:color-mix(in srgb,var(--primary) 14%,var(--card))}.svc-stat.grand .svc-tot b{font-size:1.25em}
+
+/* Seletor de serviços/salas do aparelho (triagem e porta): cartão do serviço + salas em chips; "em parte" = só algumas salas */
+.roles.pick{display:grid;gap:.6em}
+.pick-svc{display:grid;gap:.35em;padding:.45em;border-radius:calc(var(--radius) + 4px);border:1.5px solid transparent}
+.pick-svc.on{border-color:color-mix(in srgb,var(--c) 45%,var(--line));background:color-mix(in srgb,var(--c) 7%,var(--bg))}
+.pick-svc .role{width:100%}
+.pick-rooms{margin:0;padding:0 .25em}
+.pick-rooms .chip{display:inline-grid;grid-template-columns:auto auto;align-items:center;gap:.1em .4em;text-align:left;white-space:normal;line-height:1.15;padding:.4em .75em .45em .6em;border-radius:12px}
+.pick-rooms .chip .ico{grid-row:span 2;width:1.05em;height:1.05em}
+.pick-rooms .chip small{grid-column:2;font-size:.74em;font-weight:500;opacity:.85}
+.pick-rooms .chip.on.c{color:#1f1300}.pick-rooms .chip.on.c .ico{color:#1f1300}
+.pick-rooms .chip.clear{display:inline-flex}
+.pick-n{display:block;padding:0 .4em .2em;font-size:.78em;font-weight:700;color:var(--mut)}

@@ -52,7 +52,8 @@ export default function Atendimento() {
   const [adjust, setAdjust] = useState(null); // porta: formulário "ajustar número atual" { place_id, normal, prio } (null = fechado)
   const [adding, setAdding] = useState(false); // porta: escolhendo mais uma sala para a mesma tela
   const [picking, setPicking] = useState(false); // triagem/porta: escolhendo os serviços que este aparelho lança (botão "Serviços")
-  const [pickSel, setPickSel] = useState([]);
+  const [pickSel, setPickSel] = useState([]); // serviços marcados no seletor
+  const [pickPlaces, setPickPlaces] = useState([]); // salas marcadas dos serviços "em parte" (vazio = todas as salas do serviço)
   // painel: filtros (dia e local além dos do aparelho, turno, serviços, só com movimento, ordem). Só em memória.
   const PF0 = { day: null, venue: null, shift: 'all', svcs: [], only: false, sort: 'planta', open: false };
   const [pf, setPfRaw] = useState(PF0); const pfRef = useRef(pf); pfRef.current = pf;
@@ -90,7 +91,14 @@ export default function Atendimento() {
   // Perfil (lib/roles.js): o que este PIN pode fazer. Serviços deste aparelho (st.svcs): null = ainda não escolheu; [] = todos.
   const canDo = (cap) => can(st && st.role, cap);
   const allowedModes = () => ['triagem', 'porta', 'painel'].filter((m) => canDo(m === 'triagem' ? 'issue' : m === 'porta' ? 'door' : 'painel'));
-  const visibleQueues = () => { const sel = st && Array.isArray(st.svcs) && st.svcs.length ? new Set(st.svcs) : null; return sel ? queues().filter((g) => sel.has(g.service.id)) : queues(); };
+  // Serviços (st.svcs) e salas (st.places) deste aparelho: num serviço com alguma sala listada em st.places só essas salas
+  // aparecem; sem nenhuma listada, aparecem todas as do serviço (inclusive as criadas depois na triagem).
+  const visibleQueues = () => {
+    const sel = st && Array.isArray(st.svcs) && st.svcs.length ? new Set(st.svcs) : null; const pl = st && Array.isArray(st.places) && st.places.length ? new Set(st.places) : null;
+    const gs = sel ? queues().filter((g) => sel.has(g.service.id)) : queues();
+    if (!pl) return gs;
+    return gs.map((g) => (g.places.some((p) => pl.has(p.id)) ? { service: g.service, places: g.places.filter((p) => pl.has(p.id)) } : g));
+  };
   const queueById = (id) => { for (const g of queues()) for (const p of g.places) if (p.id === id) return Object.assign({ svc: g.service }, p); return null; };
 
   // ---------- servidor (server actions) + fila offline ----------
@@ -289,7 +297,7 @@ export default function Atendimento() {
     localClear: () => setSt({ local: null, mode: null, rooms: [] }),
     mode: (mode) => { setAdding(false); setPicking(false); setSt({ mode }); },
     // Serviços que este aparelho lança (triagem e porta): [] = todos. Guardado no aparelho; o botão "Serviços" reabre a escolha.
-    svcs: (ids) => { setSt({ svcs: ids }); setPicking(false); },
+    svcs: (ids, places) => { setSt({ svcs: ids, places: Array.isArray(places) ? places : [] }); setPicking(false); },
     placeClear: () => { setAdding(false); setSt({ rooms: [] }); setQmap({}); },
     // Porta: abre a sala (ou acrescenta mais uma à mesma tela, quando veio de "adicionar sala").
     place: (id, s) => { setSt((prev) => ({ rooms: (adding ? (prev.rooms || []).filter((r) => r.id !== id) : []).concat([{ id, service_id: s }]) })); setAdding(false); },
@@ -307,7 +315,7 @@ export default function Atendimento() {
   };
 
   // ---------- telas ----------
-  const svcBtn = () => <button type="button" className="btn btn-ghost sm" data-act="svcs" title="Escolher os serviços deste aparelho" onClick={() => { setPickSel(Array.isArray(st.svcs) ? st.svcs : []); setPicking(true); }}>{I('sliders')}Serviços{st && Array.isArray(st.svcs) && st.svcs.length ? ` (${st.svcs.length})` : ''}</button>;
+  const svcBtn = () => { const nS = st && Array.isArray(st.svcs) ? st.svcs.length : 0; const nP = st && Array.isArray(st.places) ? st.places.length : 0; return <button type="button" className="btn btn-ghost sm" data-act="svcs" title="Escolher os serviços e as salas deste aparelho" onClick={() => { setPickSel(Array.isArray(st.svcs) ? st.svcs : []); setPickPlaces(Array.isArray(st.places) ? st.places : []); setPicking(true); }}>{I('sliders')}Serviços{nS ? ` (${nS}${nP ? ` · ${nP} ${nP === 1 ? 'sala' : 'salas'}` : ''})` : ''}</button>; };
   const top = (title, sub, back, extra) => (
     <div className="at-top">
       {back ? <button className="btn btn-ghost" onClick={back}>{I('back')}Voltar</button> : null}
@@ -366,19 +374,42 @@ export default function Atendimento() {
   }
   // Triagem/porta: quais serviços este aparelho lança (filtra as filas mostradas; [] = todos). Reaberta pelo botão "Serviços".
   function viewSvcPick() {
-    const c = ctxOf(st); const groups = queues(); const sel = new Set(pickSel);
-    const tog = (id) => setPickSel((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : cur.concat([id])));
+    const c = ctxOf(st); const groups = queues(); const sel = new Set(pickSel); const pl = new Set(pickPlaces);
+    const partOf = (g) => g.places.filter((p) => pl.has(p.id)).map((p) => p.id); // salas "em parte" deste serviço
+    const roomOn = (g, p) => sel.has(g.service.id) && (!partOf(g).length || pl.has(p.id));
+    const dropPlaces = (ids) => setPickPlaces((cur) => cur.filter((x) => !ids.includes(x)));
+    // Serviço inteiro: marca (todas as salas) ou desmarca; some qualquer escolha parcial dele.
+    const togSvc = (g) => { const id = g.service.id; dropPlaces(g.places.map((p) => p.id)); setPickSel((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : cur.concat([id]))); };
+    // Sala a sala: num serviço não marcado, marca o serviço só com essa sala; num serviço inteiro, tira essa sala (ficam as
+    // outras); num serviço em parte, liga/desliga a sala — sem nenhuma, o serviço sai; com todas, volta a ser inteiro.
+    const togRoom = (g, p) => {
+      const id = g.service.id; const all = g.places.map((x) => x.id); const part = partOf(g);
+      if (!sel.has(id)) { setPickSel((cur) => cur.concat([id])); setPickPlaces((cur) => cur.filter((x) => !all.includes(x)).concat([p.id])); return; }
+      const cur = part.length ? part : all; const next = cur.includes(p.id) ? cur.filter((x) => x !== p.id) : cur.concat([p.id]);
+      if (!next.length) { setPickSel((s2) => s2.filter((x) => x !== id)); dropPlaces(all); return; }
+      setPickPlaces((s2) => s2.filter((x) => !all.includes(x)).concat(next.length === all.length ? [] : next));
+    };
+    const nRooms = groups.reduce((a, g) => a + (sel.has(g.service.id) ? (partOf(g).length || g.places.length) : 0), 0);
     return (
       <>
         {top(st.mode === 'porta' ? 'Porta da sala · serviços' : 'Triagem · serviços', `${c.place} · ${T.fmtDate(c.day, 'wdlong')}`, st.svcs == null ? goHome : () => setPicking(false))}
         <h2 style={{ margin: '.8em 0 .2em' }}>Quais serviços você vai lançar?</h2>
-        <p className="page-lead">Marque um ou mais serviços: só as filas deles aparecem neste aparelho. Dá para mudar depois no botão <b>Serviços</b>, no alto da tela.</p>
-        <div className="roles compact">
-          {groups.map((g) => <button key={g.service.id} type="button" className={`role ${sel.has(g.service.id) ? 'is-open' : ''}`} style={{ '--c': g.service.color }} data-act="svc-pick" data-id={g.service.id} aria-pressed={sel.has(g.service.id)} onClick={() => tog(g.service.id)}><i>{I(sel.has(g.service.id) ? 'check' : g.service.icon)}</i><span><b>{g.service.title}</b><small>{g.places.length} {g.places.length === 1 ? 'sala' : 'salas'} · {g.places.map((p) => p.name).slice(0, 3).join(', ')}{g.places.length > 3 ? '…' : ''}</small></span></button>)}
+        <p className="page-lead">Toque no serviço para pegar <b>todas as salas</b> dele, ou toque nas salas para escolher <b>só algumas</b>. Só o que estiver marcado aparece neste aparelho. Dá para mudar depois no botão <b>Serviços</b>, no alto da tela.</p>
+        <div className="roles compact pick">
+          {groups.map((g) => { const on = sel.has(g.service.id); const part = partOf(g); const n = part.length || g.places.length; return (
+            <div key={g.service.id} className={`pick-svc ${on ? 'on' : ''} ${on && part.length ? 'part' : ''}`} style={{ '--c': g.service.color }}>
+              <button type="button" className={`role ${on ? 'is-open' : ''}`} data-act="svc-pick" data-id={g.service.id} aria-pressed={on} onClick={() => togSvc(g)}><i>{I(on ? 'check' : g.service.icon)}</i><span><b>{g.service.title}</b><small>{on ? (part.length ? `${part.length} de ${g.places.length} ${g.places.length === 1 ? 'sala' : 'salas'} · em parte` : `todas as ${g.places.length} ${g.places.length === 1 ? 'sala' : 'salas'}`) : `${g.places.length} ${g.places.length === 1 ? 'sala' : 'salas'} · toque para pegar todas`}</small></span>{I(on ? 'check' : 'right')}</button>
+              <div className="chips pick-rooms" aria-label={`Salas de ${g.service.title}`}>
+                {g.places.map((p) => <button key={p.id} type="button" className={`chip ${roomOn(g, p) ? 'on c' : ''}`} data-act="room-pick" data-id={p.id} aria-pressed={roomOn(g, p)} onClick={() => togRoom(g, p)}>{I(roomOn(g, p) ? 'check' : p.kind === 'tenda' ? 'tent' : 'door')}{p.name}<small>{placeLabel(p)}</small></button>)}
+                {on && part.length ? <button type="button" className="chip clear" data-act="room-all" data-id={g.service.id} onClick={() => { dropPlaces(g.places.map((p) => p.id)); }}>{I('list')}todas</button> : null}
+              </div>
+              {on ? <small className="pick-n">{n} {n === 1 ? 'sala' : 'salas'} neste aparelho</small> : null}
+            </div>
+          ); })}
         </div>
         <div className="actions" style={{ display: 'flex', gap: '.6em', flexWrap: 'wrap', margin: '1em 0' }}>
-          <button type="button" className="btn btn-ghost" data-act="svc-all" onClick={() => act.svcs([])}>{I('list')}Todos os serviços</button>
-          <button type="button" className="btn btn-primary" data-act="svc-ok" disabled={!sel.size} onClick={() => act.svcs([...sel])}>{I('check')}Continuar{sel.size ? ` (${sel.size})` : ''}</button>
+          <button type="button" className="btn btn-ghost" data-act="svc-all" onClick={() => act.svcs([], [])}>{I('list')}Todos os serviços e salas</button>
+          <button type="button" className="btn btn-primary" data-act="svc-ok" disabled={!sel.size} onClick={() => act.svcs([...sel], pickPlaces.filter((id) => groups.some((g) => sel.has(g.service.id) && g.places.some((p) => p.id === id))))}>{I('check')}Continuar{sel.size ? ` (${sel.size} ${sel.size === 1 ? 'serviço' : 'serviços'} · ${nRooms} ${nRooms === 1 ? 'sala' : 'salas'})` : ''}</button>
         </div>
         {!groups.length ? <p className="tiny muted">Nenhuma fila ativa hoje neste local. {canDo('manage') ? 'Crie o serviço/sala na triagem.' : 'Peça à administração para criar o serviço/sala.'}</p> : null}
       </>
