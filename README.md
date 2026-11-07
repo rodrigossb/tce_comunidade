@@ -294,6 +294,13 @@ curso 152 virou "Tecnologia a Serviço do Controle Social e Ouvidoria" (link nov
 (122) passou a 8h; público de "Painéis da Gestão Pública" (141) agora é "Servidores públicos, gestores
 e técnicos".
 
+Sábado 07/11 (Joaquim Nabuco): só ação social, sem cursos — as aulas de 07/11 (125 e Turma II do 154) saíram da
+programação em 07/11. As salas e atendimentos do dia no site vêm de `apps/site/public/atendimento.json`, montado à mão em
+07/11 a partir da "Previsão de senhas" impressa no servidor local do TCE às 06:32 (PDF no Drive do evento), porque o banco
+real da triagem está no servidor local, sem acesso daqui. Nos dias oficiais, sala de curso (laboratórios, `salas-cursos.js`)
+só entra pela programação da planta se tiver aula no dia ou um serviço com item apontado para ela (Espaço da Beleza na 20);
+e um pino já ocupado por uma fila da triagem não recebe a sala da planta por cima (`plantQueues` em `atendimento.js`).
+
 Serviços (sem inscrição): transcritos de `SERVICOS ATUALIZADOS.docx` (30/10/2026) e complementados com
 detalhes públicos da `RELAÇÃO DE PARCEIROS DA IX EDIÇÃO` (pasta
 https://drive.google.com/drive/folders/1_OG6UGKJTZA1rI5u7s1mixMoyNy4t1N1). Dias de serviços em

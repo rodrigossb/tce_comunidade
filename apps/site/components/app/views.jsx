@@ -153,7 +153,9 @@ function PlaceOfferings({ placeId, venue, day, liveDay }) {
   const qs = liveDay ? A.placeQueues(live, placeId, venue, day) : [];
   const otherDays = liveDay ? A.placeDays(live, placeId, venue).filter((d) => d !== day) : [];
   if (!liveDay && !o.services.length && !o.sessions.length) return <p className="muted tiny" style={{ margin: '.2em 0 .6em' }}>Sem atendimentos cadastrados neste ambiente.</p>;
-  const byDay = {}; o.sessions.forEach((x) => { (byDay[x.date] = byDay[x.date] || []).push(x); });
+  // Com um dia escolhido, só as aulas desse dia; as dos outros dias viram uma linha ("também qui 05, sex 06").
+  const sessions = day ? o.sessions.filter((x) => x.date === day) : o.sessions; const otherClassDays = day ? [...new Set(o.sessions.filter((x) => x.date !== day).map((x) => x.date))].sort() : [];
+  const byDay = {}; sessions.forEach((x) => { (byDay[x.date] = byDay[x.date] || []).push(x); });
   const dayLabel = (d) => (d === clock.date ? 'hoje' : T.fmtDate(d, 'wd'));
   return (
     <>
@@ -178,9 +180,9 @@ function PlaceOfferings({ placeId, venue, day, liveDay }) {
           ))}
         </>
       )}
-      {o.sessions.length ? (
+      {sessions.length ? (
         <div className="offer courses" style={{ '--c': '#34d399' }}>
-          <div className="offer-head"><span className="sec-ico c">{I('graduation')}</span><span><b>Cursos nesta sala</b><small>{o.sessions.length} aula{o.sessions.length === 1 ? '' : 's'} · com inscrição · toque para ver o curso</small></span></div>
+          <div className="offer-head"><span className="sec-ico c">{I('graduation')}</span><span><b>Cursos nesta sala</b><small>{sessions.length} aula{sessions.length === 1 ? '' : 's'}{day ? ` ${dayLabel(day)}` : ''} · com inscrição · toque para ver o curso</small></span></div>
           {Object.keys(byDay).map((d) => <div key={d} className="day-group"><small className={d === clock.date ? 'today' : ''}>{T.fmtDate(d)}{d === clock.date ? ' · hoje' : ''}</small><div className="stack">{byDay[d].map((x, k) => { const sx = st(x); const c = shiftColor(x.shift); return (
             <button key={k} className={`sess ${sx}`} style={{ '--c': c }} onClick={() => openSheet('curso', x.course.id)} aria-label={T.title(x.course)}>
               <span className="sess-time"><b>{T.fmtTime(x.time)}</b><small>até {T.fmtTime(T.sessionEnd(x))}</small></span>
@@ -189,6 +191,7 @@ function PlaceOfferings({ placeId, venue, day, liveDay }) {
             </button>); })}</div></div>)}
         </div>
       ) : null}
+      {!sessions.length && otherClassDays.length ? <p className="muted tiny" style={{ margin: '.2em 0 .6em' }}>{I('graduation')} Cursos nesta sala em outros dias: {otherClassDays.map((d) => dayLabel(d)).join(', ')}.</p> : null}
     </>
   );
 }

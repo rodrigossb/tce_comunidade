@@ -7,6 +7,9 @@
               queues: [{ service_id, place_id, name, kind, num, extra, items: [{ t, shifts: null | ['manha', 'tarde'] }] }] }] } */
 import { TCE_DATA as D } from './data.js';
 import { TCE as T } from './shared.js';
+import { TCE_COURSE_ROOMS } from './salas-cursos.js';
+/** Ids dos ambientes da planta usados como sala de curso num local (DE → PARA de salas-cursos.js). */
+const courseRoomIds = (venue) => Object.values((TCE_COURSE_ROOMS && TCE_COURSE_ROOMS[venue]) || {});
 
 const SHIFT_ORDER = ['manha', 'tarde', 'noite'];
 const SHIFT_AT = { manha: 'de manhã', tarde: 'à tarde', noite: 'à noite' };
@@ -58,21 +61,35 @@ const serviceOf = (id) => D.services.find((s) => s.id === id) || { id, short: 'O
     Com retrato da triagem para o dia: as filas dela (e, se for dia de serviços da programação, os ambientes da planta que não
     distribuem senha — acolhida, áreas, cursos — com a oferta da programação). Sem retrato: num dia de serviços da programação,
     toda a planta; nos demais dias, nada. */
+/** Ambientes da planta que entram pela programação num dia oficial: fora os que já têm fila da triagem (`used`: id ou pino),
+    fora as filas com senha quando há retrato da triagem (`skipTicket`) e fora as salas de curso (laboratórios etc.) sem aula
+    nesse dia — num dia só de ação social elas não aparecem. */
+function plantQueues(venue, date, used, skipTicket) {
+  const ticket = skipTicket ? new Set(T.ticketQueuesOf(venue).flatMap((g) => g.places.map((p) => p.id))) : new Set();
+  const courseRooms = new Set(courseRoomIds(venue));
+  const withClass = new Set(T.allSessions().filter((x) => x.date === date && x.venue === venue).map((x) => { const pl = T.courseRoomPlace(x); return pl ? pl.id : null; }).filter(Boolean));
+  const out = [];
+  for (const g of T.queuesOf(venue)) for (const p of g.places) {
+    if (ticket.has(p.id) || used.has(p.id)) continue;
+    // sala de curso sem aula no dia: só fica se um serviço aponta um item para ela (ex.: Espaço da Beleza na sala 20);
+    // a que entra apenas pela lista genérica de "cursos e oficinas" (laboratórios) sai
+    if (courseRooms.has(p.id) && !withClass.has(p.id) && !T.itemsOn(g.service, date).some((it) => T.itemWhere(it, venue).includes(p.id))) continue;
+    out.push(fromPlant(g.service, p, venue, date));
+  }
+  return out;
+}
 export function dayQueues(data, venue, date) {
   const sd = T.serviceDayOf(date); const official = !!(sd && sd.venue === venue);
   const live = liveDay(data, venue, date);
-  if (!live) return official ? T.queuesOf(venue).flatMap((g) => g.places.map((p) => fromPlant(g.service, p, venue, date))) : [];
+  if (!live) return official ? plantQueues(venue, date, new Set(), false) : [];
   const out = [];
   for (const q of Array.isArray(live.queues) ? live.queues : []) {
     if (!q || !q.place_id) continue;
     const service = serviceOf(q.service_id);
     out.push({ service, place: { id: q.place_id, kind: q.kind || 'sala', num: q.num == null ? '' : String(q.num), name: q.name || '', extra: !!q.extra, mapId: mapPlaceIdOf(venue, q) }, items: (Array.isArray(q.items) ? q.items : []).map(toItem), plant: false });
   }
-  if (official) {
-    const ticket = new Set(T.ticketQueuesOf(venue).flatMap((g) => g.places.map((p) => p.id)));
-    const used = new Set(out.map((q) => q.place.id));
-    for (const g of T.queuesOf(venue)) for (const p of g.places) if (!ticket.has(p.id) && !used.has(p.id)) out.push(fromPlant(g.service, p, venue, date));
-  }
+  // pino já ocupado por uma fila da triagem (pelo id ou porque a fila foi movida para lá): a triagem manda, a planta não repete
+  if (official) out.push(...plantQueues(venue, date, new Set(out.flatMap((q) => [q.place.id, q.place.mapId].filter(Boolean))), true));
   // Duas filas iguais no mesmo pino (mesmo serviço, nome e sala — ex.: salas 21 e 22 viradas "Castramóvel · 22") viram uma só para o público.
   const seen = new Set();
   return out.filter((q) => { const k = `${q.service.id}|${q.place.mapId || q.place.id}|${q.place.name.toLowerCase()}|${numKey(q.place.num)}`; if (seen.has(k)) return false; seen.add(k); return true; });

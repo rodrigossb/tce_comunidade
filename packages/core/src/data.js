@@ -97,7 +97,8 @@ const courses = [
   { id: 125, title: 'Tecnologia e Direito das Mulheres', hours: 4,
     audience: 'Servidoras públicas, empreendedoras, autônomas, mães', seats: 20,
     link: ESCON + '125/oiapoque-tecnologia-e-direito-das-mulheres', tags: ['tecnologia', 'mulheres'],
-    sessions: [s('03', '14:00', 'manga', 'Laboratório I'), s('05', '14:00', 'jn', 'Laboratório I'), s('07', '08:00', 'jn', 'Laboratório I')] },
+    // 07/11 8h (Laboratório I) saiu: no sábado a organização definiu só ação social, sem cursos (07/11).
+    sessions: [s('03', '14:00', 'manga', 'Laboratório I'), s('05', '14:00', 'jn', 'Laboratório I')] },
   { id: 128, title: 'Preservação dos Rios', hours: 4,
     audience: 'Alunos do ensino médio e educadores', seats: 20,
     link: ESCON + '128/manga-preservacao-dos-rios', tags: ['meio-ambiente', 'educacao'],
@@ -143,7 +144,7 @@ const courses = [
     link: ESCON + '154/cidadania-conectada-capacitacao-tecnologica-e-insercao-profissional', tags: ['tecnologia', 'educacao'],
     sessions: [
       s('05', '18:00', 'jn', 'Laboratório II', { label: 'Turma I' }),
-      s('07', '08:00', 'jn', 'Laboratório II', { label: 'Turma II', link: ESCON + '158/oiapoque-cidadania-conectada-capacitacao-tecnologica-e-insercao-profissional-ii' }),
+      // Turma II (158, 07/11 8h, Laboratório II) saiu: no sábado a organização definiu só ação social, sem cursos (07/11).
     ] },
   { id: 120, title: 'Procedimentos de exportação de produtos e subprodutos madeireiros de espécies nativas oriundos de florestas naturais ou plantadas', short: 'Exportação de Produtos Madeireiros', hours: 4,
     audience: 'Moradores do município de Oiapoque/AP e região, especialmente produtores e manejadores florestais, detentores de autorizações, comerciantes, transportadores, profissionais e trabalhadores vinculados ao setor madeireiro', seats: 20,

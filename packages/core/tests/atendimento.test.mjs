@@ -85,3 +85,16 @@ test('turnos e títulos', () => {
   const q = A.dayQueues(DATA, 'jn', '2026-11-06')[0];
   assert.deepEqual(A.itemsAt(q, 'tarde').map((x) => x.t), ['Ginecologia']); assert.deepEqual(A.itemsAt(q, null).map((x) => x.t), ['Ginecologia', 'Urologia']);
 });
+
+test('dayQueues: no dia oficial, sala de curso sem aula fica fora e pino já ocupado pela triagem não repete a planta', () => {
+  // 07/11 na Joaquim Nabuco: sem cursos no sábado (sessões retiradas em 07/11) → laboratórios 01 e 02 não entram pela programação
+  const plant = A.dayQueues(null, 'jn', '2026-11-07');
+  assert.ok(!plant.some((q) => q.place.id === 'jn-r01' || q.place.id === 'jn-r02'), 'laboratórios sem aula ficam fora');
+  assert.ok(plant.some((q) => q.place.id === 'jn-t3'), 'outros ambientes da programação continuam');
+  assert.ok(plant.some((q) => q.place.id === 'jn-r20'), 'sala de curso com serviço próprio (Espaço da Beleza, sala 20) continua');
+  // fila da triagem movida para a sala 02 (IDHAMP) ocupa o pino: a planta não acrescenta "Laboratório" nem o duplica
+  const data = { updatedAt: 1, days: [{ date: '2026-11-07', venue: 'jn', source: 'triagem', queues: [{ service_id: 'pilar-1', place_id: 'jn-x6', name: 'IDHAMP (TEA)', kind: 'sala', num: '02', extra: true, items: [] }, { service_id: 'pilar-2', place_id: 'jn-r19', name: 'Superfácil', kind: 'sala', num: '17', extra: false, items: [] }] }] };
+  const qs = A.dayQueues(data, 'jn', '2026-11-07'); const at02 = qs.filter((q) => (q.place.mapId || q.place.id) === 'jn-r02');
+  assert.deepEqual(at02.map((q) => q.place.name), ['IDHAMP (TEA)']);
+  assert.ok(!qs.some((q) => q.place.id === 'jn-r17' && q.plant), 'pino 17 ocupado pelo Superfácil movido: a planta (Politec) não entra por cima');
+});

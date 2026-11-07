@@ -1,5 +1,5 @@
 {
- "updatedAt": 1793936759428,
+ "updatedAt": 1794048491554,
  "days": [
   {
    "date": "2026-11-04",
@@ -1487,86 +1487,12 @@
    "queues": [
     {
      "service_id": "pilar-1",
-     "place_id": "jn-r03",
-     "name": "Laboratório (exames)",
-     "kind": "sala",
-     "num": "03",
-     "extra": false,
-     "items": [
-      {
-       "t": "Farmácia (distribuição de remédios), exames laboratoriais e testes rápidos",
-       "shifts": null
-      }
-     ]
-    },
-    {
-     "service_id": "pilar-1",
-     "place_id": "jn-r04",
-     "name": "Ginecologista",
-     "kind": "sala",
-     "num": "04",
-     "extra": false,
-     "items": [
-      {
-       "t": "Consultas presenciais com clínico geral, pediatra, ortopedista e ginecologista",
-       "shifts": null
-      }
-     ]
-    },
-    {
-     "service_id": "pilar-1",
-     "place_id": "jn-r05",
-     "name": "Ultrassom",
-     "kind": "sala",
-     "num": "05",
-     "extra": false,
-     "items": [
-      {
-       "t": "Farmácia (distribuição de remédios), exames laboratoriais e testes rápidos",
-       "shifts": null
-      }
-     ]
-    },
-    {
-     "service_id": "pilar-1",
-     "place_id": "jn-r08",
-     "name": "Ortopedia",
-     "kind": "sala",
-     "num": "08",
-     "extra": false,
-     "items": [
-      {
-       "t": "Consultas presenciais com clínico geral, pediatra, ortopedista e ginecologista",
-       "shifts": null
-      }
-     ]
-    },
-    {
-     "service_id": "pilar-1",
-     "place_id": "jn-r10",
-     "name": "Oftalmologista",
-     "kind": "sala",
-     "num": "10",
-     "extra": false,
-     "items": [
-      {
-       "t": "Psicólogo, fisioterapeuta e oftalmologista (equipe da SESA)",
-       "shifts": null
-      }
-     ]
-    },
-    {
-     "service_id": "pilar-1",
      "place_id": "jn-r11",
-     "name": "Vacina e farmácia",
+     "name": "Vacina",
      "kind": "sala",
-     "num": "11",
+     "num": "09",
      "extra": false,
      "items": [
-      {
-       "t": "Farmácia (distribuição de remédios), exames laboratoriais e testes rápidos",
-       "shifts": null
-      },
       {
        "t": "Vacinação para crianças, jovens, adultos e idosos",
        "shifts": null
@@ -1575,50 +1501,22 @@
     },
     {
      "service_id": "pilar-1",
-     "place_id": "jn-r12",
-     "name": "Odontologia + Sorriso",
-     "kind": "sala",
-     "num": "12",
-     "extra": false,
-     "items": [
-      {
-       "t": "Dentista: consultas, limpeza, restaurações, extrações simples, orientações de higiene bucal e kits para adultos e crianças",
-       "shifts": null
-      }
-     ]
-    },
-    {
-     "service_id": "pilar-1",
-     "place_id": "jn-r24",
-     "name": "CERPIS (práticas integrativas)",
-     "kind": "sala",
-     "num": "24",
-     "extra": false,
-     "items": [
-      {
-       "t": "Auriculoterapia, quiropraxia, massagens relaxantes, ventosaterapia e biodança",
-       "shifts": null
-      }
-     ]
-    },
-    {
-     "service_id": "pilar-1",
      "place_id": "jn-x6",
-     "name": "IDHAMP",
+     "name": "IDHAMP (TEA)",
      "kind": "sala",
-     "num": "17",
+     "num": "02",
      "extra": true,
      "items": [
       {
-       "t": "Avaliação Psicopedagógica",
+       "t": "Carteiras de identificação de pessoas com autismo (CIPTEA)",
        "shifts": null
       },
       {
-       "t": "Inscrição conexão TEA",
+       "t": "Rastreamento de sinais de autismo, TDAH e deficiência intelectual",
        "shifts": null
       },
       {
-       "t": "Orientação Parental",
+       "t": "Orientações e acesso aos serviços do TEAcolho",
        "shifts": null
       }
      ]
@@ -1632,7 +1530,105 @@
      "extra": true,
      "items": [
       {
-       "t": "Saude Bucal",
+       "t": "Dentista: consultas, limpeza, restaurações, extrações e orientação",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-x10",
+     "name": "Consulta médica · triagem",
+     "kind": "sala",
+     "num": "09",
+     "extra": true,
+     "items": [
+      {
+       "t": "Triagem para a consulta médica (retire a senha)",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-x11",
+     "name": "Entrega de exames",
+     "kind": "sala",
+     "num": "09",
+     "extra": true,
+     "items": [
+      {
+       "t": "Entrega de resultados de exames",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-r24",
+     "name": "CERPIS (fisioterapia)",
+     "kind": "sala",
+     "num": "24",
+     "extra": false,
+     "items": [
+      {
+       "t": "Fisioterapia e práticas integrativas",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-x12",
+     "name": "Mais Sorriso (retorno)",
+     "kind": "sala",
+     "num": "12",
+     "extra": true,
+     "items": [
+      {
+       "t": "Retorno dos atendimentos odontológicos",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-1",
+     "place_id": "jn-x13",
+     "name": "Farmácia",
+     "kind": "sala",
+     "num": "10",
+     "extra": true,
+     "items": [
+      {
+       "t": "Farmácia (distribuição de remédios)",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "consulta",
+     "place_id": "jn-x14",
+     "name": "Clínico geral",
+     "kind": "sala",
+     "num": "08",
+     "extra": true,
+     "items": [
+      {
+       "t": "Consulta com clínico geral, por ordem de chegada (retire a senha na triagem)",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "consulta",
+     "place_id": "jn-x15",
+     "name": "Psicologia",
+     "kind": "sala",
+     "num": "05",
+     "extra": true,
+     "items": [
+      {
+       "t": "Atendimento psicológico",
        "shifts": null
       }
      ]
@@ -1654,25 +1650,13 @@
     {
      "service_id": "pilar-2",
      "place_id": "jn-r19",
-     "name": "Superfacil",
+     "name": "Superfácil",
      "kind": "sala",
-     "num": "0",
+     "num": "17",
      "extra": false,
      "items": [
       {
        "t": "Cartão SUS e segunda via do CPF",
-       "shifts": null
-      },
-      {
-       "t": "Carteiras de identificação de pessoas com autismo e deficiências ocultas",
-       "shifts": null
-      },
-      {
-       "t": "Rastreamento de sinais de autismo, TDAH e deficiência intelectual, avaliação psi",
-       "shifts": null
-      },
-      {
-       "t": "Orientações e acesso aos serviços do TEAcolho",
        "shifts": null
       }
      ]
@@ -1682,11 +1666,11 @@
      "place_id": "jn-r18",
      "name": "Detran",
      "kind": "sala",
-     "num": "18",
+     "num": "17",
      "extra": false,
      "items": [
       {
-       "t": "Orientações sobre CNH, documentação e regularização de veículos, Lei Seca e educação para o trânsito",
+       "t": "Orientações sobre CNH, documentação e regularização de veículos",
        "shifts": null
       }
      ]
@@ -1696,7 +1680,7 @@
      "place_id": "jn-r16",
      "name": "Sala GEA (Governo do Estado)",
      "kind": "sala",
-     "num": "16",
+     "num": "03",
      "extra": false,
      "items": [
       {
@@ -1720,37 +1704,69 @@
     {
      "service_id": "pilar-2",
      "place_id": "jn-t2",
-     "name": "Equatorial (energia)",
+     "name": "Equatorial (energia) · pátio",
      "kind": "tenda",
-     "num": "2",
+     "num": "",
      "extra": false,
      "items": [
       {
-       "t": "Conta de energia (Equatorial): negociação de débitos, dúvidas, orientações sobre economia de energia, troca de lâmpadas e sorteios",
+       "t": "Conta de energia (Equatorial): negociação de débitos e serviços",
        "shifts": null
       }
      ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-x16",
+     "name": "Marinha · pátio",
+     "kind": "area",
+     "num": "",
+     "extra": true,
+     "items": [
+      {
+       "t": "Renovação e segunda via de documentos de aquaviários",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-x17",
+     "name": "TRE",
+     "kind": "sala",
+     "num": "14",
+     "extra": true,
+     "items": [
+      {
+       "t": "Justiça Eleitoral: título de eleitor e regularização",
+       "shifts": null
+      }
+     ]
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-x18",
+     "name": "Justiça Federal",
+     "kind": "sala",
+     "num": "14",
+     "extra": true,
+     "items": []
+    },
+    {
+     "service_id": "pilar-2",
+     "place_id": "jn-x19",
+     "name": "Detran · entrega de documentos",
+     "kind": "sala",
+     "num": "17",
+     "extra": true,
+     "items": []
     },
     {
      "service_id": "pilar-3",
      "place_id": "jn-r14",
-     "name": "Segurança e direito",
+     "name": "Segurança e direito (SEJUSP)",
      "kind": "sala",
      "num": "14",
-     "extra": false,
-     "items": [
-      {
-       "t": "Atendimento humanizado e sigiloso no Box Lilás",
-       "shifts": null
-      }
-     ]
-    },
-    {
-     "service_id": "pilar-3",
-     "place_id": "jn-r15",
-     "name": "Segurança e direito",
-     "kind": "sala",
-     "num": "15",
      "extra": false,
      "items": [
       {
@@ -1764,7 +1780,7 @@
      "place_id": "jn-r07",
      "name": "SEJUSP e MPC",
      "kind": "sala",
-     "num": "07",
+     "num": "19",
      "extra": false,
      "items": [
       {
@@ -1775,14 +1791,14 @@
     },
     {
      "service_id": "pilar-3",
-     "place_id": "jn-t5",
-     "name": "SEJUSP",
-     "kind": "tenda",
-     "num": "5",
+     "place_id": "jn-r15",
+     "name": "DEFENAP",
+     "kind": "sala",
+     "num": "14",
      "extra": false,
      "items": [
       {
-       "t": "Demonstração do Botão do Pânico",
+       "t": "Defensoria Pública: orientação e assistência jurídica gratuita",
        "shifts": null
       }
      ]
@@ -1790,27 +1806,13 @@
     {
      "service_id": "pilar-6",
      "place_id": "jn-t4",
-     "name": "Tenda Pet",
+     "name": "Tenda Pet (vacinação)",
      "kind": "tenda",
      "num": "4",
      "extra": false,
      "items": [
       {
        "t": "Vacinação antirrábica para cães e gatos",
-       "shifts": null
-      }
-     ]
-    },
-    {
-     "service_id": "pilar-6",
-     "place_id": "jn-r21",
-     "name": "Castramóvel",
-     "kind": "sala",
-     "num": "22",
-     "extra": false,
-     "items": [
-      {
-       "t": "Castra Móvel: castração de cães e gatos, com orientações sobre cuidados prévios,",
        "shifts": null
       }
      ]
@@ -1824,10 +1826,55 @@
      "extra": false,
      "items": [
       {
-       "t": "Castra Móvel: castração de cães e gatos, com orientações sobre cuidados prévios,",
+       "t": "Castra Móvel: castração de cães e gatos, com orientação",
        "shifts": null
       }
      ]
+    },
+    {
+     "service_id": "pilar-5",
+     "place_id": "jn-x20",
+     "name": "INSS",
+     "kind": "sala",
+     "num": "15",
+     "extra": true,
+     "items": []
+    },
+    {
+     "service_id": "pilar-5",
+     "place_id": "jn-x21",
+     "name": "Cartório",
+     "kind": "sala",
+     "num": "15",
+     "extra": true,
+     "items": []
+    },
+    {
+     "service_id": "pilar-5",
+     "place_id": "jn-x22",
+     "name": "CRAS",
+     "kind": "sala",
+     "num": "15",
+     "extra": true,
+     "items": []
+    },
+    {
+     "service_id": "pilar-5",
+     "place_id": "jn-x23",
+     "name": "Orientação jurídica (TJAP e TRT)",
+     "kind": "sala",
+     "num": "16",
+     "extra": true,
+     "items": []
+    },
+    {
+     "service_id": "pilar-5",
+     "place_id": "jn-x24",
+     "name": "DSEI",
+     "kind": "sala",
+     "num": "15",
+     "extra": true,
+     "items": []
     }
    ]
   }
